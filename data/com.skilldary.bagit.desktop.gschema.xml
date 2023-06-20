@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="bagit-desktop">
+	<schema id="com.skilldary.bagit.desktop" path="/com/skilldary/bagit/desktop/">
+	</schema>
+</schemalist>
