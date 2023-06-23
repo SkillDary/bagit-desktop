@@ -20,7 +20,7 @@
         </child>
         <child>
           <object class="GtkLabel" id="label">
-            <property name="label">Hello, World!</property>
+            <property name="label" translatable="yes">_Hello, World!</property>
             <property name="vexpand">true</property>
             <style>
               <class name="title-1"/>
@@ -47,3 +47,4 @@
     </section>
   </menu>
 </interface>
+
