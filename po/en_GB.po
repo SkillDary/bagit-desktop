@@ -25,6 +25,33 @@ msgstr "bagit-desktop"
 msgid "No description"
 msgstr "No description"
 
+############# help-overlay.ui ########################
+
+#: src/gtk/help-overlay.ui:11
+msgctxt "shortcut window"
+msgid "_General"
+msgstr "General"
+
+#: src/gtk/help-overlay.ui:14
+msgctxt "shortcut window"
+msgid "_Show Shortcuts"
+msgstr "Show shortcuts"
+
+#: src/gtk/help-overlay.ui:11
+msgctxt "shortcut window"
+msgid "_Quit"
+msgstr "Quit"
+
+############# window.ui ########################
+
+#: src/ui/window.ui:36
+msgid "_Preferences"
+msgstr "Préférences"
+
+#: src/ui/window.ui:40
+msgid "_Keyboard Shortcuts"
+msgstr "Raccourcis clavier"
+
 #: src/ui/window.ui:23
 msgid "_Hello, World!"
 msgstr "Hello, World!"
