@@ -25,15 +25,15 @@ msgstr "bagit-desktop"
 msgid "No description"
 msgstr "Aucune description"
 
-#: src/window.ui:36
+#: src/ui/window.ui:36
 msgid "_Preferences"
 msgstr "Préférences"
 
-#: src/window.ui:40
+#: src/ui/window.ui:40
 msgid "_Keyboard Shortcuts"
 msgstr "Raccourcis clavier"
 
-#: src/window.ui:44
+#: src/ui/window.ui:44
 msgid "_About Bagit-Desktop"
 msgstr "À propos de Bagit Desktop"
 
@@ -41,6 +41,6 @@ msgstr "À propos de Bagit Desktop"
 msgid "_General"
 msgstr "Général"
 
-#: src/window.ui:23
+#: src/ui/window.ui:23
 msgid "_Hello, World!"
 msgstr "Bonjour, monde !"

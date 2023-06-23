@@ -25,11 +25,11 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/com/skilldary/bagit/desktop/window.ui")]
+    #[template(resource = "/com/skilldary/bagit/desktop/ui/window.ui")]
     pub struct BagitDesktopWindow {
         // Template widgets
         #[template_child]
-        pub header_bar: TemplateChild<gtk::HeaderBar>,
+        pub header_bar: TemplateChild<adw::HeaderBar>,
         #[template_child]
         pub label: TemplateChild<gtk::Label>,
     }
