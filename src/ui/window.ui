@@ -22,12 +22,11 @@
           </object>
         </child>
         <child>
-          <object class="GtkLabel" id="label">
-            <property name="label" translatable="yes">_Hello, World!</property>
+          <object class="AdwStatusPage" id="status_page">
+            <property name="description" translatable="yes">Please open or create a new file to edit</property>
+            <property name="title" translatable="yes">No files open !</property>
+            <property name="icon-name" translatable="yes">edit-find-symbolic</property>
             <property name="vexpand">true</property>
-            <style>
-              <class name="title-1"/>
-            </style>
           </object>
         </child>
       </object>

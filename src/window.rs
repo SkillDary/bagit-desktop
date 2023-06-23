@@ -31,7 +31,7 @@ mod imp {
         #[template_child]
         pub header_bar: TemplateChild<adw::HeaderBar>,
         #[template_child]
-        pub label: TemplateChild<gtk::Label>,
+        pub status_page: TemplateChild<adw::StatusPage>,
     }
 
     #[glib::object_subclass]
