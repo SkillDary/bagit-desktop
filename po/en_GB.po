@@ -17,53 +17,48 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: data/com.skilldary.bagit.desktop.desktop.in:3
 msgid "bagit-desktop"
 msgstr "bagit-desktop"
 
-#: data/com.skilldary.bagit.desktop.appdata.xml.in:7
 msgid "No description"
 msgstr "No description"
 
 ############# help-overlay.ui ########################
 
-#: src/gtk/help-overlay.ui:11
 msgctxt "shortcut window"
 msgid "_General"
 msgstr "General"
 
-#: src/gtk/help-overlay.ui:14
 msgctxt "shortcut window"
 msgid "_Show Shortcuts"
 msgstr "Show shortcuts"
 
-#: src/gtk/help-overlay.ui:11
 msgctxt "shortcut window"
 msgid "_Quit"
 msgstr "Quit"
 
 ############# window.ui ########################
 
-#: src/ui/window.ui:36
-msgid "_Preferences"
-msgstr "Préférences"
-
-#: src/ui/window.ui:40
-msgid "_Keyboard Shortcuts"
-msgstr "Raccourcis clavier"
-
-#: src/ui/window.ui:23
-msgid "_Hello, World!"
-msgstr "Hello, World!"
-
-#: src/ui/window.ui:36
 msgid "_Preferences"
 msgstr "Preferences"
 
-#: src/ui/window.ui:40
 msgid "_Keyboard Shortcuts"
 msgstr "Keyboard Shortcuts"
 
-#: src/ui/window.ui:44
 msgid "_About Bagit-Desktop"
 msgstr "About Bagit Desktop"
+
+msgid "_Please open or clone a repository."
+msgstr "Please open or clone a repository."
+
+msgid "_No saved repositories!"
+msgstr "No saved repositories!"
+
+msgid "_Create a new repository..."
+msgstr "Create a new repository..."
+
+msgid "_Add an existing repository..."
+msgstr "Add an existing repository..."
+
+msgid "_Clone a repository..."
+msgstr "Clone a repository..."

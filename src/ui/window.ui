@@ -23,10 +23,56 @@
         </child>
         <child>
           <object class="AdwStatusPage" id="status_page">
-            <property name="description" translatable="yes">Please open or create a new file to edit</property>
-            <property name="title" translatable="yes">No files open !</property>
+            <property name="description" translatable="yes">_Please open or clone a repository.</property>
+            <property name="title" translatable="yes">_No saved repositories!</property>
             <property name="icon-name" translatable="yes">edit-find-symbolic</property>
             <property name="vexpand">true</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkActionBar">
+            <child type="center">
+              <object class="GtkBox">
+                <property name="spacing">15</property>
+                <property name="homogeneous">true</property>
+                <child>
+                  <object class="GtkButton" id="new_repo_button">
+                    <property name="child">
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">_Create a new repository...</property>
+                      </object>
+                    </property>
+                    <style>
+                      <class name="raised"/>
+                    </style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="existing_repo_button">
+                    <property name="child">
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">_Add an existing repository...</property>
+                      </object>
+                    </property>
+                    <style>
+                      <class name="raised"/>
+                    </style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="clone_button">
+                    <property name="child">
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">_Clone a repository...</property>
+                      </object>
+                    </property>
+                    <style>
+                      <class name="raised"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </child>
           </object>
         </child>
       </object>

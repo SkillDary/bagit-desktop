@@ -32,6 +32,12 @@ mod imp {
         pub header_bar: TemplateChild<adw::HeaderBar>,
         #[template_child]
         pub status_page: TemplateChild<adw::StatusPage>,
+        #[template_child]
+        pub new_repo_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub existing_repo_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub clone_button    : TemplateChild<gtk::Button>,
     }
 
     #[glib::object_subclass]
