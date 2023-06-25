@@ -22,92 +22,98 @@
           </object>
         </child>
         <child>
-          <object class="AdwClamp" id="repositories_window">
-            <property name="margin-top">24</property>
-            <property name="visible">false</property>
+          <object class="GtkScrolledWindow">
             <property name="vexpand">true</property>
-            <property name="maximum-size">600</property>
-            <property name="child">
-              <object class="GtkBox">
-                <property name="orientation">vertical</property>
-                <property name="spacing">32</property>
-                <child>
+            <property name="hexpand">true</property>
+            <child>
+              <object class="AdwClamp" id="repositories_window">
+                <property name="margin-top">24</property>
+                <property name="visible">false</property>
+                <property name="vexpand">true</property>
+                <property name="maximum-size">600</property>
+                <property name="child">
                   <object class="GtkBox">
                     <property name="orientation">vertical</property>
-                    <property name="spacing">12</property>
+                    <property name="spacing">32</property>
                     <child>
-                      <object class="GtkSearchBar">
-                        <property name="search-mode-enabled">true</property>
-                        <property name="visible">true</property>
-                        <property name="key-capture-widget">
-                          <object class="GtkEntry"/>
-                        </property>
-                        <property name="child">
-                          <object class="GtkEntry">
+                      <object class="GtkBox">
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">12</property>
+                        <child>
+                          <object class="GtkSearchBar">
+                            <property name="search-mode-enabled">true</property>
+                            <property name="visible">true</property>
+                            <property name="key-capture-widget">
+                              <object class="GtkEntry"/>
+                            </property>
+                            <property name="child">
+                              <object class="GtkEntry">
+                                <style>
+                                  <class name="inline"/>
+                                </style>
+                              </object>
+                            </property>
                             <style>
                               <class name="inline"/>
                             </style>
                           </object>
-                        </property>
-                        <style>
-                          <class name="inline"/>
-                        </style>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkLabel">
-                        <property name="halign">start</property>
-                        <property name="label" translatable="yes">_Recent repositories</property>
-                        <style>
-                          <class name="heading"/>
-                        </style>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkListBox" id="recent_repositories">
-                        <style>
-                          <class name="boxed-list"/>
-                        </style>
+                        </child>
                         <child>
-                          <object class="AdwActionRow">
-                            <property name="height-request">64</property>
-                            <property name="title">Item 1</property>
-                            <property name="subtitle">Subtitle</property>
-                            <child type="suffix">
-                              <object class="GtkImage">
-                                <property name="icon-name">go-next-symbolic</property>
+                          <object class="GtkLabel">
+                            <property name="halign">start</property>
+                            <property name="label" translatable="yes">_Recent repositories</property>
+                            <style>
+                              <class name="heading"/>
+                            </style>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkListBox" id="recent_repositories">
+                            <style>
+                              <class name="boxed-list"/>
+                            </style>
+                            <child>
+                              <object class="AdwActionRow">
+                                <property name="height-request">64</property>
+                                <property name="title">Item 1</property>
+                                <property name="subtitle">Subtitle</property>
+                                <child type="suffix">
+                                  <object class="GtkImage">
+                                    <property name="icon-name">go-next-symbolic</property>
+                                  </object>
+                                </child>
                               </object>
                             </child>
                           </object>
                         </child>
                       </object>
                     </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkBox">
-                    <property name="orientation">vertical</property>
-                    <property name="spacing">12</property>
                     <child>
-                      <object class="GtkLabel">
-                        <property name="halign">start</property>
-                        <property name="label" translatable="yes">_All repositories</property>
-                        <style>
-                          <class name="heading"/>
-                        </style>
+                      <object class="GtkBox">
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">12</property>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="halign">start</property>
+                            <property name="label" translatable="yes">_All repositories</property>
+                            <style>
+                              <class name="heading"/>
+                            </style>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkListBox" id="all_repositories">
+                            <style>
+                              <class name="boxed-list"/>
+                            </style>
+                          </object>
+                        </child>
                       </object>
                     </child>
-                    <child>
-                      <object class="GtkListBox" id="all_repositories">
-                        <style>
-                          <class name="boxed-list"/>
-                        </style>
-                      </object>
-                    </child>
                   </object>
-                </child>
+                </property>
               </object>
-            </property>
+            </child>
           </object>
         </child>
         <child>
