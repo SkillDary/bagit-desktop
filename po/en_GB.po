@@ -61,4 +61,10 @@ msgid "_Add an existing repository..."
 msgstr "Add an existing repository..."
 
 msgid "_Clone a repository..."
-msgstr "Clone a repository..."
+msgstr "Clone a repository...
+
+msgid "_Recent repositories"
+msgstr "Recent repositories"
+
+msgid "_All repositories"
+msgstr "All repositories"

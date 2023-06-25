@@ -3,8 +3,8 @@
   <requires lib="gtk" version="4.0"/>
   <requires lib="Adw" version="1.0"/>
   <template class="BagitDesktopWindow" parent="AdwApplicationWindow">
-    <property name="default-width">600</property>
-    <property name="default-height">300</property>
+    <property name="default-width">1050</property>
+    <property name="default-height">800</property>
     <child>
       <object class="GtkBox">
         <property name="orientation">vertical</property>
@@ -22,53 +22,145 @@
           </object>
         </child>
         <child>
+          <object class="AdwClamp" id="repositories_window">
+            <property name="margin-top">24</property>
+            <property name="visible">false</property>
+            <property name="vexpand">true</property>
+            <property name="maximum-size">600</property>
+            <property name="child">
+              <object class="GtkBox">
+                <property name="orientation">vertical</property>
+                <property name="spacing">32</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">12</property>
+                    <child>
+                      <object class="GtkSearchBar">
+                        <property name="search-mode-enabled">true</property>
+                        <property name="visible">true</property>
+                        <property name="key-capture-widget">
+                          <object class="GtkEntry"/>
+                        </property>
+                        <property name="child">
+                          <object class="GtkEntry">
+                            <style>
+                              <class name="inline"/>
+                            </style>
+                          </object>
+                        </property>
+                        <style>
+                          <class name="inline"/>
+                        </style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="halign">start</property>
+                        <property name="label" translatable="yes">_Recent repositories</property>
+                        <style>
+                          <class name="heading"/>
+                        </style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkListBox" id="recent_repositories">
+                        <style>
+                          <class name="boxed-list"/>
+                        </style>
+                        <child>
+                          <object class="AdwActionRow">
+                            <property name="height-request">64</property>
+                            <property name="title">Item 1</property>
+                            <property name="subtitle">Subtitle</property>
+                            <child type="suffix">
+                              <object class="GtkImage">
+                                <property name="icon-name">go-next-symbolic</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">12</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="halign">start</property>
+                        <property name="label" translatable="yes">_All repositories</property>
+                        <style>
+                          <class name="heading"/>
+                        </style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkListBox" id="all_repositories">
+                        <style>
+                          <class name="boxed-list"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </property>
+          </object>
+        </child>
+        <child>
           <object class="AdwStatusPage" id="status_page">
             <property name="description" translatable="yes">_Please open or clone a repository.</property>
             <property name="title" translatable="yes">_No saved repositories!</property>
-            <property name="icon-name" translatable="yes">edit-find-symbolic</property>
+            <property name="icon-name">edit-find-symbolic</property>
             <property name="vexpand">true</property>
           </object>
         </child>
         <child>
-          <object class="GtkActionBar">
+          <object class="GtkActionBar" id="action_bar">
             <child type="center">
               <object class="GtkBox">
                 <property name="spacing">15</property>
                 <property name="homogeneous">true</property>
+                <property name="margin-top">5</property>
+                <property name="margin-bottom">5</property>
                 <child>
                   <object class="GtkButton" id="new_repo_button">
-                    <property name="child">
-                      <object class="GtkLabel">
-                        <property name="label" translatable="yes">_Create a new repository...</property>
-                      </object>
-                    </property>
-                    <style>
-                      <class name="raised"/>
-                    </style>
+                  <property name="child">
+                    <object class="GtkLabel">
+                    <property name="label" translatable="yes">_Create a new repository...</property>
+                    </object>
+                  </property>
+                  <style>
+                    <class name="raised"/>
+                  </style>
                   </object>
                 </child>
                 <child>
                   <object class="GtkButton" id="existing_repo_button">
-                    <property name="child">
-                      <object class="GtkLabel">
-                        <property name="label" translatable="yes">_Add an existing repository...</property>
-                      </object>
-                    </property>
-                    <style>
-                      <class name="raised"/>
-                    </style>
+                  <property name="child">
+                    <object class="GtkLabel">
+                    <property name="label" translatable="yes">_Add an existing repository...</property>
+                    </object>
+                  </property>
+                  <style>
+                    <class name="raised"/>
+                  </style>
                   </object>
                 </child>
                 <child>
                   <object class="GtkButton" id="clone_button">
-                    <property name="child">
-                      <object class="GtkLabel">
-                        <property name="label" translatable="yes">_Clone a repository...</property>
-                      </object>
-                    </property>
-                    <style>
-                      <class name="raised"/>
-                    </style>
+                  <signal name="clicked" handler="button_clicked" swapped="true"/>
+                  <property name="child">
+                    <object class="GtkLabel">
+                    <property name="label" translatable="yes">_Clone a repository...</property>
+                    </object>
+                  </property>
+                  <style>
+                    <class name="raised"/>
+                  </style>
                   </object>
                 </child>
               </object>

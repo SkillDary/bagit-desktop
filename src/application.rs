@@ -59,7 +59,6 @@ mod imp {
             } else {
                 let window = BagitDesktopWindow::new(&*application);
                 window.set_title(Some("Bagit Desktop"));
-                window.set_default_size(1000, 800);
                 window.upcast()
             };
 

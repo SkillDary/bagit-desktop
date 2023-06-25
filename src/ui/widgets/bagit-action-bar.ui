@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="Adw" version="1.0"/>
+  <template class="BagitActionBar" parent="GtkBox">
+    <property name="spacing">15</property>
+    <property name="homogeneous">true</property>
+    <property name="margin-top">5</property>
+    <property name="margin-bottom">5</property>
+    <child>
+      <object class="GtkButton" id="new_repo_button">
+      <property name="child">
+        <object class="GtkLabel">
+        <property name="label" translatable="yes">_Create a new repository...</property>
+        </object>
+      </property>
+      <style>
+        <class name="raised"/>
+      </style>
+      </object>
+    </child>
+    <child>
+      <object class="GtkButton" id="existing_repo_button">
+      <property name="child">
+        <object class="GtkLabel">
+        <property name="label" translatable="yes">_Add an existing repository...</property>
+        </object>
+      </property>
+      <style>
+        <class name="raised"/>
+      </style>
+      </object>
+    </child>
+    <child>
+      <object class="GtkButton" id="clone_button">
+      <property name="child">
+        <object class="GtkLabel">
+        <property name="label" translatable="yes">_Clone a repository...</property>
+        </object>
+      </property>
+      <style>
+        <class name="raised"/>
+      </style>
+      </object>
+    </child>
+  </template>
+</interface>
+
