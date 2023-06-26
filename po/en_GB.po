@@ -69,5 +69,5 @@ msgstr "Recent repositories"
 msgid "_All repositories"
 msgstr "All repositories"
 
-msgid "_Search in all repositories"
-msgstr "Search in all repositories"
+msgid "_Search in all repositories..."
+msgstr "Search in all repositories..."
