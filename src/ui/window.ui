@@ -22,13 +22,13 @@
           </object>
         </child>
         <child>
-          <object class="GtkScrolledWindow">
+          <object class="GtkScrolledWindow" id="repositories_window">
             <property name="vexpand">true</property>
             <property name="hexpand">true</property>
+            <property name="visible">false</property>
             <child>
-              <object class="AdwClamp" id="repositories_window">
+              <object class="AdwClamp">
                 <property name="margin-top">24</property>
-                <property name="visible">false</property>
                 <property name="vexpand">true</property>
                 <property name="maximum-size">600</property>
                 <property name="child">
@@ -40,22 +40,12 @@
                         <property name="orientation">vertical</property>
                         <property name="spacing">12</property>
                         <child>
-                          <object class="GtkSearchBar">
-                            <property name="search-mode-enabled">true</property>
-                            <property name="visible">true</property>
-                            <property name="key-capture-widget">
-                              <object class="GtkEntry"/>
-                            </property>
-                            <property name="child">
-                              <object class="GtkEntry">
-                                <style>
-                                  <class name="inline"/>
-                                </style>
-                              </object>
-                            </property>
-                            <style>
-                              <class name="inline"/>
-                            </style>
+                          <object class="GtkSearchEntry">
+                            <property name="margin-top">10</property>
+                            <property name="margin-start">80</property>
+                            <property name="margin-end">80</property>
+                            <property name="margin-bottom">20</property>
+                            <property name="placeholder-text" translatable="yes">_Search in all repositories...</property>
                           </object>
                         </child>
                         <child>
@@ -146,6 +136,7 @@
                 </child>
                 <child>
                   <object class="GtkButton" id="existing_repo_button">
+                  <signal name="clicked" handler="open_existing_repository" swapped="true"/>
                   <property name="child">
                     <object class="GtkLabel">
                     <property name="label" translatable="yes">_Add an existing repository...</property>

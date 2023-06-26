@@ -68,3 +68,6 @@ msgstr "Dépôts récents"
 
 msgid "_All repositories"
 msgstr "Tous les dépôts"
+
+msgid "_Search in all repositories..."
+msgstr "Rechercher dans tous les dépôts..."

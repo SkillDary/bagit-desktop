@@ -34,7 +34,7 @@ mod imp {
         #[template_child]
         pub header_bar: TemplateChild<adw::HeaderBar>,
         #[template_child]
-        pub repositories_window: TemplateChild<adw::Clamp>,
+        pub repositories_window: TemplateChild<gtk::ScrolledWindow>,
         #[template_child]
         pub status_page: TemplateChild<adw::StatusPage>,
         #[template_child]
@@ -49,6 +49,35 @@ mod imp {
         pub all_repositories: TemplateChild<gtk::ListBox>,
 
         pub repositories: Vec<i32>,
+    }
+
+    #[gtk::template_callbacks]
+    impl BagitDesktopWindow {
+        #[template_callback]
+        fn button_clicked(&self, _button: &gtk::Button) {
+            println!("Callback!");
+            self.status_page.set_visible(false);
+            self.repositories_window.set_visible(true);
+            let new_row = self.create_list_row("my new repo", "~/path/to/my/super/repo");
+            self.all_repositories.append(&new_row);
+        }
+
+        #[template_callback]
+        fn open_existing_repository(&self, _button: &gtk::Button) {
+            println!("Open existing repo");
+        }
+
+        pub fn create_list_row(&self, repo_name: &str, repo_path: &str) -> adw::ActionRow {
+            let new_row: adw::ActionRow = adw::ActionRow::new();
+            let row_image: gtk::Image = gtk::Image::new();
+            row_image.set_icon_name(Some("go-next-symbolic"));
+            new_row.set_title(repo_name);
+            new_row.set_subtitle(repo_path);
+            new_row.set_height_request(64);
+            new_row.add_suffix(&row_image);
+
+            return new_row;
+        }
     }
 
     #[glib::object_subclass]
@@ -68,31 +97,6 @@ mod imp {
     }
 
     impl ObjectImpl for BagitDesktopWindow {}
-
-    #[gtk::template_callbacks]
-    impl BagitDesktopWindow {
-        #[template_callback]
-        fn button_clicked(&self, button: &gtk::Button) {
-            println!("Callback!");
-            self.status_page.set_visible(false);
-            self.repositories_window.set_visible(true);
-            let new_row = self.create_list_row("my new repo", "~/path/to/my/super/repo");
-            self.all_repositories.append(&new_row);
-        }
-
-        pub fn create_list_row(&self, repo_name: &str, repo_path: &str) -> adw::ActionRow {
-            let new_row: adw::ActionRow = adw::ActionRow::new();
-            let row_image: gtk::Image = gtk::Image::new();
-            row_image.set_icon_name(Some("go-next-symbolic"));
-            new_row.set_title(repo_name);
-            new_row.set_subtitle(repo_path);
-            new_row.set_height_request(64);
-            new_row.add_suffix(&row_image);
-
-            return new_row;
-        }
-    }
-
     impl WidgetImpl for BagitDesktopWindow {}
     impl WindowImpl for BagitDesktopWindow {}
     impl ApplicationWindowImpl for BagitDesktopWindow {}
