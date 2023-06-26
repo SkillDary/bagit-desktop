@@ -25,6 +25,7 @@ use gtk::{gio, glib};
 use gtk::{glib::closure_local, prelude::*};
 
 use crate::action_bar::BagitActionBar;
+use crate::repositories::BagitRepositories;
 
 mod imp {
     use crate::action_bar::BagitActionBar;
@@ -38,13 +39,9 @@ mod imp {
         #[template_child]
         pub header_bar: TemplateChild<adw::HeaderBar>,
         #[template_child]
-        pub repositories_window: TemplateChild<gtk::ScrolledWindow>,
+        pub repositories_window: TemplateChild<BagitRepositories>,
         #[template_child]
         pub status_page: TemplateChild<adw::StatusPage>,
-        #[template_child]
-        pub recent_repositories: TemplateChild<gtk::ListBox>,
-        #[template_child]
-        pub all_repositories: TemplateChild<gtk::ListBox>,
         #[template_child]
         pub action_bar_content: TemplateChild<BagitActionBar>,
 
@@ -110,7 +107,7 @@ impl BagitDesktopWindow {
         new_row.set_height_request(64);
         new_row.add_suffix(&row_image);
 
-        self.imp().all_repositories.append(&new_row);
+        self.imp().repositories_window.imp().all_repositories.append(&new_row);
     }
 
     /**

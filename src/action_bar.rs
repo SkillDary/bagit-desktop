@@ -42,7 +42,6 @@ mod imp {
     impl BagitActionBar {
         #[template_callback]
         fn clone_button_clicked(&self, _button: &gtk::Button) {
-            println!("Callback Clicked!");
             self.obj().emit_by_name::<()>("clone-repository", &[]);
         }
     }

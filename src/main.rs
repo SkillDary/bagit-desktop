@@ -21,6 +21,7 @@ mod application;
 mod config;
 mod window;
 mod action_bar;
+mod repositories;
 
 use self::application::BagitDesktopApplication;
 use self::window::BagitDesktopWindow;
