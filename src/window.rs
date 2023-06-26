@@ -21,10 +21,14 @@ use adw::{
     subclass::prelude::*,
     traits::{ActionRowExt, PreferencesRowExt},
 };
-use gtk::prelude::*;
 use gtk::{gio, glib};
+use gtk::{glib::closure_local, prelude::*};
+
+use crate::action_bar::BagitActionBar;
 
 mod imp {
+    use crate::action_bar::BagitActionBar;
+
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
@@ -38,46 +42,13 @@ mod imp {
         #[template_child]
         pub status_page: TemplateChild<adw::StatusPage>,
         #[template_child]
-        pub new_repo_button: TemplateChild<gtk::Button>,
-        #[template_child]
-        pub existing_repo_button: TemplateChild<gtk::Button>,
-        #[template_child]
-        pub clone_button: TemplateChild<gtk::Button>,
-        #[template_child]
         pub recent_repositories: TemplateChild<gtk::ListBox>,
         #[template_child]
         pub all_repositories: TemplateChild<gtk::ListBox>,
+        #[template_child]
+        pub action_bar_content: TemplateChild<BagitActionBar>,
 
         pub repositories: Vec<i32>,
-    }
-
-    #[gtk::template_callbacks]
-    impl BagitDesktopWindow {
-        #[template_callback]
-        fn button_clicked(&self, _button: &gtk::Button) {
-            println!("Callback!");
-            self.status_page.set_visible(false);
-            self.repositories_window.set_visible(true);
-            let new_row = self.create_list_row("my new repo", "~/path/to/my/super/repo");
-            self.all_repositories.append(&new_row);
-        }
-
-        #[template_callback]
-        fn open_existing_repository(&self, _button: &gtk::Button) {
-            println!("Open existing repo");
-        }
-
-        pub fn create_list_row(&self, repo_name: &str, repo_path: &str) -> adw::ActionRow {
-            let new_row: adw::ActionRow = adw::ActionRow::new();
-            let row_image: gtk::Image = gtk::Image::new();
-            row_image.set_icon_name(Some("go-next-symbolic"));
-            new_row.set_title(repo_name);
-            new_row.set_subtitle(repo_path);
-            new_row.set_height_request(64);
-            new_row.add_suffix(&row_image);
-
-            return new_row;
-        }
     }
 
     #[glib::object_subclass]
@@ -88,7 +59,6 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
-            klass.bind_template_callbacks();
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -96,7 +66,11 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for BagitDesktopWindow {}
+    impl ObjectImpl for BagitDesktopWindow {
+        fn constructed(&self) {
+            self.parent_constructed();
+        }
+    }
     impl WidgetImpl for BagitDesktopWindow {}
     impl WindowImpl for BagitDesktopWindow {}
     impl ApplicationWindowImpl for BagitDesktopWindow {}
@@ -110,8 +84,45 @@ glib::wrapper! {
 
 impl BagitDesktopWindow {
     pub fn new<P: glib::IsA<gtk::Application>>(application: &P) -> Self {
-        glib::Object::builder()
+        let win = glib::Object::builder::<BagitDesktopWindow>()
             .property("application", application)
-            .build()
+            .build();
+
+        win.clone_button_signal();
+
+        win
+    }
+
+    /**
+     * Add a new row to the list of all repositories.
+     */
+    pub fn add_list_row(&self, repo_name: &str, repo_path: &str) {
+        if !self.imp().repositories_window.is_visible() {
+            self.imp().status_page.set_visible(false);
+            self.imp().repositories_window.set_visible(true);
+        }
+
+        let new_row: adw::ActionRow = adw::ActionRow::new();
+        let row_image: gtk::Image = gtk::Image::new();
+        row_image.set_icon_name(Some("go-next-symbolic"));
+        new_row.set_title(repo_name);
+        new_row.set_subtitle(repo_path);
+        new_row.set_height_request(64);
+        new_row.add_suffix(&row_image);
+
+        self.imp().all_repositories.append(&new_row);
+    }
+
+    /**
+     * Used for listenning to the clone button of the BagitActionBar widget.
+     */
+    fn clone_button_signal(&self) {
+        self.imp().action_bar_content.connect_closure(
+            "clone-repository",
+            false,
+            closure_local!(@watch self as win => move |_action_bar_content: BagitActionBar| {
+                win.add_list_row("my new repo","~/path/to/my/super/repo");
+            }),
+        );
     }
 }

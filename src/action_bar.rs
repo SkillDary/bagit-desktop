@@ -16,25 +16,35 @@
  *
  * SPDX-License-Identifier: AGPL-3.0-only
  */
-/*
-use adw::subclass::prelude::*;
-use gtk::{glib, CompositeTemplate, prelude::*};
+
 use crate::glib::subclass::Signal;
+use adw::subclass::prelude::*;
+use gtk::{glib, prelude::*, CompositeTemplate};
 use once_cell::sync::Lazy;
 
 mod imp {
+
     use super::*;
 
     // Object holding the state
     #[derive(Debug, Default, CompositeTemplate)]
-    #[template(resource="/com/skilldary/bagit/desktop/ui/widgets/bagit-action-bar.ui")]
-    pub struct BagitActionBar{
+    #[template(resource = "/com/skilldary/bagit/desktop/ui/widgets/bagit-action-bar.ui")]
+    pub struct BagitActionBar {
         #[template_child]
         pub new_repo_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub existing_repo_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub clone_button: TemplateChild<gtk::Button>,
+    }
+
+    #[gtk::template_callbacks]
+    impl BagitActionBar {
+        #[template_callback]
+        fn clone_button_clicked(&self, _button: &gtk::Button) {
+            println!("Callback Clicked!");
+            self.obj().emit_by_name::<()>("clone-repository", &[]);
+        }
     }
 
     // The central trait for subclassing a GObject
@@ -46,6 +56,7 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
+            klass.bind_template_callbacks();
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -55,20 +66,9 @@ mod imp {
 
     impl ObjectImpl for BagitActionBar {
         fn signals() -> &'static [Signal] {
-            static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
-                vec![Signal::builder("clone-repository")
-                    .param_types([i32::static_type()])
-                    .build()]
-            });
+            static SIGNALS: Lazy<Vec<Signal>> =
+                Lazy::new(|| vec![Signal::builder("clone-repository").build()]);
             SIGNALS.as_ref()
-        }
-
-        fn constructed(&self) {
-            self.clone_button.connect_clicked(move |button| {
-                println!("CLICKED");
-                button.emit_by_name::<()>("clone-repository", &[]);
-                println!("CLICKED");
-            });
         }
     }
     impl WidgetImpl for BagitActionBar {}
@@ -81,4 +81,3 @@ glib::wrapper! {
         @implements gtk::Accessible, gtk::Actionable,
                     gtk::Buildable, gtk::ConstraintTarget;
 }
-*/

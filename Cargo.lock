@@ -30,6 +30,7 @@ dependencies = [
  "gettext-rs",
  "gtk4",
  "libadwaita",
+ "once_cell",
 ]
 
 [[package]]

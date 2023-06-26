@@ -54,14 +54,14 @@ msgstr "Veuillez ouvrir ou cloner un dépôt."
 msgid "_No saved repositories!"
 msgstr "Aucun dépôt sauvegardé !"
 
-msgid "_Create a new repository..."
-msgstr "Créer un nouveau dépôt..."
+msgid "_Create a new repository"
+msgstr "Créer un nouveau dépôt"
 
-msgid "_Add an existing repository..."
-msgstr "Ajouter un dépôt existant..."
+msgid "_Add an existing repository"
+msgstr "Ajouter un dépôt existant"
 
-msgid "_Clone a repository..."
-msgstr "Cloner un dépôt..."
+msgid "_Clone a repository"
+msgstr "Cloner un dépôt"
 
 msgid "_Recent repositories"
 msgstr "Dépôts récents"

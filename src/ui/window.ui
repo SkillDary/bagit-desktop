@@ -117,50 +117,7 @@
         <child>
           <object class="GtkActionBar" id="action_bar">
             <child type="center">
-              <object class="GtkBox">
-                <property name="spacing">15</property>
-                <property name="homogeneous">true</property>
-                <property name="margin-top">5</property>
-                <property name="margin-bottom">5</property>
-                <child>
-                  <object class="GtkButton" id="new_repo_button">
-                  <property name="child">
-                    <object class="GtkLabel">
-                    <property name="label" translatable="yes">_Create a new repository...</property>
-                    </object>
-                  </property>
-                  <style>
-                    <class name="raised"/>
-                  </style>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkButton" id="existing_repo_button">
-                  <signal name="clicked" handler="open_existing_repository" swapped="true"/>
-                  <property name="child">
-                    <object class="GtkLabel">
-                    <property name="label" translatable="yes">_Add an existing repository...</property>
-                    </object>
-                  </property>
-                  <style>
-                    <class name="raised"/>
-                  </style>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkButton" id="clone_button">
-                  <signal name="clicked" handler="button_clicked" swapped="true"/>
-                  <property name="child">
-                    <object class="GtkLabel">
-                    <property name="label" translatable="yes">_Clone a repository...</property>
-                    </object>
-                  </property>
-                  <style>
-                    <class name="raised"/>
-                  </style>
-                  </object>
-                </child>
-              </object>
+              <object class="BagitActionBar" id="action_bar_content"/>
             </child>
           </object>
         </child>

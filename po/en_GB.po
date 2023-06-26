@@ -54,14 +54,14 @@ msgstr "Please open or clone a repository."
 msgid "_No saved repositories!"
 msgstr "No saved repositories!"
 
-msgid "_Create a new repository..."
-msgstr "Create a new repository..."
+msgid "_Create a new repository"
+msgstr "Create a new repository"
 
-msgid "_Add an existing repository..."
-msgstr "Add an existing repository..."
+msgid "_Add an existing repository"
+msgstr "Add an existing repository"
 
-msgid "_Clone a repository..."
-msgstr "Clone a repository...
+msgid "_Clone a repository"
+msgstr "Clone a repository"
 
 msgid "_Recent repositories"
 msgstr "Recent repositories"
@@ -69,5 +69,5 @@ msgstr "Recent repositories"
 msgid "_All repositories"
 msgstr "All repositories"
 
-msgid "_Search in all repositories..."
-msgstr "Search in all repositories..."
+msgid "_Search in all repositories"
+msgstr "Search in all repositories"
