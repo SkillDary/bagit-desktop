@@ -27,12 +27,14 @@
             <property name="hexpand">true</property>
             <property name="visible">false</property>
             <child>
-              <object class="AdwClamp">
+              <object class="GtkBox">
                 <property name="margin-top">24</property>
                 <property name="vexpand">true</property>
-                <property name="maximum-size">600</property>
-                <property name="child">
+                <property name="hexpand">true</property>
+                <property name="halign">GTK_ALIGN_CENTER</property>
+                <child>
                   <object class="GtkBox">
+                    <property name="width-request">600</property>
                     <property name="orientation">vertical</property>
                     <property name="spacing">32</property>
                     <child>
@@ -101,7 +103,7 @@
                       </object>
                     </child>
                   </object>
-                </property>
+                </child>
               </object>
             </child>
           </object>
