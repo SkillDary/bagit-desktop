@@ -71,3 +71,9 @@ msgstr "All repositories"
 
 msgid "_Search in all repositories..."
 msgstr "Search in all repositories..."
+
+msgid "_Add"
+msgstr "Add"
+
+msgid "_Select repository"
+msgstr "Select repository"

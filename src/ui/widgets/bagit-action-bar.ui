@@ -20,7 +20,8 @@
       </object>
     </child>
     <child>
-      <object class="GtkButton" id="existing_repo_button">
+      <object class="GtkButton" id="add_existing_repository_button">
+      <signal name="clicked" handler="add_existing_repository_button_clicked" swapped="true"/>
       <property name="child">
         <object class="GtkLabel">
         <property name="label" translatable="yes">_Add an existing repository</property>

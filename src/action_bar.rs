@@ -33,13 +33,19 @@ mod imp {
         #[template_child]
         pub new_repo_button: TemplateChild<gtk::Button>,
         #[template_child]
-        pub existing_repo_button: TemplateChild<gtk::Button>,
+        pub add_existing_repository_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub clone_button: TemplateChild<gtk::Button>,
     }
 
     #[gtk::template_callbacks]
     impl BagitActionBar {
+        #[template_callback]
+        fn add_existing_repository_button_clicked(&self, _button: &gtk::Button) {
+            self.obj()
+                .emit_by_name::<()>("add-existing-repository", &[]);
+        }
+
         #[template_callback]
         fn clone_button_clicked(&self, _button: &gtk::Button) {
             self.obj().emit_by_name::<()>("clone-repository", &[]);
@@ -65,8 +71,12 @@ mod imp {
 
     impl ObjectImpl for BagitActionBar {
         fn signals() -> &'static [Signal] {
-            static SIGNALS: Lazy<Vec<Signal>> =
-                Lazy::new(|| vec![Signal::builder("clone-repository").build()]);
+            static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
+                vec![
+                    Signal::builder("clone-repository").build(),
+                    Signal::builder("add-existing-repository").build(),
+                ]
+            });
             SIGNALS.as_ref()
         }
     }

@@ -17,11 +17,18 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+use std::path::PathBuf;
+
+use crate::glib::clone;
 use adw::{
     subclass::prelude::*,
     traits::{ActionRowExt, PreferencesRowExt},
 };
-use gtk::{gio, glib};
+use gettextrs::gettext;
+use gtk::{
+    gio,
+    glib::{self, MainContext},
+};
 use gtk::{glib::closure_local, prelude::*};
 
 use crate::action_bar::BagitActionBar;
@@ -87,7 +94,34 @@ impl BagitDesktopWindow {
 
         win.clone_button_signal();
 
+        win.add_existing_repository_button_signal();
+
         win
+    }
+
+    /**
+     * Used for listenning to the "Add an existing repository" button of the BagitActionBar widget.
+     */
+    fn add_existing_repository_button_signal(&self) {
+        self.imp().action_bar_content.connect_closure(
+            "add-existing-repository",
+            false,
+            closure_local!(@watch self as win => move |_action_bar_content: BagitActionBar| {
+                let ctx: MainContext = glib::MainContext::default();
+                ctx.spawn_local(clone!(@weak win as win2 => async move {
+                    let dialog = gtk::FileDialog::builder()
+                        .accept_label(gettext("_Add"))
+                        .modal(true)
+                        .title(gettext("_Select repository"))
+                        .build();
+
+                    if let Ok(res) = dialog.select_folder_future(Some(&win2)).await {
+                        let folder = res;
+                        println!("Path: {:?}", folder.path().unwrap_or(PathBuf::new()));
+                    }
+                }));
+            }),
+        );
     }
 
     /**
