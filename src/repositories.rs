@@ -17,47 +17,46 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
- use adw::subclass::prelude::*;
- use gtk::{glib, prelude::*, CompositeTemplate};
- 
- mod imp {
- 
-     use super::*;
- 
-     #[derive(Debug, Default, CompositeTemplate)]
-     #[template(resource = "/com/skilldary/bagit/desktop/ui/widgets/bagit-repositories.ui")]
-     pub struct BagitRepositories {
+use adw::subclass::prelude::*;
+use gtk::{glib, prelude::*, CompositeTemplate};
+
+mod imp {
+
+    use super::*;
+
+    #[derive(Debug, Default, CompositeTemplate)]
+    #[template(resource = "/com/skilldary/bagit/desktop/ui/widgets/bagit-repositories.ui")]
+    pub struct BagitRepositories {
         #[template_child]
         pub recent_repositories: TemplateChild<gtk::ListBox>,
         #[template_child]
         pub all_repositories: TemplateChild<gtk::ListBox>,
-     }
- 
-     // The central trait for subclassing a GObject
-     #[glib::object_subclass]
-     impl ObjectSubclass for BagitRepositories {
-         const NAME: &'static str = "BagitRepositories";
-         type Type = super::BagitRepositories;
-         type ParentType = gtk::Box;
- 
-         fn class_init(klass: &mut Self::Class) {
-             klass.bind_template();
-         }
- 
-         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
-             obj.init_template();
-         }
-     }
+    }
 
-     impl ObjectImpl for BagitRepositories {}
-     impl WidgetImpl for BagitRepositories {}
-     impl BoxImpl for BagitRepositories {}
- }
- 
- glib::wrapper! {
-     pub struct BagitRepositories(ObjectSubclass<imp::BagitRepositories>)
-         @extends gtk::Widget,
-         @implements gtk::Accessible, gtk::Actionable,
-                     gtk::Buildable, gtk::ConstraintTarget;
- }
- 
+    // The central trait for subclassing a GObject
+    #[glib::object_subclass]
+    impl ObjectSubclass for BagitRepositories {
+        const NAME: &'static str = "BagitRepositories";
+        type Type = super::BagitRepositories;
+        type ParentType = gtk::Box;
+
+        fn class_init(klass: &mut Self::Class) {
+            klass.bind_template();
+        }
+
+        fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
+            obj.init_template();
+        }
+    }
+
+    impl ObjectImpl for BagitRepositories {}
+    impl WidgetImpl for BagitRepositories {}
+    impl BoxImpl for BagitRepositories {}
+}
+
+glib::wrapper! {
+    pub struct BagitRepositories(ObjectSubclass<imp::BagitRepositories>)
+        @extends gtk::Widget,
+        @implements gtk::Accessible, gtk::Actionable,
+                    gtk::Buildable, gtk::ConstraintTarget;
+}

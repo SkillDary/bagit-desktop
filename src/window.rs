@@ -17,7 +17,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
 use crate::glib::clone;
 use adw::{
@@ -25,6 +25,7 @@ use adw::{
     traits::{ActionRowExt, PreferencesRowExt},
 };
 use gettextrs::gettext;
+use git2::Repository;
 use gtk::{
     gio,
     glib::{self, MainContext},
@@ -88,7 +89,7 @@ glib::wrapper! {
 
 impl BagitDesktopWindow {
     pub fn new<P: glib::IsA<gtk::Application>>(application: &P) -> Self {
-        let win = glib::Object::builder::<BagitDesktopWindow>()
+        let win: BagitDesktopWindow = glib::Object::builder::<BagitDesktopWindow>()
             .property("application", application)
             .build();
 
@@ -115,9 +116,44 @@ impl BagitDesktopWindow {
                         .title(gettext("_Select repository"))
                         .build();
 
-                    if let Ok(res) = dialog.select_folder_future(Some(&win2)).await {
-                        let folder = res;
-                        println!("Path: {:?}", folder.path().unwrap_or(PathBuf::new()));
+                    if let Ok(folder) = dialog.select_folder_future(Some(&win2)).await {
+                        let folder_path = folder.path().unwrap_or(PathBuf::new());
+                        let folder_path_str = folder_path.to_str().unwrap();
+
+                        let repository = Repository::open(&folder_path);
+
+                        // We make sure the selected folder is a valid repository.
+                        match repository {
+                            Ok(_) => {
+                                let mut folder_name = "";
+
+                                let os = env::consts::OS;
+
+                                // The path format changes depending on the OS.
+                                match os {
+                                    "linux" | "macOS" | "freebsd" | "dragonfly" |
+                                    "netbsd" | "openbsd" | "solaris" => {
+                                        folder_name = folder_path_str.split("/").last().unwrap()
+                                    },
+                                    "windows" => {
+                                        folder_name = folder_path_str.split("\\").last().unwrap()
+                                    }
+                                    _ => println!("Unsupported OS")
+                                };
+
+                                win2.add_list_row(
+                                    folder_path_str.split("/").last().unwrap(),
+                                    folder_path_str
+                                );
+                            }
+                            Err(_) => {
+                                gtk::AlertDialog::builder()
+                                .message(gettext("_Failed to open repository"))
+                                .detail(gettext("_Selected folder is not a repository"))
+                                .build()
+                                .show(Some(&win2));
+                            }
+                        }
                     }
                 }));
             }),
@@ -141,7 +177,11 @@ impl BagitDesktopWindow {
         new_row.set_height_request(64);
         new_row.add_suffix(&row_image);
 
-        self.imp().repositories_window.imp().all_repositories.append(&new_row);
+        self.imp()
+            .repositories_window
+            .imp()
+            .all_repositories
+            .append(&new_row);
     }
 
     /**

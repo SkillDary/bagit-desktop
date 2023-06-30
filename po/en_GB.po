@@ -77,3 +77,9 @@ msgstr "Add"
 
 msgid "_Select repository"
 msgstr "Select repository"
+
+msgid "_Failed to open repository"
+msgstr "Failed to open repository"
+
+msgid "_Selected folder is not a repository"
+msgstr "Selected folder is not a repository."
