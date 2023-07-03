@@ -12,6 +12,7 @@
         <child>
           <object class="GtkBox">
             <property name="margin-top">24</property>
+            <property name="margin-bottom">24</property>
             <property name="vexpand">true</property>
             <property name="hexpand">true</property>
             <property name="halign">GTK_ALIGN_CENTER</property>

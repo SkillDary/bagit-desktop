@@ -19,7 +19,7 @@
 
 use std::{env, path::PathBuf};
 
-use crate::glib::clone;
+use crate::{glib::clone, utils};
 use adw::{
     subclass::prelude::*,
     traits::{ActionRowExt, PreferencesRowExt},
@@ -59,6 +59,8 @@ mod imp {
         pub clone_repository_page: TemplateChild<BagitCloneRepositoryPage>,
 
         pub repositories: Vec<i32>,
+
+        pub app_database: utils::db::AppDatabase,
     }
 
     #[glib::object_subclass]
@@ -76,11 +78,7 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for BagitDesktopWindow {
-        fn constructed(&self) {
-            self.parent_constructed();
-        }
-    }
+    impl ObjectImpl for BagitDesktopWindow {}
     impl WidgetImpl for BagitDesktopWindow {}
     impl WindowImpl for BagitDesktopWindow {}
     impl ApplicationWindowImpl for BagitDesktopWindow {}
@@ -102,7 +100,7 @@ impl BagitDesktopWindow {
         win.clone_button_signal();
         win.clone_repository_page_signals();
         win.add_existing_repository_button_signal();
-
+        win.init_repositories();
         win
     }
 
@@ -147,9 +145,15 @@ impl BagitDesktopWindow {
                                     _ => println!("Unsupported OS")
                                 };
 
+                                win2.imp().app_database.add_repository(folder_name, folder_path_str);
+
                                 win2.add_list_row(
-                                    folder_path_str.split("/").last().unwrap(),
+                                    folder_name,
                                     folder_path_str
+                                );
+                                win2.imp().app_database.add_repository(
+                                    &folder_name,
+                                    &folder_path_str
                                 );
                             }
                             Err(_) => {
@@ -190,6 +194,15 @@ impl BagitDesktopWindow {
             .imp()
             .all_repositories
             .append(&new_row);
+    }
+
+
+    fn init_repositories(&self) {
+        let all_repositories = self.imp().app_database.get_all_repositories();
+
+        for repository in all_repositories {
+            self.add_list_row(&repository.name, &repository.path)
+        }
     }
 
     /**
@@ -273,6 +286,10 @@ impl BagitDesktopWindow {
                 repository_path: &str
                 | {
                     win.add_list_row(repository_name, repository_path);
+                    win.imp().app_database.add_repository(
+                        repository_name,
+                        repository_path
+                    );
                     win.imp().stack.set_visible_child_name("main page");
                 }
             )
