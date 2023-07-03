@@ -22,6 +22,7 @@ mod config;
 mod window;
 mod action_bar;
 mod repositories;
+mod clone_repository_page;
 
 use self::application::BagitDesktopApplication;
 use self::window::BagitDesktopWindow;

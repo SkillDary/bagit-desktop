@@ -42,8 +42,7 @@ mod imp {
     impl BagitActionBar {
         #[template_callback]
         fn add_existing_repository_button_clicked(&self, _button: &gtk::Button) {
-            self.obj()
-                .emit_by_name::<()>("add-existing-repository", &[]);
+            self.obj().emit_by_name::<()>("add-existing-repository", &[]);
         }
 
         #[template_callback]

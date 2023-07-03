@@ -76,7 +76,54 @@ msgid "_Add"
 msgstr "Ajouter"
 
 msgid "_Select repository"
-msgstr "Sélectionner un dépôt"
+msgstr "Sélectionnez un dépôt"
+
+msgid "_Select location"
+msgstr "Sélectionnez un emplacement"
+
+msgid "_An error has occured"
+msgstr "Une erreur est survenue."
+
+msgid "_Error message"
+msgstr "Message de l'erreur"
+
+########## clone-repository-page.ui ###################
+
+msgid "_Repository URL"
+msgstr "URL du dépôt"
+
+msgid "_Enter URL"
+msgstr "Veuillez entrer l'URL (https ou ssh) du dépôt git que vous souhaitez cloner."
+
+msgid "_Location"
+msgstr "Emplacement"
+
+msgid "_Saved location"
+msgstr "Veuillez choisir l'emplacement où sera cloner le dépôt."
+
+msgid "_HTTPS information"
+msgstr "HTTPS informations"
+
+msgid "_Complementary information"
+msgstr "Informations complémentaires utilisées pour cloner un dépôt privé par exemple."
+
+msgid "_Username"
+msgstr "Nom d'utilisateur"
+
+msgid "_Token or password"
+msgstr "Token ou mot de passe"
+
+msgid "_SSH information"
+msgstr "SSH informations"
+
+msgid "_Private key path"
+msgstr "Emplacement de la clé privée"
+
+msgid "_Select Private key path"
+msgstr "Sélectionnez votre clé privée"
+
+msgid "_Passphrase"
+msgstr "Phrase de passe"
 
 msgid "_Failed to open repository"
 msgstr "Impossible d'ouvrir le dépôt"
