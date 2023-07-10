@@ -1,0 +1,12 @@
+/*
+ * This file may appear to contain errors, especially on variables.
+ * Please ignore them, the variables are defined by GTK or LibAdwaita.
+ */
+
+.headerbar_bg_color {
+    background-color: @headerbar_bg_color;
+}
+
+.commits_siderbar_button_selected {
+    background-color: @shade_color;
+}

@@ -36,6 +36,7 @@ use uuid::Uuid;
 use crate::widgets::action_bar::BagitActionBar;
 use crate::widgets::repositories::BagitRepositories;
 use crate::clone_repository_page::BagitCloneRepositoryPage;
+use crate::repository_page::BagitRepositoryPage;
 
 mod imp {
 
@@ -57,6 +58,8 @@ mod imp {
         pub action_bar_content: TemplateChild<BagitActionBar>,
         #[template_child]
         pub clone_repository_page: TemplateChild<BagitCloneRepositoryPage>,
+        #[template_child]
+        pub repository_page: TemplateChild<BagitRepositoryPage>,
 
         pub app_database: utils::db::AppDatabase,
     }
@@ -95,11 +98,30 @@ impl BagitDesktopWindow {
             .property("application", application)
             .build();
 
+        win.open_repository_signal();
+        win.repository_page_signals();
         win.clone_button_signal();
         win.clone_repository_page_signals();
         win.add_existing_repository_button_signal();
         win.init_repositories();
         win
+    }
+
+    /*
+     * Opens the repository the user clicked on.
+     */
+    pub fn open_repository_signal(&self) {
+        self.imp().repositories_window.connect_closure(
+            "row-selected",
+            false,
+            closure_local!(@watch self as win => move |
+                _repository: BagitRepositories,
+                _index: i32
+                | {
+                    win.imp().stack.set_visible_child_name("repository page");
+                }
+            ),
+        );
     }
 
     /**
@@ -176,7 +198,7 @@ impl BagitDesktopWindow {
             self.imp().repositories_window.set_visible(true);
         }
 
-        let full_path = format!("{}{}","~",repo_path);
+        let full_path: String = format!("{}{}","~",repo_path);
 
         let new_row: adw::ActionRow = adw::ActionRow::new();
         let row_image: gtk::Image = gtk::Image::new();
@@ -195,7 +217,7 @@ impl BagitDesktopWindow {
 
 
     fn init_repositories(&self) {
-        let all_repositories = self.imp().app_database.get_all_repositories();
+        let all_repositories: Vec<crate::models::bagit_repository::BagitRepository> = self.imp().app_database.get_all_repositories();
 
         for repository in all_repositories {
             self.add_list_row(&repository.name, &repository.path)
@@ -328,6 +350,8 @@ impl BagitDesktopWindow {
             }),
         );
     }
+
+    fn repository_page_signals(&self) {}
 
     pub fn show_error_dialog(&self, error_message: &str) {
         let error_message = format!(

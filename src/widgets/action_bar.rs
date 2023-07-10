@@ -31,7 +31,7 @@ mod imp {
     #[template(resource = "/com/skilldary/bagit/desktop/ui/widgets/bagit-action-bar.ui")]
     pub struct BagitActionBar {
         #[template_child]
-        pub new_repo_button: TemplateChild<gtk::Button>,
+        pub create_repository_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub add_existing_repository_button: TemplateChild<gtk::Button>,
         #[template_child]
@@ -40,6 +40,9 @@ mod imp {
 
     #[gtk::template_callbacks]
     impl BagitActionBar {
+        #[template_callback]
+        fn create_repository_button_clicked(&self, _button: &gtk::Button) {}
+
         #[template_callback]
         fn add_existing_repository_button_clicked(&self, _button: &gtk::Button) {
             self.obj()

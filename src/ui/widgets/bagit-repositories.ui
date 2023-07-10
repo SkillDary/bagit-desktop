@@ -79,6 +79,7 @@
                     </child>
                     <child>
                       <object class="GtkListBox" id="all_repositories">
+                        <signal name="row-selected" handler="row_clicked" swapped="true"/>
                         <style>
                           <class name="boxed-list"/>
                         </style>

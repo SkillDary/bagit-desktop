@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="Adw" version="1.0"/>
+  <template class="BagitCommitsSideBar" parent="GtkBox">
+    <property name="orientation">vertical</property>
+    <property name="width-request">300</property>
+    <child>
+      <object class="GtkBox">
+        <property name="homogeneous">True</property>
+        <property name="margin-top">5</property>
+        <property name="margin-bottom">5</property>
+        <property name="margin-start">5</property>
+        <property name="margin-end">5</property>
+        <style>
+          <class name="card"/>
+          <class name="headerbar_bg_color"/>
+        </style>
+        <child>
+          <object class="GtkBox">
+            <property name="homogeneous">True</property>
+            <property name="margin-top">5</property>
+            <property name="margin-bottom">5</property>
+            <property name="margin-start">5</property>
+            <property name="margin-end">5</property>
+            <property name="spacing">5</property>
+            <child>
+              <object class="GtkButton" id="changed_files_button">
+                <signal name="clicked" handler="changed_files_button_clicked" swapped="true"/>
+                <style>
+                  <class name="flat"/>
+                  <class name="commits_siderbar_button_selected"/>
+                </style>
+                <property name="child">
+                  <object class="GtkLabel">
+                    <property name="label" translatable="yes">_Changes</property>
+                  </object>
+                </property>
+                <style>
+                  <class name="raised"/>
+                </style>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="history_button">
+                <signal name="clicked" handler="history_button_clicked" swapped="true"/>
+                <style>
+                  <class name="flat"/>
+                </style>
+                <property name="child">
+                  <object class="GtkLabel">
+                    <property name="label" translatable="yes">_History</property>
+                  </object>
+                </property>
+                <style>
+                  <class name="raised"/>
+                </style>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <object class="GtkStack" id="commits_sidebar_stack">
+        <child>
+          <object class="GtkStackPage">
+            <property name="name">changes page</property>
+            <property name="title">changes page</property>
+            <property name="child">
+              <object class="GtkListBox" id="menu">
+                <signal name="row-selected" handler="row_clicked" swapped="true"/>
+                <style>
+                  <class name="navigation-sidebar"/>
+                </style>
+                <child>
+                  <object class="AdwActionRow">
+                    <property name="title" translatable="yes">Changes 1</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow">
+                    <property name="title" translatable="yes">Changes 2</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow">
+                    <property name="title" translatable="yes">Changes 3</property>
+                  </object>
+                </child>
+              </object>
+            </property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkStackPage">
+            <property name="name">history page</property>
+            <property name="title">history page</property>
+            <property name="child">
+              <object class="GtkListBox" id="menu2">
+                <signal name="row-selected" handler="row_clicked" swapped="true"/>
+                <style>
+                  <class name="navigation-sidebar"/>
+                </style>
+                <child>
+                  <object class="AdwActionRow">
+                    <property name="title" translatable="yes">Commits 1</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow">
+                    <property name="title" translatable="yes">Commits 2</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow">
+                    <property name="title" translatable="yes">Commits 3</property>
+                  </object>
+                </child>
+              </object>
+            </property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

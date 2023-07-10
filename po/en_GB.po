@@ -193,3 +193,10 @@ msgstr "Profile name already used."
 
 msgid "_Wrong email"
 msgstr "E-mail has not the right format."
+############# bagit-commits-sidebar.ui #############
+
+msgid "_Changes"
+msgstr "Changes"
+
+msgid "_History"
+msgstr "History"

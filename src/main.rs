@@ -22,6 +22,7 @@ mod clone_repository_page;
 mod config;
 mod models;
 mod preferences;
+mod repository_page;
 mod utils;
 mod widgets;
 mod window;
@@ -42,14 +43,15 @@ fn main() -> glib::ExitCode {
     textdomain(GETTEXT_PACKAGE).expect("Unable to switch to the text domain");
 
     // Load resources
-    let resources = gio::Resource::load(PKGDATADIR.to_owned() + "/bagit-desktop.gresource")
-        .expect("Could not load resources");
+    let resources: gio::Resource =
+        gio::Resource::load(PKGDATADIR.to_owned() + "/bagit-desktop.gresource")
+            .expect("Could not load resources");
     gio::resources_register(&resources);
 
     // Create a new GtkApplication. The application manages our main loop,
     // application windows, integration with the window manager/compositor, and
     // desktop features such as file opening and single-instance applications.
-    let app = BagitDesktopApplication::new(
+    let app: BagitDesktopApplication = BagitDesktopApplication::new(
         "com.skilldary.bagit.desktop",
         &gio::ApplicationFlags::empty(),
     );

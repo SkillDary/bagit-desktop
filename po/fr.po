@@ -193,3 +193,11 @@ msgstr "Ce nom de profil est déjà utilisé."
 
 msgid "_Wrong email"
 msgstr "L'adresse courriel entrée n'a pas le bon format."
+
+############# bagit-commits-sidebar.ui #############
+
+msgid "_Changes"
+msgstr "Changements"
+
+msgid "_History"
+msgstr "Historique"

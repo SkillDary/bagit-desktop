@@ -18,9 +18,14 @@
  */
 
 use adw::subclass::prelude::*;
-use gtk::{glib, CompositeTemplate};
+use gtk::{glib, prelude::*, CompositeTemplate};
+use once_cell::sync::Lazy;
 
 mod imp {
+
+    use gtk::{
+        glib::subclass::Signal, prelude::ObjectExt, template_callbacks, traits::ListBoxRowExt,
+    };
 
     use super::*;
 
@@ -33,6 +38,18 @@ mod imp {
         pub all_repositories: TemplateChild<gtk::ListBox>,
     }
 
+    #[template_callbacks]
+    impl BagitRepositories {
+        #[template_callback]
+        fn row_clicked(&self, row: Option<adw::ActionRow>) {
+            if row != None {
+                let selected_row: adw::ActionRow = row.unwrap();
+                self.obj()
+                    .emit_by_name::<()>("row-selected", &[&selected_row.index()]);
+            }
+        }
+    }
+
     // The central trait for subclassing a GObject
     #[glib::object_subclass]
     impl ObjectSubclass for BagitRepositories {
@@ -42,6 +59,7 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
+            klass.bind_template_callbacks();
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -49,7 +67,16 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for BagitRepositories {}
+    impl ObjectImpl for BagitRepositories {
+        fn signals() -> &'static [Signal] {
+            static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
+                vec![Signal::builder("row-selected")
+                    .param_types([i32::static_type()])
+                    .build()]
+            });
+            SIGNALS.as_ref()
+        }
+    }
     impl WidgetImpl for BagitRepositories {}
     impl BoxImpl for BagitRepositories {}
 }
