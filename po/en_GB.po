@@ -63,6 +63,9 @@ msgstr "Add an existing repository"
 msgid "_Clone a repository"
 msgstr "Clone a repository"
 
+msgid "_Clone a repository and save profile"
+msgstr "Clone a repository and save the new profile"
+
 msgid "_Recent repositories"
 msgstr "Recent repositories"
 
@@ -93,13 +96,22 @@ msgid "_Repository URL"
 msgstr "Repository's URL"
 
 msgid "_Enter URL"
-msgstr "Please enter the URL (https or ssh) of the repository you want to clone."
+msgstr "The URL (https or ssh) of the repository you want to clone."
 
 msgid "_Location"
 msgstr "Location"
 
 msgid "_Saved location"
-msgstr "Please choose the location where the repository will be cloned."
+msgstr "The location where the repository will be cloned."
+
+msgid "_Passphrase information"
+msgstr "The passphrase to use if the private key needs one."
+
+msgid "_No profile"
+msgstr "No profile"
+
+msgid "_Selected profile"
+msgstr "The profil used for commit, push..."
 
 msgid "_HTTPS information"
 msgstr "HTTPS information"
@@ -130,3 +142,54 @@ msgstr "Failed to open repository"
 
 msgid "_Selected folder is not a repository"
 msgstr "Selected folder is not a repository."
+
+####################### preferences.rs ##################################
+
+msgid "_New profile awaiting"
+msgstr "You already have a new profile awaiting completion."
+
+####################### bagit-preferences-sidebar.ui ####################
+
+msgid "_Git profiles"
+msgstr "Git profiles"
+
+####################### bagit-preferences-identities.ui #################
+
+msgid "_No git profiles!"
+msgstr "No Git profile!"
+
+msgid "_Create one"
+msgstr "Create one by clicking on the \"Add profile\" button."
+
+msgid "_Add profile"
+msgstr "Add profile"
+
+msgid "_Save profile"
+msgstr "Save profile"
+
+msgid "_Delete profile"
+msgstr "Delete profile"
+
+msgid "_Delete profile confirmation"
+msgstr "Do you really want to delete this profile?"
+
+msgid "_Cancel"
+msgstr "Cancel"
+
+msgid "_Delete"
+msgstr "Delete"
+
+msgid "_Profile name"
+msgstr "Profile's name"
+
+msgid "_Email address"
+msgstr "E-mail address"
+
+msgid "_New profile"
+msgstr "New profile"
+
+msgid "_Name already used"
+msgstr "Profile name already used."
+
+msgid "_Wrong email"
+msgstr "E-mail has not the right format."

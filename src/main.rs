@@ -17,13 +17,13 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-mod action_bar;
 mod application;
 mod clone_repository_page;
 mod config;
 mod models;
-mod repositories;
+mod preferences;
 mod utils;
+mod widgets;
 mod window;
 
 use self::application::BagitDesktopApplication;

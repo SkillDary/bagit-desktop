@@ -17,27 +17,27 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-use std::{env, path::PathBuf};
+use std::{env, path::{PathBuf, Path}, fs};
 
-use crate::{glib::clone, utils};
+use crate::{glib::clone, utils, models::bagit_git_profile::BagitGitProfile};
 use adw::{
     subclass::prelude::*,
     traits::{ActionRowExt, PreferencesRowExt},
 };
 use gettextrs::gettext;
-use git2::Repository;
+use git2::{Repository, RemoteCallbacks, Cred};
 use gtk::{
     gio,
     glib::{self, MainContext},
 };
 use gtk::{glib::closure_local, prelude::*};
+use uuid::Uuid;
 
-use crate::action_bar::BagitActionBar;
-use crate::repositories::BagitRepositories;
+use crate::widgets::action_bar::BagitActionBar;
+use crate::widgets::repositories::BagitRepositories;
 use crate::clone_repository_page::BagitCloneRepositoryPage;
 
 mod imp {
-    use crate::action_bar::BagitActionBar;
 
     use super::*;
 
@@ -57,8 +57,6 @@ mod imp {
         pub action_bar_content: TemplateChild<BagitActionBar>,
         #[template_child]
         pub clone_repository_page: TemplateChild<BagitCloneRepositoryPage>,
-
-        pub repositories: Vec<i32>,
 
         pub app_database: utils::db::AppDatabase,
     }
@@ -142,10 +140,8 @@ impl BagitDesktopWindow {
                                     "windows" => {
                                         folder_name = folder_path_str.split("\\").last().unwrap()
                                     }
-                                    _ => println!("Unsupported OS")
+                                    _ => {}
                                 };
-
-                                win2.imp().app_database.add_repository(folder_name, folder_path_str);
 
                                 win2.add_list_row(
                                     folder_name,
@@ -153,7 +149,8 @@ impl BagitDesktopWindow {
                                 );
                                 win2.imp().app_database.add_repository(
                                     &folder_name,
-                                    &folder_path_str
+                                    &folder_path_str,
+                                    None
                                 );
                             }
                             Err(_) => {
@@ -215,6 +212,11 @@ impl BagitDesktopWindow {
             closure_local!(@watch self as win => move |_action_bar_content: BagitActionBar| {
                 // We must make sure entry fields are blank when going to the clone page :
                 win.imp().clone_repository_page.clear_page();
+                // We update the list of git profiles in the page :
+                let git_profiles = win.imp().app_database.get_all_git_profiles();
+                for profile in git_profiles {
+                    win.imp().clone_repository_page.add_git_profile_row(profile);
+                }
                 win.imp().stack.set_visible_child_name("clone page");
             }),
         );
@@ -242,12 +244,9 @@ impl BagitDesktopWindow {
                         .build();
 
                     if let Ok(res) = dialog.select_folder_future(Some(&win2)).await {
-                        println!("Ok res");
                         win2.imp().clone_repository_page.imp().location_row.set_text(
                             res.path().unwrap_or(PathBuf::new()).to_str().unwrap()
                         );
-                    } else {
-                        println!("Error !!");
                     }
                 }));
             })
@@ -266,45 +265,67 @@ impl BagitDesktopWindow {
                         .build();
 
                     if let Ok(res) = dialog.open_future(Some(&win2)).await {
-                        println!("Ok res");
                         win2.imp().clone_repository_page.imp().private_key_path.set_text(
                             res.path().unwrap_or(PathBuf::new()).to_str().unwrap()
                         );
-                    } else {
-                        println!("Error !!");
                     }
                 }));
             })
         );
 
         self.imp().clone_repository_page.connect_closure(
-            "add-repository", 
-            false, 
-            closure_local!(@watch self as win => move |
-                _clone_repository_page: BagitCloneRepositoryPage,
-                repository_name: &str,
-                repository_path: &str
-                | {
-                    win.add_list_row(repository_name, repository_path);
-                    win.imp().app_database.add_repository(
-                        repository_name,
-                        repository_path
-                    );
-                    win.imp().stack.set_visible_child_name("main page");
-                }
-            )
-        );
-
-        self.imp().clone_repository_page.connect_closure(
-            "error",
+            "unique-name",
             false,
             closure_local!(@watch self as win => move |
                 _clone_repository_page: BagitCloneRepositoryPage,
-                error: &str
+                image: gtk::Image,
+                profile_name: &str,
+                profile_id: &str
                 | {
-                    win.show_error_dialog(&error);
-                }
-            )
+                    let same_profile_name_number = win.imp().app_database.get_number_of_git_profiles_with_name(
+                        &profile_name,
+                        &profile_id
+                    );
+                    image.set_visible(same_profile_name_number != 0);
+            }),
+        );
+
+        self.imp().clone_repository_page.connect_closure(
+            "clone-repository",
+            false,
+            closure_local!(@watch self as win => move |
+                _clone_repository_page: BagitCloneRepositoryPage,
+                url: &str,
+                location: &str
+                | {
+                win.clone_repository(url, location);
+            }),
+        );
+
+        self.imp().clone_repository_page.connect_closure(
+            "clone-repository-and-add-profile",
+            false,
+            closure_local!(@watch self as win => move |
+                _clone_repository_page: BagitCloneRepositoryPage,
+                url: &str,
+                location: &str,
+                profile_name: &str,
+                email: &str,
+                username: &str,
+                password: &str,
+                private_key_path: &str
+                | {
+                let new_profile = BagitGitProfile::new(
+                    Uuid::new_v4(),
+                    profile_name.to_string(),
+                    email.to_string(),
+                    username.to_string(),
+                    password.to_string(),
+                    private_key_path.to_string(),
+                );
+                win.imp().app_database.add_git_profile(new_profile);
+                win.clone_repository(url, location);
+            }),
         );
     }
 
@@ -324,5 +345,193 @@ impl BagitDesktopWindow {
 
             alert_dialog.show(Some(&win));
         }));
+    }
+
+    /**
+     * Used to clone a repository.
+     */
+    pub fn clone_repository(&self, url: &str, location: &str) {
+        let mut new_folder_name = url.split("/").last().unwrap();
+
+        let replaced_text = &new_folder_name.replace(".git", "");
+        new_folder_name = replaced_text.trim();
+
+        let new_folder_path = format!("{}/{}", &location, new_folder_name);
+
+        let new_folder = fs::create_dir(&new_folder_path);
+
+        match new_folder {
+            Ok(_) => {
+                let callback = if self.imp().clone_repository_page.is_using_https(&url) {
+                    self.https_callback()
+                } else {
+                    self.ssh_callback()
+                };
+
+                let mut fo = git2::FetchOptions::new();
+                fo.remote_callbacks(callback);
+
+                let mut builder = git2::build::RepoBuilder::new();
+                builder.fetch_options(fo);
+
+                let repository =
+                    builder.clone(&url.trim(), Path::new(&new_folder_path));
+                match repository {
+                    Ok(_) => {
+                        self.add_list_row(&new_folder_name, &new_folder_path);
+
+                        let profile_id: Option<Uuid> = if self.imp().clone_repository_page.imp().git_profiles.title().to_string() == gettext("_No profile") {
+                            None
+                        } else if self.imp().clone_repository_page.imp().git_profiles.title().to_string() == gettext("_New profile") {
+                            let profile = self.imp().app_database.get_git_profile_from_name(
+                                self.imp().clone_repository_page.imp().profile_name.text().as_str()
+                            );
+                            if profile.is_some() {
+                                Some(profile.unwrap().profile_id)
+                            } else {
+                                None
+                            }
+                        } else {
+                            let profile = self.imp().app_database.get_git_profile_from_name(
+                                self.imp().clone_repository_page.imp().git_profiles.title().as_str()
+                            );
+                            if profile.is_some() {
+                                Some(profile.unwrap().profile_id)
+                            } else {
+                                None
+                            }     
+                        };
+
+                        self.imp().app_database.add_repository(
+                            &new_folder_name,
+                            &new_folder_path,
+                            profile_id
+                        );
+                        self.imp().stack.set_visible_child_name("main page");
+                    }
+                    Err(e) => {
+                        // We must make sure to delete the created folder !
+                        let removed_directory = fs::remove_dir_all(&new_folder_path);
+                        match removed_directory {
+                            Ok(_) => self.show_error_dialog(&e.to_string()),
+                            Err(error) => self.show_error_dialog(&error.to_string())
+                        }
+                    }
+                }
+            }
+            Err(e) => self.show_error_dialog(&e.to_string())
+        }
+    }
+
+    /**
+     * Used to create callback for https clone.
+     */
+    pub fn https_callback(&self) -> RemoteCallbacks<'_> {
+        let mut callback = RemoteCallbacks::new();
+
+        callback.credentials(|_url, username, _allowed_type| {
+            if self.imp().clone_repository_page.imp().git_profiles.title().to_string() == gettext("_No profile") {
+                return Cred::userpass_plaintext(
+                    if username.is_some() {
+                    username.unwrap()
+                } else {
+                    ""
+                }, "");
+            }
+            
+            let profile_name = if self.imp().clone_repository_page.imp().git_profiles.title().to_string() == gettext("_New profile") {
+                // We will use the information of the new profile :
+                self.imp().clone_repository_page.imp().profile_name.text()
+            } else {
+                // We will use the information the selected profile :
+                self.imp().clone_repository_page.imp().git_profiles.title()
+            };
+
+            let profile = self.imp().app_database.get_git_profile_from_name(
+                profile_name.as_str()
+            );
+            if profile.is_some() {
+                let found_profile = profile.unwrap();
+                Cred::userpass_plaintext(&found_profile.username, &found_profile.password)
+            } else {
+                // If nothing is found, we return a default credential :
+                Cred::userpass_plaintext(
+                    if username.is_some() {
+                    username.unwrap()
+                } else {
+                    ""
+                }, "")
+            }
+        });
+
+        return callback;
+    }
+
+    /**
+     * Used to create callback for ssh clone.
+     */
+    pub fn ssh_callback(&self) -> RemoteCallbacks<'_> {
+        let mut callback = RemoteCallbacks::new();
+
+        callback.credentials(|_url, username, _allowed_type| {
+            let passphrase_to_use = self.imp().clone_repository_page.imp().passphrase.text();
+
+            if self.imp().clone_repository_page.imp().git_profiles.title().to_string() == gettext("_No profile") {
+                // No cred will be used :
+                return Cred::ssh_key(
+                    if username.is_some() {
+                        username.unwrap()
+                    } else {
+                        ""
+                    },
+                     None,
+                     Path::new(""),
+                     None
+                );
+            }
+            
+            let profile_name = if self.imp().clone_repository_page.imp().git_profiles.title().to_string() == gettext("_New profile") {
+                // We will use the information of the new profile :
+                self.imp().clone_repository_page.imp().profile_name.text()
+            } else {
+                // We will use the information of the selected profile :
+                self.imp().clone_repository_page.imp().git_profiles.title()
+            };
+
+            let profile = self.imp().app_database.get_git_profile_from_name(
+                profile_name.as_str()
+            );
+            if profile.is_some() {
+                let found_profile = profile.unwrap();
+                Cred::ssh_key(
+                    if username.is_some() {
+                        username.unwrap()
+                    } else {
+                        ""
+                    },
+                    None,
+                    Path::new(&found_profile.private_key_path),
+                    if passphrase_to_use.is_empty() {
+                    None
+                } else {
+                    Some(&passphrase_to_use)
+                }
+                )
+            } else {
+                // If nothing is found, we return a default credential :
+                Cred::ssh_key(
+                    if username.is_some() {
+                        username.unwrap()
+                    } else {
+                        ""
+                    },
+                    None,
+                    Path::new(""),
+                    None
+                )
+            }
+        });
+
+        return callback;
     }
 }

@@ -17,5 +17,6 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-pub mod bagit_git_profile;
-pub mod bagit_repository;
+pub mod action_bar;
+pub mod preferences;
+pub mod repositories;

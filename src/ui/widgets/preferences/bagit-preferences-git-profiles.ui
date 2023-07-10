@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="Adw" version="1.0"/>
+  <template class="BagitPreferencesGitProfiles" parent="GtkBox">
+    <property name="orientation">vertical</property>
+    <property name="vexpand">True</property>
+    <property name="hexpand">True</property>
+    <child>
+      <object class="GtkScrolledWindow">
+        <property name="vexpand">true</property>
+        <property name="hexpand">true</property>
+        <child>
+          <object class="AdwClamp">
+            <property name="child">
+              <object class="GtkBox">
+                <property name="orientation">vertical</property>
+                <property name="margin-top">24</property>
+                <property name="margin-bottom">24</property>
+                <property name="margin-start">12</property>
+                <property name="margin-end">12</property>
+                <property name="spacing">24</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="halign">end</property>
+                    <child>
+                       <object class="GtkButton">
+                         <signal name="clicked" handler="add_expander_row" swapped="true"/>
+                        <property name="width-request">50</property>
+                        <property name="child">
+                          <object class="GtkLabel">
+                            <property name="label" translatable="yes">_Add profile</property>
+                          </object>
+                        </property>
+                        <style>
+                          <class name="suggested-action"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwStatusPage" id="status_page">
+                    <property name="description" translatable="yes">_Create one</property>
+                    <property name="title" translatable="yes">_No git profiles!</property>
+                    <property name="icon-name">edit-find-symbolic</property>
+                    <property name="vexpand">true</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkListBox" id="git_profiles">
+                    <property name="visible">false</property>
+                    <property name="selection-mode">none</property>
+                    <style>
+                      <class name="boxed-list"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

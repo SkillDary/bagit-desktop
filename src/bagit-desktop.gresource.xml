@@ -5,7 +5,10 @@
     <file preprocess="xml-stripblanks">gtk/help-overlay.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/bagit-action-bar.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/bagit-repositories.ui</file>
+    <file preprocess="xml-stripblanks">ui/widgets/preferences/bagit-preferences-sidebar.ui</file>
+    <file preprocess="xml-stripblanks">ui/widgets/preferences/bagit-preferences-git-profiles.ui</file>
     <file preprocess="xml-stripblanks">ui/clone-repository-page.ui</file>
+    <file preprocess="xml-stripblanks">ui/preferences.ui</file>
   </gresource>
 </gresources>
 

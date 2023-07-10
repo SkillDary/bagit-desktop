@@ -17,11 +17,12 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-use gtk::prelude::*;
 use adw::subclass::prelude::*;
+use gtk::prelude::*;
 use gtk::{gio, glib};
 
 use crate::config::VERSION;
+use crate::preferences::BagitPreferences;
 use crate::BagitDesktopWindow;
 
 mod imp {
@@ -92,7 +93,10 @@ impl BagitDesktopApplication {
         let about_action = gio::ActionEntry::builder("about")
             .activate(move |app: &Self, _, _| app.show_about())
             .build();
-        self.add_action_entries([quit_action, about_action]);
+        let preferences_action = gio::ActionEntry::builder("preferences")
+            .activate(move |app: &Self, _, _| app.show_preferences())
+            .build();
+        self.add_action_entries([quit_action, about_action, preferences_action]);
     }
 
     fn show_about(&self) {
@@ -108,5 +112,12 @@ impl BagitDesktopApplication {
             .build();
 
         about.present();
+    }
+
+    fn show_preferences(&self) {
+        let window: BagitPreferences = BagitPreferences::new(&*self);
+        window.set_title(Some("Bagit Desktop"));
+        window.set_modal(true);
+        window.present();
     }
 }

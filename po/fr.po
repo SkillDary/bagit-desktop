@@ -63,6 +63,9 @@ msgstr "Ajouter un dépôt existant"
 msgid "_Clone a repository"
 msgstr "Cloner un dépôt"
 
+msgid "_Clone a repository and save profile"
+msgstr "Cloner un dépôt et enregistrer le nouveau profil"
+
 msgid "_Recent repositories"
 msgstr "Dépôts récents"
 
@@ -93,16 +96,25 @@ msgid "_Repository URL"
 msgstr "URL du dépôt"
 
 msgid "_Enter URL"
-msgstr "Veuillez entrer l'URL (https ou ssh) du dépôt git que vous souhaitez cloner."
+msgstr "L'URL (https ou ssh) du dépôt Git que vous souhaitez cloner."
 
 msgid "_Location"
 msgstr "Emplacement"
 
 msgid "_Saved location"
-msgstr "Veuillez choisir l'emplacement où sera cloner le dépôt."
+msgstr "L'emplacement où sera cloner le dépôt."
+
+msgid "_Passphrase information"
+msgstr "La phrase de passe à utiliser si la clé privée en nécessite une."
+
+msgid "_No profile"
+msgstr "Aucun profil"
+
+msgid "_Selected profile"
+msgstr "Le profil utilisé pour commettre, pousser..."
 
 msgid "_HTTPS information"
-msgstr "HTTPS informations"
+msgstr "Informations HTTPS"
 
 msgid "_Complementary information"
 msgstr "Informations complémentaires utilisées pour cloner un dépôt privé par exemple."
@@ -114,7 +126,7 @@ msgid "_Token or password"
 msgstr "Token ou mot de passe"
 
 msgid "_SSH information"
-msgstr "SSH informations"
+msgstr "Informations SSH"
 
 msgid "_Private key path"
 msgstr "Emplacement de la clé privée"
@@ -130,3 +142,54 @@ msgstr "Impossible d'ouvrir le dépôt"
 
 msgid "_Selected folder is not a repository"
 msgstr "Le dossier sélectionné n'est pas un dépôt."
+
+####################### preferences.rs ##################################
+
+msgid "_New profile awaiting"
+msgstr "Vous avez déjà un nouveau profil en attente de complétion."
+
+####################### bagit-preferences-sidebar.ui ####################
+
+msgid "_Git profiles"
+msgstr "Profils Git"
+
+####################### bagit-preferences-identities.ui #################
+
+msgid "_No git profiles!"
+msgstr "Pas de profils Git !"
+
+msgid "_Create one"
+msgstr "Créez en un en cliquant sur le bouton \"Ajouter un profil\"."
+
+msgid "_Add profile"
+msgstr "Ajouter un profil"
+
+msgid "_Save profile"
+msgstr "Sauvegarder le profil"
+
+msgid "_Delete profile"
+msgstr "Supprimer le profil"
+
+msgid "_Delete profile confirmation"
+msgstr "Voulez-vous vraiment supprimer ce profil ?"
+
+msgid "_Cancel"
+msgstr "Annuler"
+
+msgid "_Delete"
+msgstr "Supprimer"
+
+msgid "_Profile name"
+msgstr "Nom du profil"
+
+msgid "_Email address"
+msgstr "Adresse courriel"
+
+msgid "_New profile"
+msgstr "Nouveau profil"
+
+msgid "_Name already used"
+msgstr "Ce nom de profil est déjà utilisé."
+
+msgid "_Wrong email"
+msgstr "L'adresse courriel entrée n'a pas le bon format."
