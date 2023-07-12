@@ -17,6 +17,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+use directories::ProjectDirs;
 use regex::Regex;
 use sqlite::{Connection, State};
 use std::fmt;
@@ -46,7 +47,17 @@ impl AppDatabase {
      * return a new AppDatabase.
      */
     pub fn init_database() -> AppDatabase {
-        let connection: Connection = sqlite::open(":appDatabase:").unwrap();
+        // Location of the project folder depending on the OS.
+        let project_dir: ProjectDirs =
+            ProjectDirs::from("com", "SkillDary", "Bagit Desktop").unwrap();
+
+        // The path into which we will save the database.
+        let db_dir: std::path::PathBuf = project_dir.data_dir().join("db");
+
+        // Create the necessary folders if needed.
+        std::fs::create_dir_all(&db_dir).unwrap();
+
+        let connection: Connection = sqlite::open(db_dir.join("bagit.db")).unwrap();
         let query: &str = "
             CREATE TABLE IF NOT EXISTS repository (
                 repositoryId TEXT PRIMARY KEY,
