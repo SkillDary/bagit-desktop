@@ -17,15 +17,19 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-use std::{env, path::{PathBuf, Path}, fs};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
-use crate::{glib::clone, utils::{self, selected_repository::SelectedRepository}, models::bagit_git_profile::BagitGitProfile};
+use crate::utils::selected_repository::SelectedRepository;
+use crate::{glib::clone, models::bagit_git_profile::BagitGitProfile, utils};
 use adw::{
     subclass::prelude::*,
     traits::{ActionRowExt, PreferencesRowExt},
 };
 use gettextrs::gettext;
-use git2::{Repository, RemoteCallbacks, Cred};
+use git2::{Cred, RemoteCallbacks, Repository};
 use gtk::{
     gio,
     glib::{self, MainContext},
@@ -33,10 +37,10 @@ use gtk::{
 use gtk::{glib::closure_local, prelude::*};
 use uuid::Uuid;
 
-use crate::widgets::action_bar::BagitActionBar;
-use crate::widgets::repositories::BagitRepositories;
 use crate::clone_repository_page::BagitCloneRepositoryPage;
 use crate::repository_page::BagitRepositoryPage;
+use crate::widgets::action_bar::BagitActionBar;
+use crate::widgets::repositories::BagitRepositories;
 
 mod imp {
 
@@ -105,7 +109,6 @@ glib::wrapper! {
 }
 
 impl BagitDesktopWindow {
-
     pub fn new<P: glib::IsA<gtk::Application>>(application: &P) -> Self {
         let win: BagitDesktopWindow = glib::Object::builder::<BagitDesktopWindow>()
             .property("application", application)
@@ -208,7 +211,7 @@ impl BagitDesktopWindow {
             self.imp().repositories_window.set_visible(true);
         }
 
-        let full_path: String = format!("{}{}","~",repo_path);
+        let full_path: String = format!("{}{}", "~", repo_path);
 
         let new_row: adw::ActionRow = adw::ActionRow::new();
         let row_image: gtk::Image = gtk::Image::new();
@@ -225,9 +228,9 @@ impl BagitDesktopWindow {
             .append(&new_row);
     }
 
-
     fn init_repositories(&self) {
-        let all_repositories: Vec<crate::models::bagit_repository::BagitRepository> = self.imp().app_database.get_all_repositories();
+        let all_repositories: Vec<crate::models::bagit_repository::BagitRepository> =
+            self.imp().app_database.get_all_repositories();
 
         for repository in all_repositories {
             self.add_list_row(&repository.name, &repository.path)
@@ -257,7 +260,7 @@ impl BagitDesktopWindow {
     fn clone_repository_page_signals(&self) {
         self.imp().clone_repository_page.connect_closure(
             "go-back", 
-            false, 
+            false,
             closure_local!(@watch self as win => move |_clone_repository_page: BagitCloneRepositoryPage| {
                 win.imp().stack.set_visible_child_name("main page");
             })
@@ -265,7 +268,7 @@ impl BagitDesktopWindow {
 
         self.imp().clone_repository_page.connect_closure(
             "select-location", 
-            false, 
+            false,
             closure_local!(@watch self as win => move |_clone_repository_page: BagitCloneRepositoryPage| {
                 let ctx: MainContext = glib::MainContext::default();
                 ctx.spawn_local(clone!(@weak win as win2 => async move {
@@ -286,7 +289,7 @@ impl BagitDesktopWindow {
 
         self.imp().clone_repository_page.connect_closure(
             "select-private-key", 
-            false, 
+            false,
             closure_local!(@watch self as win => move |_clone_repository_page: BagitCloneRepositoryPage| {
                 let ctx: MainContext = glib::MainContext::default();
                 ctx.spawn_local(clone!(@weak win as win2 => async move {
@@ -363,13 +366,13 @@ impl BagitDesktopWindow {
 
     fn repository_page_signals(&self) {
         self.imp().repository_page.connect_closure(
-            "go-home", 
-            false, 
+            "go-home",
+            false,
             closure_local!(@watch self as win => move |_repository_page: BagitRepositoryPage| {
                 win.imp().repositories_window.imp().all_repositories.unselect_all();
                 win.imp().repositories_window.imp().recent_repositories.unselect_all();
                 win.imp().stack.set_visible_child_name("main page");
-            })
+            }),
         );
     }
 
@@ -418,17 +421,37 @@ impl BagitDesktopWindow {
                 let mut builder = git2::build::RepoBuilder::new();
                 builder.fetch_options(fo);
 
-                let repository =
-                    builder.clone(&url.trim(), Path::new(&new_folder_path));
+                let repository = builder.clone(&url.trim(), Path::new(&new_folder_path));
                 match repository {
                     Ok(_) => {
                         self.add_list_row(&new_folder_name, &new_folder_path);
 
-                        let profile_id: Option<Uuid> = if self.imp().clone_repository_page.imp().git_profiles.title().to_string() == gettext("_No profile") {
+                        let profile_id: Option<Uuid> = if self
+                            .imp()
+                            .clone_repository_page
+                            .imp()
+                            .git_profiles
+                            .title()
+                            .to_string()
+                            == gettext("_No profile")
+                        {
                             None
-                        } else if self.imp().clone_repository_page.imp().git_profiles.title().to_string() == gettext("_New profile") {
+                        } else if self
+                            .imp()
+                            .clone_repository_page
+                            .imp()
+                            .git_profiles
+                            .title()
+                            .to_string()
+                            == gettext("_New profile")
+                        {
                             let profile = self.imp().app_database.get_git_profile_from_name(
-                                self.imp().clone_repository_page.imp().profile_name.text().as_str()
+                                self.imp()
+                                    .clone_repository_page
+                                    .imp()
+                                    .profile_name
+                                    .text()
+                                    .as_str(),
                             );
                             if profile.is_some() {
                                 Some(profile.unwrap().profile_id)
@@ -437,19 +460,24 @@ impl BagitDesktopWindow {
                             }
                         } else {
                             let profile = self.imp().app_database.get_git_profile_from_name(
-                                self.imp().clone_repository_page.imp().git_profiles.title().as_str()
+                                self.imp()
+                                    .clone_repository_page
+                                    .imp()
+                                    .git_profiles
+                                    .title()
+                                    .as_str(),
                             );
                             if profile.is_some() {
                                 Some(profile.unwrap().profile_id)
                             } else {
                                 None
-                            }     
+                            }
                         };
 
                         self.imp().app_database.add_repository(
                             &new_folder_name,
                             &new_folder_path,
-                            profile_id
+                            profile_id,
                         );
                         self.imp().stack.set_visible_child_name("main page");
                     }
@@ -458,12 +486,12 @@ impl BagitDesktopWindow {
                         let removed_directory = fs::remove_dir_all(&new_folder_path);
                         match removed_directory {
                             Ok(_) => self.show_error_dialog(&e.to_string()),
-                            Err(error) => self.show_error_dialog(&error.to_string())
+                            Err(error) => self.show_error_dialog(&error.to_string()),
                         }
                     }
                 }
             }
-            Err(e) => self.show_error_dialog(&e.to_string())
+            Err(e) => self.show_error_dialog(&e.to_string()),
         }
     }
 
@@ -474,16 +502,34 @@ impl BagitDesktopWindow {
         let mut callback = RemoteCallbacks::new();
 
         callback.credentials(|_url, username, _allowed_type| {
-            if self.imp().clone_repository_page.imp().git_profiles.title().to_string() == gettext("_No profile") {
+            if self
+                .imp()
+                .clone_repository_page
+                .imp()
+                .git_profiles
+                .title()
+                .to_string()
+                == gettext("_No profile")
+            {
                 return Cred::userpass_plaintext(
                     if username.is_some() {
-                    username.unwrap()
-                } else {
-                    ""
-                }, "");
+                        username.unwrap()
+                    } else {
+                        ""
+                    },
+                    "",
+                );
             }
-            
-            let profile_name = if self.imp().clone_repository_page.imp().git_profiles.title().to_string() == gettext("_New profile") {
+
+            let profile_name = if self
+                .imp()
+                .clone_repository_page
+                .imp()
+                .git_profiles
+                .title()
+                .to_string()
+                == gettext("_New profile")
+            {
                 // We will use the information of the new profile :
                 self.imp().clone_repository_page.imp().profile_name.text()
             } else {
@@ -491,9 +537,10 @@ impl BagitDesktopWindow {
                 self.imp().clone_repository_page.imp().git_profiles.title()
             };
 
-            let profile = self.imp().app_database.get_git_profile_from_name(
-                profile_name.as_str()
-            );
+            let profile = self
+                .imp()
+                .app_database
+                .get_git_profile_from_name(profile_name.as_str());
             if profile.is_some() {
                 let found_profile = profile.unwrap();
                 Cred::userpass_plaintext(&found_profile.username, &found_profile.password)
@@ -501,10 +548,12 @@ impl BagitDesktopWindow {
                 // If nothing is found, we return a default credential :
                 Cred::userpass_plaintext(
                     if username.is_some() {
-                    username.unwrap()
-                } else {
-                    ""
-                }, "")
+                        username.unwrap()
+                    } else {
+                        ""
+                    },
+                    "",
+                )
             }
         });
 
@@ -520,7 +569,15 @@ impl BagitDesktopWindow {
         callback.credentials(|_url, username, _allowed_type| {
             let passphrase_to_use = self.imp().clone_repository_page.imp().passphrase.text();
 
-            if self.imp().clone_repository_page.imp().git_profiles.title().to_string() == gettext("_No profile") {
+            if self
+                .imp()
+                .clone_repository_page
+                .imp()
+                .git_profiles
+                .title()
+                .to_string()
+                == gettext("_No profile")
+            {
                 // No cred will be used :
                 return Cred::ssh_key(
                     if username.is_some() {
@@ -528,13 +585,21 @@ impl BagitDesktopWindow {
                     } else {
                         ""
                     },
-                     None,
-                     Path::new(""),
-                     None
+                    None,
+                    Path::new(""),
+                    None,
                 );
             }
-            
-            let profile_name = if self.imp().clone_repository_page.imp().git_profiles.title().to_string() == gettext("_New profile") {
+
+            let profile_name = if self
+                .imp()
+                .clone_repository_page
+                .imp()
+                .git_profiles
+                .title()
+                .to_string()
+                == gettext("_New profile")
+            {
                 // We will use the information of the new profile :
                 self.imp().clone_repository_page.imp().profile_name.text()
             } else {
@@ -542,9 +607,10 @@ impl BagitDesktopWindow {
                 self.imp().clone_repository_page.imp().git_profiles.title()
             };
 
-            let profile = self.imp().app_database.get_git_profile_from_name(
-                profile_name.as_str()
-            );
+            let profile = self
+                .imp()
+                .app_database
+                .get_git_profile_from_name(profile_name.as_str());
             if profile.is_some() {
                 let found_profile = profile.unwrap();
                 Cred::ssh_key(
@@ -556,10 +622,10 @@ impl BagitDesktopWindow {
                     None,
                     Path::new(&found_profile.private_key_path),
                     if passphrase_to_use.is_empty() {
-                    None
-                } else {
-                    Some(&passphrase_to_use)
-                }
+                        None
+                    } else {
+                        Some(&passphrase_to_use)
+                    },
                 )
             } else {
                 // If nothing is found, we return a default credential :
@@ -571,7 +637,7 @@ impl BagitDesktopWindow {
                     },
                     None,
                     Path::new(""),
-                    None
+                    None,
                 )
             }
         });
@@ -583,20 +649,16 @@ impl BagitDesktopWindow {
      * Used to get the folder name of a path from OS information.
      */
     pub fn get_folder_name_from_os(&self, path: &str) -> String {
-
         let os = env::consts::OS;
 
         // The path format changes depending on the OS.
         let folder_name = match os {
-            "linux" | "macOS" | "freebsd" | "dragonfly" |
-            "netbsd" | "openbsd" | "solaris" => {
+            "linux" | "macOS" | "freebsd" | "dragonfly" | "netbsd" | "openbsd" | "solaris" => {
                 path.split("/").last().unwrap().to_string()
-            },
-            "windows" => {
-                path.split("\\").last().unwrap().to_string()
             }
-            _ => {"".to_string()}
-        };      
-        return folder_name;  
+            "windows" => path.split("\\").last().unwrap().to_string(),
+            _ => "".to_string(),
+        };
+        return folder_name;
     }
 }

@@ -1,0 +1,15 @@
+stages:
+  - format
+
+format:
+  stage: format
+  image: rust:latest
+  before_script:
+    - rustup component add rustfmt
+  script:
+    - echo  "" > src/config.rs
+    - rustc -Vv && cargo -Vv
+    - cargo --version
+    - cargo fmt -- --check
+  tags:
+    - rust

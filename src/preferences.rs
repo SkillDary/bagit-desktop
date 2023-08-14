@@ -151,7 +151,7 @@ impl BagitPreferences {
                             win.imp().identities.imp().status_page.set_visible(false);
                             win.imp().identities.imp().git_profiles.set_visible(true);
                         }
-            
+
                         win.imp().identities.imp().obj()
                             .add_new_git_profile(Uuid::new_v4(), "","", "", "", "", true);
                     } else {
@@ -188,7 +188,7 @@ impl BagitPreferences {
                     } else {
                         profile_name.to_string()
                     };
-                
+
 
                     if win.imp().app_database.does_git_profile_exist(profile_id) {
                         win.imp().app_database.update_git_profile(
@@ -231,11 +231,11 @@ impl BagitPreferences {
                 revealer: &gtk::Revealer
                 | {
                     revealer.set_reveal_child(!win.imp().app_database.does_git_profile_exist_from_information(
-                        profile_id, 
-                        profile_name, 
+                        profile_id,
+                        profile_name,
                         email,
-                        username, 
-                        password, 
+                        username,
+                        password,
                         private_key_path
                     ) && profile_name != "");
                 }
@@ -333,6 +333,4 @@ impl BagitPreferences {
             );
         }
     }
-
-    
 }
