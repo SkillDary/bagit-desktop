@@ -23,9 +23,8 @@ use once_cell::sync::Lazy;
 
 mod imp {
 
-    use gtk::{
-        glib::subclass::Signal, prelude::ObjectExt, template_callbacks, traits::ListBoxRowExt,
-    };
+    use adw::traits::ActionRowExt;
+    use gtk::{glib::subclass::Signal, prelude::ObjectExt, template_callbacks};
 
     use super::*;
 
@@ -44,8 +43,10 @@ mod imp {
         fn row_clicked(&self, row: Option<adw::ActionRow>) {
             if row != None {
                 let selected_row: adw::ActionRow = row.unwrap();
-                self.obj()
-                    .emit_by_name::<()>("row-selected", &[&selected_row.index()]);
+                self.obj().emit_by_name::<()>(
+                    "row-selected",
+                    &[&selected_row.subtitle().unwrap().split("~").last().unwrap()],
+                );
             }
         }
     }
@@ -71,7 +72,7 @@ mod imp {
         fn signals() -> &'static [Signal] {
             static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
                 vec![Signal::builder("row-selected")
-                    .param_types([i32::static_type()])
+                    .param_types([str::static_type()])
                     .build()]
             });
             SIGNALS.as_ref()

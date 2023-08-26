@@ -193,6 +193,7 @@ msgstr "Profile name already used."
 
 msgid "_Wrong email"
 msgstr "E-mail has not the right format."
+
 ############# bagit-commits-sidebar.ui #############
 
 msgid "_Changes"
@@ -200,3 +201,18 @@ msgstr "Changes"
 
 msgid "_History"
 msgstr "History"
+
+msgid "_Modified file"
+msgstr "File content has been modified"
+
+msgid "_New file"
+msgstr "New file"
+
+msgid "_Deleted file"
+msgstr "Deleted file"
+
+msgid "_Renamed file"
+msgstr "File has been renamed"
+
+msgid "_File type modified"
+msgstr "File's type has been changed"

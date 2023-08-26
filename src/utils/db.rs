@@ -218,6 +218,31 @@ impl AppDatabase {
         return total != 0;
     }
 
+    pub fn get_repository_from_path(&self, path: &str) -> Option<BagitRepository> {
+        let query: String = format!("SELECT * FROM repository WHERE path='{}'", path);
+        let mut statement: sqlite::Statement<'_> = self.connection.prepare(query).unwrap();
+
+        if let Ok(State::Row) = statement.next() {
+            let id: String = statement.read::<String, _>("repositoryId").unwrap();
+            let name: String = statement.read::<String, _>("name").unwrap();
+            let path: String = statement.read::<String, _>("path").unwrap();
+            let git_profile_id: Option<String> =
+                statement.read::<Option<String>, _>("gitProfileId").unwrap();
+
+            let git_profile_uuid: Option<Uuid> = if git_profile_id.is_some() {
+                Some(Uuid::parse_str(&git_profile_id.unwrap()).unwrap())
+            } else {
+                None
+            };
+
+            let uuid: Uuid = Uuid::parse_str(&id).unwrap();
+
+            return Some(BagitRepository::new(uuid, name, path, git_profile_uuid));
+        } else {
+            return None;
+        }
+    }
+
     pub fn get_git_profile_from_name(&self, profile_name: &str) -> Option<BagitGitProfile> {
         let query: String = format!(
             "SELECT * FROM gitProfile WHERE profileName='{}'",

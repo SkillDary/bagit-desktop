@@ -6,6 +6,9 @@
     <property name="orientation">vertical</property>
     <child>
       <object class="AdwHeaderBar" id="header_bar">
+        <binding name="show-start-title-buttons">
+          <lookup name="folded">leaflet</lookup>
+        </binding>
         <property name="title-widget">
           <object class="AdwWindowTitle">
             <property name="title" translatable="yes">Bagit Desktop</property>
@@ -14,6 +17,24 @@
         <style>
           <class name="flat"/>
         </style>
+        <child type="start">
+          <object class="GtkBox">
+            <child>
+              <object class="GtkButton">
+                <signal name="clicked" handler="go_home" swapped="true"/>
+                <property name="icon-name">user-home-symbolic</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton">
+                <binding name="visible">
+                  <lookup name="folded">leaflet</lookup>
+                </binding>
+                <property name="icon-name">go-previous-symbolic</property>
+              </object>
+            </child>
+          </object>
+        </child>
         <child type="end">
           <object class="GtkMenuButton">
             <property name="icon-name">open-menu-symbolic</property>

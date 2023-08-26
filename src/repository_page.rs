@@ -17,12 +17,18 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+use crate::utils::selected_repository::SelectedRepository;
 use crate::widgets::repository::commits_sidebar::BagitCommitsSideBar;
-
 use adw::subclass::prelude::*;
 use gtk::glib::closure_local;
+use gtk::glib::subclass::Signal;
 use gtk::{glib, prelude::*, template_callbacks, CompositeTemplate};
+use itertools::Itertools;
+use once_cell::sync::Lazy;
+use std::cell::RefCell;
+
 mod imp {
+
     use super::*;
 
     // Object holding the state
@@ -33,8 +39,8 @@ mod imp {
         pub leaflet: TemplateChild<adw::Leaflet>,
         #[template_child]
         pub sidebar: TemplateChild<BagitCommitsSideBar>,
-        // #[template_child]
-        // pub sidebar_stack: TemplateChild<gtk::Stack>,
+
+        pub selected_repository: RefCell<SelectedRepository>,
     }
 
     #[template_callbacks]
@@ -44,6 +50,11 @@ mod imp {
             if self.leaflet.is_folded() {
                 self.leaflet.navigate(adw::NavigationDirection::Back);
             }
+        }
+
+        #[template_callback]
+        fn go_home(&self, _button: gtk::Button) {
+            self.obj().emit_by_name::<()>("go-home", &[]);
         }
     }
 
@@ -64,7 +75,17 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for BagitRepositoryPage {}
+    impl ObjectImpl for BagitRepositoryPage {
+        fn signals() -> &'static [Signal] {
+            static SIGNALS: Lazy<Vec<Signal>> =
+                Lazy::new(|| vec![Signal::builder("go-home").build()]);
+            SIGNALS.as_ref()
+        }
+        fn constructed(&self) {
+            self.parent_constructed();
+            self.obj().connect_signals();
+        }
+    }
     impl WidgetImpl for BagitRepositoryPage {}
     impl BoxImpl for BagitRepositoryPage {}
 }
@@ -77,15 +98,6 @@ glib::wrapper! {
 }
 
 impl BagitRepositoryPage {
-    pub fn new<P: glib::IsA<gtk::Application>>(application: &P) -> Self {
-        let win: BagitRepositoryPage = glib::Object::builder::<BagitRepositoryPage>()
-            .property("application", application)
-            .build();
-
-        win.connect_signals();
-        win
-    }
-
     /**
      * Used for connecting differents signals used by template children.
      */
@@ -101,5 +113,53 @@ impl BagitRepositoryPage {
                 }
             ),
         );
+
+        self.imp().sidebar.connect_closure(
+            "update-changed-files",
+            false,
+            closure_local!(@watch self as win => move |
+                _sidebar: BagitCommitsSideBar
+                | {
+                    win.update_changed_files();
+                }
+            ),
+        );
+    }
+
+    /**
+     * Used to update changed files list.
+     */
+    pub fn update_changed_files(&self) {
+        let borrowed_repo = self.imp().selected_repository.borrow();
+        if borrowed_repo.git_repository.is_some() {
+            let repo = borrowed_repo.git_repository.as_ref().unwrap();
+            match repo.statuses(None) {
+                Ok(statuses) => {
+                    self.imp().sidebar.clear_changed_files_list();
+                    let hash_map = self.imp().sidebar.build_hash_map(statuses);
+
+                    for key in hash_map.keys().sorted() {
+                        let value = &hash_map[key];
+                        if key != "" {
+                            let borrowed_changed_folders =
+                                self.imp().sidebar.imp().changed_files.borrow();
+                            let folder = borrowed_changed_folders
+                                .get_changed_folder_from_list(&key)
+                                .unwrap();
+                            self.imp()
+                                .sidebar
+                                .generate_folder(folder, (&value).to_vec());
+                        }
+                    }
+                    if hash_map.contains_key("") {
+                        for file in &hash_map[""] {
+                            let new_row = self.imp().sidebar.generate_changed_file(file, 8, None);
+                            self.imp().sidebar.imp().menu.append(&new_row.0);
+                        }
+                    }
+                }
+                Err(_) => {}
+            };
+        }
     }
 }

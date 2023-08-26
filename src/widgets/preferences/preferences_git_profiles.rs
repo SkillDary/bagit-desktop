@@ -22,6 +22,7 @@ use adw::traits::ExpanderRowExt;
 use adw::traits::{ActionRowExt, EntryRowExt, PreferencesRowExt};
 use email_address::EmailAddress;
 use gettextrs::gettext;
+use gtk::glib::clone;
 use gtk::glib::subclass::Signal;
 use gtk::template_callbacks;
 use gtk::traits::{BoxExt, ButtonExt, EditableExt, WidgetExt};
@@ -184,7 +185,6 @@ impl BagitPreferencesGitProfiles {
         expander_row.add_row(&path_row);
 
         let row = adw::ActionRow::new();
-
         let button_box = gtk::Box::new(gtk::Orientation::Horizontal, 10);
 
         let save_button = gtk::Button::with_label(&gettext("_Save profile"));
@@ -197,28 +197,28 @@ impl BagitPreferencesGitProfiles {
         button_revealer.set_reveal_child(false);
         button_revealer.set_transition_type(gtk::RevealerTransitionType::Crossfade);
 
-        let expander_copy_save_button = expander_row.clone();
-        let profile_title_copy = profile_title.clone();
-        let self_revealer_copy_name = button_revealer.clone();
-        let cloned_self_profile_name = self.clone();
-        let email_row_profile_clone = email_row.clone();
-        let username_row_profile_clone = username_row.clone();
-        let password_row_profile_clone = password_row.clone();
-        let path_row_profile_clone = path_row.clone();
-        let profile_name_image_info_clone = profile_name_image_info.clone();
-        profile_name_row.connect_changed(move |profile| {
+        profile_name_row.connect_changed(clone!(
+            @weak self as win,
+            @weak button_revealer,
+            @weak profile_title,
+            @weak email_row,
+            @weak username_row,
+            @weak password_row,
+            @weak path_row,
+            @weak profile_name_image_info
+            => move |profile| {
             if profile.text().trim() == "" {
-                profile_name_image_info_clone.set_visible(false);
-                profile_title_copy.add_css_class("dim-label");
-                profile_title_copy.set_text(&gettext("_New profile"));
+                profile_name_image_info.set_visible(false);
+                profile_title.add_css_class("dim-label");
+                profile_title.set_text(&gettext("_New profile"));
             } else {
-                profile_title_copy.remove_css_class("dim-label");
-                profile_title_copy.set_text(&profile.text());
+                profile_title.remove_css_class("dim-label");
+                profile_title.set_text(&profile.text());
 
-                cloned_self_profile_name.imp().obj().emit_by_name::<()>(
+                win.imp().obj().emit_by_name::<()>(
                     "unique-name",
                     &[
-                        &profile_name_image_info_clone,
+                        &profile_name_image_info,
                         &profile.text().trim(),
                         &profile_id.to_string(),
                     ],
@@ -226,158 +226,164 @@ impl BagitPreferencesGitProfiles {
             }
             // Check if the email is in a correct format :
             let is_email_correct_format =
-                EmailAddress::is_valid(email_row_profile_clone.text().trim());
-            if !is_email_correct_format && email_row_profile_clone.text().trim() != "" {
-                self_revealer_copy_name.set_reveal_child(false);
+                EmailAddress::is_valid(email_row.text().trim());
+            if !is_email_correct_format && email_row.text().trim() != "" {
+                button_revealer.set_reveal_child(false);
             } else {
-                cloned_self_profile_name.imp().obj().emit_by_name::<()>(
+                win.imp().obj().emit_by_name::<()>(
                     "profile-modified",
                     &[
                         &profile_id.to_string().trim(),
                         &profile.text().trim(),
-                        &email_row_profile_clone.text().trim(),
-                        &username_row_profile_clone.text().trim(),
-                        &password_row_profile_clone.text().trim(),
-                        &path_row_profile_clone.text().trim(),
-                        &self_revealer_copy_name,
+                        &email_row.text().trim(),
+                        &username_row.text().trim(),
+                        &password_row.text().trim(),
+                        &path_row.text().trim(),
+                        &button_revealer,
                     ],
                 );
             }
-        });
+        }));
 
-        let self_revealer_copy_email = button_revealer.clone();
-        let cloned_self_email = self.clone();
-        let profile_name_row_email_clone = profile_name_row.clone();
-        let username_row_email_clone = username_row.clone();
-        let password_row_email_clone = password_row.clone();
-        let path_row_email_clone = path_row.clone();
-        let email_image_cloned = email_image_info.clone();
-        email_row.connect_changed(move |row| {
+        email_row.connect_changed(clone!(
+            @weak self as win,
+            @weak button_revealer,
+            @weak profile_name_row,
+            @weak username_row,
+            @weak password_row,
+            @weak path_row,
+            @weak email_image_info
+            => move |row| {
             if row.text().trim() == "" {
-                email_image_cloned.set_visible(false);
-                cloned_self_email.imp().obj().emit_by_name::<()>(
+                email_image_info.set_visible(false);
+                win.imp().obj().emit_by_name::<()>(
                     "profile-modified",
                     &[
                         &profile_id.to_string().trim(),
-                        &profile_name_row_email_clone.text().trim(),
+                        &profile_name_row.text().trim(),
                         &row.text().trim(),
-                        &username_row_email_clone.text().trim(),
-                        &password_row_email_clone.text().trim(),
-                        &path_row_email_clone.text().trim(),
-                        &self_revealer_copy_email,
+                        &username_row.text().trim(),
+                        &password_row.text().trim(),
+                        &path_row.text().trim(),
+                        &button_revealer,
                     ],
                 );
             } else {
                 // Check if the email is in a correct format :
                 let is_email_correct_format = EmailAddress::is_valid(row.text().trim());
-                email_image_cloned.set_visible(!is_email_correct_format);
+                email_image_info.set_visible(!is_email_correct_format);
                 if !is_email_correct_format && row.text().trim() != "" {
-                    self_revealer_copy_email.set_reveal_child(false);
+                    button_revealer.set_reveal_child(false);
                 } else {
-                    cloned_self_email.imp().obj().emit_by_name::<()>(
+                    win.imp().obj().emit_by_name::<()>(
                         "profile-modified",
                         &[
                             &profile_id.to_string().trim(),
-                            &profile_name_row_email_clone.text().trim(),
+                            &profile_name_row.text().trim(),
                             &row.text().trim(),
-                            &username_row_email_clone.text().trim(),
-                            &password_row_email_clone.text().trim(),
-                            &path_row_email_clone.text().trim(),
-                            &self_revealer_copy_email,
+                            &username_row.text().trim(),
+                            &password_row.text().trim(),
+                            &path_row.text().trim(),
+                            &button_revealer,
                         ],
                     );
                 }
             }
-        });
+        }));
 
-        let self_revealer_copy_username = button_revealer.clone();
-        let cloned_self_username = self.clone();
-        let profile_name_row_username_clone = profile_name_row.clone();
-        let email_row_username_clone = email_row.clone();
-        let password_row_username_clone = password_row.clone();
-        let path_row_username_clone = path_row.clone();
-        username_row.connect_changed(move |row| {
+        username_row.connect_changed(clone!(
+            @weak self as win,
+            @weak button_revealer,
+            @weak profile_name_row,
+            @weak email_row,
+            @weak password_row,
+            @weak path_row
+            => move |row| {
             let is_email_correct_format =
-                EmailAddress::is_valid(email_row_username_clone.text().trim());
-            if !is_email_correct_format && email_row_username_clone.text().trim() != "" {
-                self_revealer_copy_username.set_reveal_child(false);
+                EmailAddress::is_valid(email_row.text().trim());
+            if !is_email_correct_format && email_row.text().trim() != "" {
+                button_revealer.set_reveal_child(false);
             } else {
-                cloned_self_username.imp().obj().emit_by_name::<()>(
+                win.imp().obj().emit_by_name::<()>(
                     "profile-modified",
                     &[
                         &profile_id.to_string().trim(),
-                        &profile_name_row_username_clone.text().trim(),
-                        &email_row_username_clone.text().trim(),
+                        &profile_name_row.text().trim(),
+                        &email_row.text().trim(),
                         &row.text().trim(),
-                        &password_row_username_clone.text().trim(),
-                        &path_row_username_clone.text().trim(),
-                        &self_revealer_copy_username,
+                        &password_row.text().trim(),
+                        &path_row.text().trim(),
+                        &button_revealer,
                     ],
                 );
             }
-        });
+        }));
 
-        let self_revealer_copy_password = button_revealer.clone();
-        let cloned_self_password = self.clone();
-        let profile_name_row_password_clone = profile_name_row.clone();
-        let email_row_password_clone = email_row.clone();
-        let username_row_password_clone = username_row.clone();
-        let path_row_password_clone = path_row.clone();
-        password_row.connect_changed(move |row| {
+        password_row.connect_changed(clone!(
+            @weak self as win,
+            @weak button_revealer,
+            @weak profile_name_row,
+            @weak email_row,
+            @weak username_row,
+            @weak path_row
+            => move |row| {
             let is_email_correct_format =
-                EmailAddress::is_valid(email_row_password_clone.text().trim());
-            if !is_email_correct_format && email_row_password_clone.text().trim() != "" {
-                self_revealer_copy_password.set_reveal_child(false);
+                EmailAddress::is_valid(email_row.text().trim());
+            if !is_email_correct_format && email_row.text().trim() != "" {
+                button_revealer.set_reveal_child(false);
             } else {
-                cloned_self_password.imp().obj().emit_by_name::<()>(
+                win.imp().obj().emit_by_name::<()>(
                     "profile-modified",
                     &[
                         &profile_id.to_string().trim(),
-                        &profile_name_row_password_clone.text().trim(),
-                        &email_row_password_clone.text().trim(),
-                        &username_row_password_clone.text().trim(),
+                        &profile_name_row.text().trim(),
+                        &email_row.text().trim(),
+                        &username_row.text().trim(),
                         &row.text().trim(),
-                        &path_row_password_clone.text().trim(),
-                        &self_revealer_copy_password,
+                        &path_row.text().trim(),
+                        &button_revealer,
                     ],
                 );
             }
-        });
+        }));
 
-        let self_revealer_copy_path = button_revealer.clone();
-        let cloned_self_path = self.clone();
-        let profile_name_row_path_clone = profile_name_row.clone();
-        let email_row_path_clone = email_row.clone();
-        let username_row_path_clone = username_row.clone();
-        let password_row_path_clone = password_row.clone();
-        path_row.connect_changed(move |row| {
+        path_row.connect_changed(clone!(
+            @weak self as win,
+            @weak button_revealer,
+            @weak profile_name_row,
+            @weak email_row,
+            @weak username_row,
+            @weak password_row
+            => move |row| {
             let is_email_correct_format =
-                EmailAddress::is_valid(email_row_path_clone.text().trim());
-            if !is_email_correct_format && email_row_path_clone.text().trim() != "" {
-                self_revealer_copy_path.set_reveal_child(false);
+                EmailAddress::is_valid(email_row.text().trim());
+            if !is_email_correct_format && email_row.text().trim() != "" {
+                button_revealer.set_reveal_child(false);
             } else {
-                cloned_self_path.imp().obj().emit_by_name::<()>(
+                win.imp().obj().emit_by_name::<()>(
                     "profile-modified",
                     &[
                         &profile_id.to_string().trim(),
-                        &profile_name_row_path_clone.text().trim(),
-                        &email_row_path_clone.text().trim(),
-                        &username_row_path_clone.text().trim(),
-                        &password_row_path_clone.text().trim(),
+                        &profile_name_row.text().trim(),
+                        &email_row.text().trim(),
+                        &username_row.text().trim(),
+                        &password_row.text().trim(),
                         &row.text().trim(),
-                        &self_revealer_copy_path,
+                        &button_revealer,
                     ],
                 );
             }
-        });
+        }));
 
-        let self_button_copy = self.clone();
-        let self_revealer_copy_button = button_revealer.clone();
-        let cloned_profile_title = profile_title.clone();
-        let cloned_profile_row = profile_name_row.clone();
-        save_button.connect_clicked(move |_button| {
-            expander_copy_save_button.set_expanded(false);
-            self_button_copy.imp().obj().emit_by_name::<()>(
+        save_button.connect_clicked(clone!(
+            @weak self as win,
+            @weak expander_row,
+            @weak profile_title,
+            @weak profile_name_row,
+            @weak button_revealer
+            => move |_button| {
+                expander_row.set_expanded(false);
+            win.imp().obj().emit_by_name::<()>(
                 "save-profile",
                 &[
                     &profile_id.to_string().trim(),
@@ -386,25 +392,26 @@ impl BagitPreferencesGitProfiles {
                     &username_row.text().trim(),
                     &password_row.text().trim(),
                     &path_row.text().trim(),
-                    &cloned_profile_title,
-                    &cloned_profile_row,
+                    &profile_title,
+                    &profile_name_row,
                 ],
             );
-            self_revealer_copy_button.set_reveal_child(false);
-        });
+            button_revealer.set_reveal_child(false);
+        }));
 
         let delete_button = gtk::Button::with_label(&gettext("_Delete profile"));
         delete_button.set_margin_bottom(10);
         delete_button.set_margin_top(10);
         delete_button.add_css_class("destructive-action");
-        let expander_copy_delete_button = expander_row.clone();
-        let self_copy = self.clone();
-        delete_button.connect_clicked(move |_button| {
-            self_copy.imp().obj().emit_by_name::<()>(
+        delete_button.connect_clicked(clone!(
+            @weak self as win,
+            @weak expander_row
+            => move |_button| {
+            win.imp().obj().emit_by_name::<()>(
                 "delete-profile",
-                &[&expander_copy_delete_button, &profile_id.to_string()],
+                &[&expander_row, &profile_id.to_string()],
             )
-        });
+        }));
 
         button_box.append(&button_revealer);
         button_box.append(&delete_button);
@@ -458,14 +465,15 @@ impl BagitPreferencesGitProfiles {
         folder_button.set_margin_top(10);
         folder_button.add_css_class("flat");
 
-        let cloned_self = self.clone();
-        let cloned_folder_row = folder_row.clone();
-        folder_button.connect_clicked(move |_button| {
-            cloned_self
+        folder_button.connect_clicked(clone!(
+            @weak self as win,
+            @weak folder_row
+            => move |_button| {
+            win
                 .imp()
                 .obj()
-                .emit_by_name::<()>("select-location", &[&cloned_folder_row]);
-        });
+                .emit_by_name::<()>("select-location", &[&folder_row]);
+        }));
 
         folder_row.add_suffix(&folder_button);
         folder_row.set_title(title);

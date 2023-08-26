@@ -26,7 +26,7 @@ use crate::widgets::preferences::{
     preferences_sidebar::BagitPreferencesSideBar,
 };
 use adw::subclass::prelude::*;
-use adw::traits::{MessageDialogExt};
+use adw::traits::MessageDialogExt;
 use gettextrs::gettext;
 use gtk::glib::{clone, MainContext};
 use gtk::prelude::FileExt;

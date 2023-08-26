@@ -17,4 +17,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+pub mod changed_file;
+pub mod changed_folder;
 pub mod db;
+pub mod file_tree;
+pub mod selected_repository;

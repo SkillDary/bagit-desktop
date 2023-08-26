@@ -201,3 +201,18 @@ msgstr "Changements"
 
 msgid "_History"
 msgstr "Historique"
+
+msgid "_Modified file"
+msgstr "Le contenu du fichier a été modifié"
+
+msgid "_New file"
+msgstr "Nouveau fichier"
+
+msgid "_Deleted file"
+msgstr "Fichier supprimé"
+
+msgid "_Renamed file"
+msgstr "Le fichier a été renommé"
+
+msgid "_File type modified"
+msgstr "Le type du fichier a été changé"

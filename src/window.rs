@@ -19,7 +19,7 @@
 
 use std::{env, path::{PathBuf, Path}, fs};
 
-use crate::{glib::clone, utils, models::bagit_git_profile::BagitGitProfile};
+use crate::{glib::clone, utils::{self, selected_repository::SelectedRepository}, models::bagit_git_profile::BagitGitProfile};
 use adw::{
     subclass::prelude::*,
     traits::{ActionRowExt, PreferencesRowExt},
@@ -79,7 +79,20 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for BagitDesktopWindow {}
+    impl ObjectImpl for BagitDesktopWindow {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            self.obj().connect_is_active_notify(clone!(
+                @weak self as win
+                => move |_| {
+                match win.stack.visible_child_name().unwrap().as_str() {
+                    "repository page" => win.repository_page.update_changed_files(),
+                    _ => {}
+                }
+            }));
+        }
+    }
     impl WidgetImpl for BagitDesktopWindow {}
     impl WindowImpl for BagitDesktopWindow {}
     impl ApplicationWindowImpl for BagitDesktopWindow {}
@@ -116,9 +129,20 @@ impl BagitDesktopWindow {
             false,
             closure_local!(@watch self as win => move |
                 _repository: BagitRepositories,
-                _index: i32
+                path: &str
                 | {
-                    win.imp().stack.set_visible_child_name("repository page");
+                    // We update the selected repository :
+                    let found_repository = win.imp().app_database.get_repository_from_path(&path);
+                    win.imp().repository_page.imp().sidebar.clear_changed_files_list();
+                    win.imp().repository_page.imp().sidebar.imp().change_from_file.set(false);
+
+                    if found_repository.is_some() {
+                        win.imp().repository_page.imp().selected_repository.replace(
+                            SelectedRepository::new_with_repository(&found_repository.unwrap())
+                        );
+                        win.imp().repository_page.update_changed_files();
+                        win.imp().stack.set_visible_child_name("repository page");
+                    }
                 }
             ),
         );
@@ -149,24 +173,10 @@ impl BagitDesktopWindow {
                         // We make sure the selected folder is a valid repository.
                         match repository {
                             Ok(_) => {
-                                let mut folder_name = "";
-
-                                let os = env::consts::OS;
-
-                                // The path format changes depending on the OS.
-                                match os {
-                                    "linux" | "macOS" | "freebsd" | "dragonfly" |
-                                    "netbsd" | "openbsd" | "solaris" => {
-                                        folder_name = folder_path_str.split("/").last().unwrap()
-                                    },
-                                    "windows" => {
-                                        folder_name = folder_path_str.split("\\").last().unwrap()
-                                    }
-                                    _ => {}
-                                };
+                                let folder_name = win2.get_folder_name_from_os(folder_path_str);
 
                                 win2.add_list_row(
-                                    folder_name,
+                                    &folder_name,
                                     folder_path_str
                                 );
                                 win2.imp().app_database.add_repository(
@@ -351,7 +361,17 @@ impl BagitDesktopWindow {
         );
     }
 
-    fn repository_page_signals(&self) {}
+    fn repository_page_signals(&self) {
+        self.imp().repository_page.connect_closure(
+            "go-home", 
+            false, 
+            closure_local!(@watch self as win => move |_repository_page: BagitRepositoryPage| {
+                win.imp().repositories_window.imp().all_repositories.unselect_all();
+                win.imp().repositories_window.imp().recent_repositories.unselect_all();
+                win.imp().stack.set_visible_child_name("main page");
+            })
+        );
+    }
 
     pub fn show_error_dialog(&self, error_message: &str) {
         let error_message = format!(
@@ -375,10 +395,10 @@ impl BagitDesktopWindow {
      * Used to clone a repository.
      */
     pub fn clone_repository(&self, url: &str, location: &str) {
-        let mut new_folder_name = url.split("/").last().unwrap();
+        let mut new_folder_name = self.get_folder_name_from_os(url);
 
         let replaced_text = &new_folder_name.replace(".git", "");
-        new_folder_name = replaced_text.trim();
+        new_folder_name = replaced_text.trim().to_owned();
 
         let new_folder_path = format!("{}/{}", &location, new_folder_name);
 
@@ -557,5 +577,26 @@ impl BagitDesktopWindow {
         });
 
         return callback;
+    }
+
+    /**
+     * Used to get the folder name of a path from OS information.
+     */
+    pub fn get_folder_name_from_os(&self, path: &str) -> String {
+
+        let os = env::consts::OS;
+
+        // The path format changes depending on the OS.
+        let folder_name = match os {
+            "linux" | "macOS" | "freebsd" | "dragonfly" |
+            "netbsd" | "openbsd" | "solaris" => {
+                path.split("/").last().unwrap().to_string()
+            },
+            "windows" => {
+                path.split("\\").last().unwrap().to_string()
+            }
+            _ => {"".to_string()}
+        };      
+        return folder_name;  
     }
 }

@@ -68,24 +68,15 @@
             <property name="name">changes page</property>
             <property name="title">changes page</property>
             <property name="child">
-              <object class="GtkListBox" id="menu">
-                <signal name="row-selected" handler="row_clicked" swapped="true"/>
-                <style>
-                  <class name="navigation-sidebar"/>
-                </style>
+              <object class="GtkScrolledWindow">
+                <property name="vexpand">true</property>
                 <child>
-                  <object class="AdwActionRow">
-                    <property name="title" translatable="yes">Changes 1</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow">
-                    <property name="title" translatable="yes">Changes 2</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow">
-                    <property name="title" translatable="yes">Changes 3</property>
+                  <object class="GtkListBox" id="menu">
+                    <property name="selection-mode">none</property>
+                    <signal name="row-selected" handler="row_clicked" swapped="true"/>
+                    <style>
+                      <class name="background"/>
+                    </style>
                   </object>
                 </child>
               </object>

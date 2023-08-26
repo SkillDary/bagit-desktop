@@ -1,5 +1,6 @@
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct BagitRepository {
     pub repository_id: Uuid,
     pub name: String,
