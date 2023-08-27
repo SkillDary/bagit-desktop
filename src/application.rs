@@ -115,9 +115,11 @@ impl BagitDesktopApplication {
     }
 
     fn show_preferences(&self) {
-        let window: BagitPreferences = BagitPreferences::new(&*self);
-        window.set_title(Some("Bagit Desktop"));
-        window.set_modal(true);
-        window.present();
+        let window = self.active_window().unwrap();
+        let preferences: BagitPreferences = BagitPreferences::new(&*self);
+        preferences.set_title(Some("Bagit Desktop"));
+        preferences.set_transient_for(Some(&window));
+        preferences.set_modal(true);
+        preferences.present();
     }
 }

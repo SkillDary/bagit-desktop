@@ -20,7 +20,7 @@
 use std::path::PathBuf;
 
 use crate::models::bagit_git_profile::BagitGitProfile;
-use crate::utils;
+use crate::utils::db::AppDatabase;
 use crate::widgets::preferences::{
     preferences_git_profiles::BagitPreferencesGitProfiles,
     preferences_sidebar::BagitPreferencesSideBar,
@@ -40,6 +40,7 @@ use gtk::{
 use uuid::Uuid;
 
 mod imp {
+
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
@@ -56,7 +57,7 @@ mod imp {
         #[template_child]
         pub toast_overlay: TemplateChild<adw::ToastOverlay>,
 
-        pub app_database: utils::db::AppDatabase,
+        pub app_database: AppDatabase,
     }
 
     #[template_callbacks]
@@ -153,7 +154,7 @@ impl BagitPreferences {
                         }
 
                         win.imp().identities.imp().obj()
-                            .add_new_git_profile(Uuid::new_v4(), "","", "", "", "", true);
+                            .add_new_git_profile(Uuid::new_v4(), "","", "", "", "", "", true);
                     } else {
                         let toast = adw::Toast::new(&gettext("_New profile awaiting"));
                         win.imp().toast_overlay.add_toast(toast);
@@ -172,6 +173,7 @@ impl BagitPreferences {
                 username: &str,
                 password: &str,
                 private_key_path: &str,
+                signing_key: &str,
                 profile_title: &gtk::Label,
                 profile_row: &adw::EntryRow
                 | {
@@ -189,27 +191,28 @@ impl BagitPreferences {
                         profile_name.to_string()
                     };
 
-
                     if win.imp().app_database.does_git_profile_exist(profile_id) {
                         win.imp().app_database.update_git_profile(
-                            BagitGitProfile::new(
+                            &BagitGitProfile::new(
                                 Uuid::parse_str(profile_id).unwrap(),
                                 final_profil_name,
                                 email.to_string(),
                                 username.to_string(),
                                 password.to_string(),
-                                private_key_path.to_string()
+                                private_key_path.to_string(),
+                                signing_key.to_string()
                             )
                         )
                     } else {
                         win.imp().app_database.add_git_profile(
-                            BagitGitProfile::new(
+                            &BagitGitProfile::new(
                                 Uuid::parse_str(profile_id).unwrap(),
                                 final_profil_name,
                                 email.to_string(),
                                 username.to_string(),
                                 password.to_string(),
-                                private_key_path.to_string()
+                                private_key_path.to_string(),
+                                signing_key.to_string()
                             )
                         )
                     }
@@ -228,6 +231,7 @@ impl BagitPreferences {
                 username: &str,
                 password: &str,
                 private_key_path: &str,
+                signing_key: &str,
                 revealer: &gtk::Revealer
                 | {
                     revealer.set_reveal_child(!win.imp().app_database.does_git_profile_exist_from_information(
@@ -236,8 +240,9 @@ impl BagitPreferences {
                         email,
                         username,
                         password,
-                        private_key_path
-                    ) && profile_name != "");
+                        private_key_path,
+                        signing_key
+                    ) && profile_name != "" && username != "" && email != "");
                 }
             ),
         );
@@ -329,6 +334,7 @@ impl BagitPreferences {
                 &profile.username,
                 &profile.password,
                 &profile.private_key_path,
+                &profile.signing_key,
                 false,
             );
         }

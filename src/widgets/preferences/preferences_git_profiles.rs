@@ -31,6 +31,7 @@ use once_cell::sync::Lazy;
 use uuid::Uuid;
 
 mod imp {
+
     use super::*;
 
     #[derive(Debug, Default, CompositeTemplate)]
@@ -86,6 +87,7 @@ mod imp {
                             str::static_type(),
                             str::static_type(),
                             str::static_type(),
+                            str::static_type(),
                             gtk::Label::static_type(),
                             adw::EntryRow::static_type(),
                         ])
@@ -99,6 +101,7 @@ mod imp {
                     Signal::builder("can-add-profile").build(),
                     Signal::builder("profile-modified")
                         .param_types([
+                            str::static_type(),
                             str::static_type(),
                             str::static_type(),
                             str::static_type(),
@@ -143,6 +146,7 @@ impl BagitPreferencesGitProfiles {
         username: &str,
         password: &str,
         path: &str,
+        signing_key: &str,
         is_expanded: bool,
     ) {
         let expander_row = adw::ExpanderRow::new();
@@ -174,15 +178,18 @@ impl BagitPreferencesGitProfiles {
         let username_row = self.create_entry_row(&gettext("_Username"), &username);
         let password_row = self.create_password_row(&gettext("_Token or password"), &password);
         let path_row = self.create_folder_selection_row(&gettext("_Private key path"), &path);
+        let signing_key_row = self.create_password_row(&gettext("_Signing key"), &signing_key);
 
         expander_row.add_row(&id_row);
         expander_row.add_row(&profile_name_row);
+        expander_row.add_row(&username_row);
         expander_row.add_row(&email_row);
         expander_row.add_row(&self.create_action_row(&gettext("_HTTPS information")));
-        expander_row.add_row(&username_row);
         expander_row.add_row(&password_row);
         expander_row.add_row(&self.create_action_row(&gettext("_SSH information")));
         expander_row.add_row(&path_row);
+        expander_row.add_row(&self.create_action_row(&gettext("_PGP information")));
+        expander_row.add_row(&signing_key_row);
 
         let row = adw::ActionRow::new();
         let button_box = gtk::Box::new(gtk::Orientation::Horizontal, 10);
@@ -205,7 +212,8 @@ impl BagitPreferencesGitProfiles {
             @weak username_row,
             @weak password_row,
             @weak path_row,
-            @weak profile_name_image_info
+            @weak profile_name_image_info,
+            @weak signing_key_row
             => move |profile| {
             if profile.text().trim() == "" {
                 profile_name_image_info.set_visible(false);
@@ -239,6 +247,7 @@ impl BagitPreferencesGitProfiles {
                         &username_row.text().trim(),
                         &password_row.text().trim(),
                         &path_row.text().trim(),
+                        &signing_key_row.text().trim(),
                         &button_revealer,
                     ],
                 );
@@ -252,27 +261,17 @@ impl BagitPreferencesGitProfiles {
             @weak username_row,
             @weak password_row,
             @weak path_row,
-            @weak email_image_info
+            @weak email_image_info,
+            @weak signing_key_row
             => move |row| {
             if row.text().trim() == "" {
                 email_image_info.set_visible(false);
-                win.imp().obj().emit_by_name::<()>(
-                    "profile-modified",
-                    &[
-                        &profile_id.to_string().trim(),
-                        &profile_name_row.text().trim(),
-                        &row.text().trim(),
-                        &username_row.text().trim(),
-                        &password_row.text().trim(),
-                        &path_row.text().trim(),
-                        &button_revealer,
-                    ],
-                );
+                button_revealer.set_reveal_child(false);
             } else {
                 // Check if the email is in a correct format :
                 let is_email_correct_format = EmailAddress::is_valid(row.text().trim());
                 email_image_info.set_visible(!is_email_correct_format);
-                if !is_email_correct_format && row.text().trim() != "" {
+                if !is_email_correct_format {
                     button_revealer.set_reveal_child(false);
                 } else {
                     win.imp().obj().emit_by_name::<()>(
@@ -284,6 +283,7 @@ impl BagitPreferencesGitProfiles {
                             &username_row.text().trim(),
                             &password_row.text().trim(),
                             &path_row.text().trim(),
+                            &signing_key_row.text().trim(),
                             &button_revealer,
                         ],
                     );
@@ -296,6 +296,101 @@ impl BagitPreferencesGitProfiles {
             @weak button_revealer,
             @weak profile_name_row,
             @weak email_row,
+            @weak password_row,
+            @weak path_row,
+            @weak signing_key_row
+            => move |row| {
+            if row.text().trim() == "" {
+                button_revealer.set_reveal_child(false);
+            } else {
+                let is_email_correct_format =
+                EmailAddress::is_valid(email_row.text().trim());
+                if !is_email_correct_format && email_row.text().trim() != "" {
+                    button_revealer.set_reveal_child(false);
+                } else {
+                    win.imp().obj().emit_by_name::<()>(
+                        "profile-modified",
+                        &[
+                            &profile_id.to_string().trim(),
+                            &profile_name_row.text().trim(),
+                            &email_row.text().trim(),
+                            &row.text().trim(),
+                            &password_row.text().trim(),
+                            &path_row.text().trim(),
+                            &signing_key_row.text().trim(),
+                            &button_revealer,
+                        ],
+                    );
+                }
+            }
+        }));
+
+        password_row.connect_changed(clone!(
+            @weak self as win,
+            @weak button_revealer,
+            @weak profile_name_row,
+            @weak email_row,
+            @weak username_row,
+            @weak path_row,
+            @weak signing_key_row
+            => move |row| {
+            let is_email_correct_format =
+                EmailAddress::is_valid(email_row.text().trim());
+            if !is_email_correct_format && email_row.text().trim() != "" {
+                button_revealer.set_reveal_child(false);
+            } else {
+                win.imp().obj().emit_by_name::<()>(
+                    "profile-modified",
+                    &[
+                        &profile_id.to_string().trim(),
+                        &profile_name_row.text().trim(),
+                        &email_row.text().trim(),
+                        &username_row.text().trim(),
+                        &row.text().trim(),
+                        &path_row.text().trim(),
+                        &signing_key_row.text().trim(),
+                        &button_revealer,
+                    ],
+                );
+            }
+        }));
+
+        path_row.connect_changed(clone!(
+            @weak self as win,
+            @weak button_revealer,
+            @weak profile_name_row,
+            @weak email_row,
+            @weak username_row,
+            @weak password_row,
+            @weak signing_key_row
+            => move |row| {
+            let is_email_correct_format =
+                EmailAddress::is_valid(email_row.text().trim());
+            if !is_email_correct_format && email_row.text().trim() != "" {
+                button_revealer.set_reveal_child(false);
+            } else {
+                win.imp().obj().emit_by_name::<()>(
+                    "profile-modified",
+                    &[
+                        &profile_id.to_string().trim(),
+                        &profile_name_row.text().trim(),
+                        &email_row.text().trim(),
+                        &username_row.text().trim(),
+                        &password_row.text().trim(),
+                        &row.text().trim(),
+                        &signing_key_row.text().trim(),
+                        &button_revealer,
+                    ],
+                );
+            }
+        }));
+
+        signing_key_row.connect_changed(clone!(
+            @weak self as win,
+            @weak button_revealer,
+            @weak profile_name_row,
+            @weak email_row,
+            @weak username_row,
             @weak password_row,
             @weak path_row
             => move |row| {
@@ -310,64 +405,9 @@ impl BagitPreferencesGitProfiles {
                         &profile_id.to_string().trim(),
                         &profile_name_row.text().trim(),
                         &email_row.text().trim(),
-                        &row.text().trim(),
-                        &password_row.text().trim(),
-                        &path_row.text().trim(),
-                        &button_revealer,
-                    ],
-                );
-            }
-        }));
-
-        password_row.connect_changed(clone!(
-            @weak self as win,
-            @weak button_revealer,
-            @weak profile_name_row,
-            @weak email_row,
-            @weak username_row,
-            @weak path_row
-            => move |row| {
-            let is_email_correct_format =
-                EmailAddress::is_valid(email_row.text().trim());
-            if !is_email_correct_format && email_row.text().trim() != "" {
-                button_revealer.set_reveal_child(false);
-            } else {
-                win.imp().obj().emit_by_name::<()>(
-                    "profile-modified",
-                    &[
-                        &profile_id.to_string().trim(),
-                        &profile_name_row.text().trim(),
-                        &email_row.text().trim(),
-                        &username_row.text().trim(),
-                        &row.text().trim(),
-                        &path_row.text().trim(),
-                        &button_revealer,
-                    ],
-                );
-            }
-        }));
-
-        path_row.connect_changed(clone!(
-            @weak self as win,
-            @weak button_revealer,
-            @weak profile_name_row,
-            @weak email_row,
-            @weak username_row,
-            @weak password_row
-            => move |row| {
-            let is_email_correct_format =
-                EmailAddress::is_valid(email_row.text().trim());
-            if !is_email_correct_format && email_row.text().trim() != "" {
-                button_revealer.set_reveal_child(false);
-            } else {
-                win.imp().obj().emit_by_name::<()>(
-                    "profile-modified",
-                    &[
-                        &profile_id.to_string().trim(),
-                        &profile_name_row.text().trim(),
-                        &email_row.text().trim(),
                         &username_row.text().trim(),
                         &password_row.text().trim(),
+                        &path_row.text().trim(),
                         &row.text().trim(),
                         &button_revealer,
                     ],
@@ -392,6 +432,7 @@ impl BagitPreferencesGitProfiles {
                     &username_row.text().trim(),
                     &password_row.text().trim(),
                     &path_row.text().trim(),
+                    &signing_key_row.text().trim(),
                     &profile_title,
                     &profile_name_row,
                 ],

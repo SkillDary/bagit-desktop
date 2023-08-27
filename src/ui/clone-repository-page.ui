@@ -3,6 +3,7 @@
   <requires lib="gtk" version="4.0"/>
   <requires lib="Adw" version="1.0"/>
   <template class="BagitCloneRepositoryPage" parent="GtkBox">
+    <property name="width-request">600</property>
     <property name="orientation">vertical</property>
     <child>
       <object class="AdwHeaderBar" id="header_bar">
@@ -20,6 +21,12 @@
             <property name="icon-name">go-previous-symbolic</property>
           </object>
         </child>
+        <child type="end">
+          <object class="GtkMenuButton">
+            <property name="icon-name">open-menu-symbolic</property>
+            <property name="menu-model">primary_menu</property>
+          </object>
+        </child>
       </object>
     </child>
     <child>
@@ -35,6 +42,8 @@
                 <property name="title">main page</property>
                 <property name="child">
                   <object class="AdwClamp">
+                    <property name="margin-start">12</property>
+                    <property name="margin-end">12</property>
                     <property name="child">
                       <object class="GtkBox">
                         <property name="margin-top">64</property>
@@ -126,6 +135,22 @@
                                     <child>
                                       <object class="AdwExpanderRow" id="git_profiles">
                                         <property name="title" translatable="yes">_No profile</property>
+                                        <child type="prefix">
+                                          <object class="GtkRevealer" id="selected_profile_revealer">
+                                            <property name="transition-type">crossfade</property>
+                                            <property name="child">
+                                              <object class="GtkButton">
+                                                <property name="icon-name">view-reveal-symbolic</property>
+                                                <property name="margin-top">10</property>
+                                                <property name="margin-bottom">10</property>
+                                                <style>
+                                                  <class name="flat"/>
+                                                </style>
+                                                <signal name="clicked" handler="show_profile_information" swapped="true"/>
+                                              </object>
+                                            </property>
+                                          </object>
+                                        </child>
                                         <child>
                                           <object class="GtkListBox" id="profiles_list">
                                             <signal name="row-selected" handler="row_clicked" swapped="true"/>
@@ -237,6 +262,7 @@
                                     </child>
                                     <child>
                                       <object class="GtkListBox">
+                                        <property name="selection-mode">none</property>
                                         <style>
                                           <class name="boxed-list"/>
                                         </style>
@@ -257,6 +283,11 @@
                                           </object>
                                         </child>
                                         <child>
+                                          <object class="AdwEntryRow" id="https_username">
+                                            <property name="title" translatable="yes">_Username</property>
+                                          </object>
+                                        </child>
+                                        <child>
                                           <object class="AdwEntryRow" id="email">
                                             <signal name="changed" handler="email_changed" swapped="true"/>
                                             <property name="title" translatable="yes">_Email address</property>
@@ -264,7 +295,7 @@
                                               <object class="GtkImage" id="email_error">
                                                 <property name="icon-name">emblem-important-symbolic</property>
                                                 <property name="tooltip-text" translatable="yes">_Wrong email</property>
-                                                <property name="visible" translatable="yes">false</property>
+                                                <property name="visible">false</property>
                                                 <style>
                                                   <class name="error"/>
                                                 </style>
@@ -306,14 +337,10 @@
                                     </child>
                                     <child>
                                       <object class="GtkListBox">
+                                        <property name="selection-mode">none</property>
                                         <style>
                                           <class name="boxed-list"/>
                                         </style>
-                                        <child>
-                                          <object class="AdwEntryRow" id="https_username">
-                                            <property name="title" translatable="yes">_Username</property>
-                                          </object>
-                                        </child>
                                         <child>
                                           <object class="AdwPasswordEntryRow" id="https_pwd">
                                             <property name="title" translatable="yes">_Token or password</property>
@@ -338,6 +365,7 @@
                                     </child>
                                     <child>
                                       <object class="GtkListBox">
+                                        <property name="selection-mode">none</property>
                                         <style>
                                           <class name="boxed-list"/>
                                         </style>
@@ -355,6 +383,34 @@
                                                 </style>
                                               </object>
                                             </child>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkBox">
+                                    <property name="orientation">vertical</property>
+                                    <property name="spacing">12</property>
+                                    <child>
+                                      <object class="GtkLabel">
+                                        <property name="halign">GTK_ALIGN_START</property>
+                                        <property name="label" translatable="yes">_PGP information</property>
+                                        <style>
+                                          <class name="title-2"/>
+                                        </style>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkListBox">
+                                        <property name="selection-mode">none</property>
+                                        <style>
+                                          <class name="boxed-list"/>
+                                        </style>
+                                        <child>
+                                          <object class="AdwPasswordEntryRow" id="signing_key">
+                                            <property name="title" translatable="yes">_Signing key</property>
                                           </object>
                                         </child>
                                       </object>
@@ -465,4 +521,20 @@
       </object>
     </child>
   </template>
+  <menu id="primary_menu">
+    <section>
+      <item>
+        <attribute name="label" translatable="yes">_Preferences</attribute>
+        <attribute name="action">app.preferences</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">_Keyboard Shortcuts</attribute>
+        <attribute name="action">win.show-help-overlay</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">_About Bagit-Desktop</attribute>
+        <attribute name="action">app.about</attribute>
+      </item>
+    </section>
+  </menu>
 </interface>

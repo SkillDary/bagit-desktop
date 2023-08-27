@@ -99,4 +99,45 @@ impl FileTree {
 
         return true;
     }
+
+    /**
+     * Used to know if all files are selected.
+     */
+    pub fn are_all_files_selected(&self) -> bool {
+        for file in &self.tree {
+            if file.is_selected == false {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// Used to get all selected files.
+    pub fn get_selected_files(&self) -> Vec<ChangedFile> {
+        let mut changed_files: Vec<ChangedFile> = vec![];
+
+        for file in &self.tree {
+            if file.is_selected {
+                changed_files.push(file.clone());
+            }
+        }
+
+        return changed_files;
+    }
+
+    /**
+     * Used to retrieve the number of selected files.
+     */
+    pub fn get_number_of_selected_files(&self) -> i32 {
+        let mut count = 0;
+
+        for file in &self.tree {
+            if file.is_selected {
+                count += 1;
+            }
+        }
+
+        return count;
+    }
 }

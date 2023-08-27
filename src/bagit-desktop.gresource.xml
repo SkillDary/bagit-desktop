@@ -5,9 +5,11 @@
     <file preprocess="xml-stripblanks">gtk/help-overlay.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/bagit-action-bar.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/bagit-repositories.ui</file>
+    <file preprocess="xml-stripblanks">ui/widgets/bagit-profile-dialog.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/preferences/bagit-preferences-sidebar.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/preferences/bagit-preferences-git-profiles.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/repository/bagit-commits-sidebar.ui</file>
+    <file preprocess="xml-stripblanks">ui/widgets/repository/bagit-commit-view.ui</file>
     <file preprocess="xml-stripblanks">ui/clone-repository-page.ui</file>
     <file preprocess="xml-stripblanks">ui/preferences.ui</file>
     <file preprocess="xml-stripblanks">ui/repository-page.ui</file>

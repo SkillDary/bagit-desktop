@@ -9,7 +9,7 @@ msgstr ""
 "Project-Id-Version: bagit-desktop\n"
 "Report-Msgid-Bugs-To: https://gitlab.skilldary.com/Bagit/bagit-desktop/-/issues\n"
 "POT-Creation-Date: 2023-06-23 19:31+0200\n"
-"PO-Revision-Date: 2023-06-23 20:10+0200\n"
+"PO-Revision-Date: 2023-08-27 19:44+0200\n"
 "Last-Translator: Noah PENIN <peninnoah@skilldary.com>\n"
 "Language-Team: Bagit Desktop Translation Team <>\n"
 "Language: fr\n"
@@ -123,19 +123,22 @@ msgid "_Username"
 msgstr "Nom d'utilisateur"
 
 msgid "_Token or password"
-msgstr "Token ou mot de passe"
+msgstr "Token ou mot de passe (optionnel)"
 
 msgid "_SSH information"
 msgstr "Informations SSH"
 
 msgid "_Private key path"
-msgstr "Emplacement de la clé privée"
+msgstr "Emplacement de la clé privée (optionnel)"
 
 msgid "_Select Private key path"
 msgstr "Sélectionnez votre clé privée"
 
+msgid "_PGP information"
+msgstr "Informations GPG"
+
 msgid "_Passphrase"
-msgstr "Phrase de passe"
+msgstr "Phrase de passe (optionnelle)"
 
 msgid "_Failed to open repository"
 msgstr "Impossible d'ouvrir le dépôt"
@@ -188,6 +191,9 @@ msgstr "Nom du profil"
 msgid "_Email address"
 msgstr "Adresse courriel"
 
+msgid "_Signing key"
+msgstr "Clé de signature (optionnelle)"
+
 msgid "_New profile"
 msgstr "Nouveau profil"
 
@@ -197,6 +203,11 @@ msgstr "Ce nom de profil est déjà utilisé."
 msgid "_Wrong email"
 msgstr "L'adresse courriel entrée n'a pas le bon format."
 
+############# repository_page.rs ###################
+
+msgid "_Commit created successfully"
+msgstr "Fichiers commis"
+
 ############# bagit-commits-sidebar.ui #############
 
 msgid "_Changes"
@@ -205,9 +216,17 @@ msgstr "Changements"
 msgid "_History"
 msgstr "Historique"
 
+msgid "_Commit not pushed"
+msgstr "Cette commission n'a pas encore été poussée"
+
+msgid "_Changed files"
+msgstr "fichiers changés"
+
+msgid "_Changed file"
+msgstr "fichier changé"
+
 msgid "_Commit subtitle format"
 msgstr "a commis le %d/%m/%Y à %H:%M"
-
 
 msgid "_Modified file"
 msgstr "Le contenu du fichier a été modifié"
@@ -223,3 +242,57 @@ msgstr "Le fichier a été renommé"
 
 msgid "_File type modified"
 msgstr "Le type du fichier a été changé"
+
+msgid "_Commit changes"
+msgstr "Commettre les changements"
+
+############# bagit-commit-view.ui ##############
+
+msgid "_No committed file"
+msgstr "Auncun fichier ne sera commis."
+
+msgid "_Committed file"
+msgstr "fichier sera commis."
+
+msgid "_Committed files"
+msgstr "fichiers seront commis."
+
+msgid "_Author information"
+msgstr "Informations de l'auteur"
+
+msgid "_Author"
+msgstr "Nom de l'auteur"
+
+msgid "_Author email"
+msgstr "Adresse courriel de l'auteur"
+
+msgid "_Message"
+msgstr "Message"
+
+msgid "_Message indication"
+msgstr "Le message d'une commission devrait faire moins de 50 caractères."
+
+msgid "_Description"
+msgstr "Description (optionnelle)"
+
+msgid "_GPG indication"
+msgstr "La clé de signature à utiliser si vous voulez signer votre commission (ex: 3AA5C34371567BD2)."
+
+msgid "_Commit"
+msgstr "Commettre"
+
+############### bagit-profile-dialog.ui ############
+
+msgid "_Profile information"
+msgstr "Informations du profil"
+
+############### profile_dialog.rs #################
+
+msgid "_Token or password dialog"
+msgstr "Token ou mot de passe"
+
+msgid "_Private key path dialog"
+msgstr "Emplacement de la clé privée"
+
+msgid "_Signing key dialog"
+msgstr "Clé de signature"

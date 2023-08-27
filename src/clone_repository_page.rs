@@ -27,12 +27,18 @@ use gtk::{glib, prelude::*, template_callbacks, CompositeTemplate};
 use once_cell::sync::Lazy;
 
 use crate::models::bagit_git_profile::BagitGitProfile;
+use crate::utils::clone_page_profile_mode_type::ClonePageProfileModeType;
+use crate::utils::clone_page_profile_mode_type::ClonePageProfileModeValues;
+use crate::utils::git_profile_utils::GitProfileUtils;
+use std::cell::RefCell;
+
+use uuid::Uuid;
+
+use crate::utils::{profile_mode::ProfileMode, repository_utils::RepositoryUtils};
 
 mod imp {
 
-    use uuid::Uuid;
-
-    use crate::utils::repository_utils::RepositoryUtils;
+    use crate::{utils::db::AppDatabase, widgets::profile_dialog::BagitProfileDialog};
 
     use super::*;
 
@@ -40,6 +46,8 @@ mod imp {
     #[derive(Debug, Default, CompositeTemplate)]
     #[template(resource = "/com/skilldary/bagit/desktop/ui/clone-repository-page.ui")]
     pub struct BagitCloneRepositoryPage {
+        #[template_child]
+        pub selected_profile_revealer: TemplateChild<gtk::Revealer>,
         #[template_child]
         pub back_button: TemplateChild<gtk::Button>,
         #[template_child]
@@ -69,6 +77,8 @@ mod imp {
         #[template_child]
         pub passphrase: TemplateChild<adw::PasswordEntryRow>,
         #[template_child]
+        pub signing_key: TemplateChild<adw::PasswordEntryRow>,
+        #[template_child]
         pub git_profiles: TemplateChild<adw::ExpanderRow>,
         #[template_child]
         pub profiles_list: TemplateChild<gtk::ListBox>,
@@ -80,10 +90,28 @@ mod imp {
         pub new_profile_revealer: TemplateChild<gtk::Revealer>,
         #[template_child]
         pub main_stack: TemplateChild<gtk::Stack>,
+
+        pub profile_mode: RefCell<ProfileMode>,
+
+        pub app_database: AppDatabase,
     }
 
     #[template_callbacks]
     impl BagitCloneRepositoryPage {
+        #[template_callback]
+        fn show_profile_information(&self, _button: &gtk::Button) {
+            let profile_mode = self.profile_mode.borrow().get_profile_mode();
+
+            match profile_mode {
+                ProfileMode::SelectedProfile(profile) => {
+                    let profile_dialog = BagitProfileDialog::new(&profile);
+                    profile_dialog.set_modal(true);
+                    profile_dialog.present();
+                }
+                _ => {}
+            };
+        }
+
         #[template_callback]
         fn go_back(&self, _back_button: &gtk::Button) {
             self.obj().emit_by_name::<()>("go-back", &[]);
@@ -113,14 +141,15 @@ mod imp {
             self.clone_button_and_profile
                 .set_sensitive(self.obj().can_clone_button_with_new_profile_be_sensitive());
 
-            self.obj().emit_by_name::<()>(
-                "unique-name",
-                &[
-                    &self.profile_name_warning.clone(),
-                    &profile_name_row.text().trim(),
-                    &Uuid::new_v4().to_string(),
-                ],
+            // We check if the name of the profile is unique :
+            let same_profile_name_number = self.app_database.get_number_of_git_profiles_with_name(
+                &profile_name_row.text().trim(),
+                &Uuid::new_v4().to_string(),
             );
+
+            self.profile_name_warning
+                .clone()
+                .set_visible(same_profile_name_number != 0);
         }
 
         #[template_callback]
@@ -145,24 +174,10 @@ mod imp {
             if row != None {
                 let selected_row = row.unwrap();
                 let index = selected_row.index();
+                let profile_title = selected_row.title().to_string();
                 self.git_profiles.set_expanded(false);
-                match index {
-                    0 => {
-                        self.button_stack.set_visible_child_name("simple clone");
-                        self.new_profile_revealer.set_reveal_child(false);
-                        self.git_profiles.set_title(&gettext("_No profile"));
-                    }
-                    1 => {
-                        self.button_stack.set_visible_child_name("new profile");
-                        self.new_profile_revealer.set_reveal_child(true);
-                        self.git_profiles.set_title(&gettext("_New profile"));
-                    }
-                    _ => {
-                        self.button_stack.set_visible_child_name("simple clone");
-                        self.new_profile_revealer.set_reveal_child(false);
-                        self.git_profiles.set_title(&selected_row.title());
-                    }
-                }
+
+                self.obj().set_profile_mode(index, profile_title);
             }
         }
 
@@ -198,6 +213,7 @@ mod imp {
                     &self.https_username.text(),
                     &self.https_pwd.text(),
                     &self.private_key_path.text(),
+                    &self.signing_key.text(),
                 ],
             );
         }
@@ -227,18 +243,12 @@ mod imp {
                     Signal::builder("go-back").build(),
                     Signal::builder("select-location").build(),
                     Signal::builder("select-private-key").build(),
-                    Signal::builder("unique-name")
-                        .param_types([
-                            gtk::Image::static_type(),
-                            str::static_type(),
-                            str::static_type(),
-                        ])
-                        .build(),
                     Signal::builder("clone-repository")
                         .param_types([str::static_type(), str::static_type()])
                         .build(),
                     Signal::builder("clone-repository-and-add-profile")
                         .param_types([
+                            str::static_type(),
                             str::static_type(),
                             str::static_type(),
                             str::static_type(),
@@ -265,6 +275,19 @@ glib::wrapper! {
 }
 
 impl BagitCloneRepositoryPage {
+    /// Used to show the selected profile.
+    pub fn show_selected_profile(&self, profile_name: &str) {
+        self.imp().selected_profile_revealer.set_visible(true);
+        self.imp().selected_profile_revealer.set_reveal_child(true);
+        self.imp().git_profiles.set_title(profile_name);
+    }
+
+    /// Used to show no selected profile.
+    pub fn show_no_selected_profile(&self, new_state_title: &str) {
+        self.imp().selected_profile_revealer.set_reveal_child(false);
+        self.imp().selected_profile_revealer.set_visible(false);
+        self.imp().git_profiles.set_title(new_state_title);
+    }
     /**
      * Used to check if the clone button can be sensitive.
      */
@@ -279,7 +302,10 @@ impl BagitCloneRepositoryPage {
     pub fn can_clone_button_with_new_profile_be_sensitive(&self) -> bool {
         return (self.imp().url_row.text().trim() != "")
             && (self.imp().location_row.text().trim() != "")
-            && (self.imp().profile_name.text().trim() != "");
+            && (self.imp().profile_name.text().trim() != "")
+            && (self.imp().https_username.text().trim() != "")
+            && (EmailAddress::is_valid(self.imp().email.text().trim())
+                && self.imp().email.text().trim() != "");
     }
 
     /**
@@ -294,8 +320,12 @@ impl BagitCloneRepositoryPage {
         self.imp().https_pwd.set_text("");
         self.imp().private_key_path.set_text("");
         self.imp().passphrase.set_text("");
+        self.imp().signing_key.set_text("");
 
-        self.clear_profiles_list();
+        // We clear the list informations and the profile mode used:
+        self.clear_profiles_list(true);
+        self.show_no_selected_profile(&gettext("_No profile"));
+        self.imp().profile_mode.take();
 
         self.imp().profile_name_warning.set_visible(false);
         self.imp().email_error.set_visible(false);
@@ -308,9 +338,87 @@ impl BagitCloneRepositoryPage {
     }
 
     /**
+     * Used to update the git profiles list.
+     * This will do the following :
+     * - Update the list (remove, add entries)
+     * - Check if the current selected profile si still valid. If not, will select no profile.
+     */
+    pub fn update_git_profiles_list(&self, new_list: &Vec<BagitGitProfile>) {
+        let profile_mode = self.imp().profile_mode.take();
+
+        self.clear_profiles_list(false);
+
+        for profile in new_list {
+            self.add_git_profile_row(&profile);
+        }
+
+        // If we had selected a profile, we check that this profile still exist.
+        match profile_mode {
+            ProfileMode::SelectedProfile(selected_profile) => {
+                let mut found_profile: Option<BagitGitProfile> = None;
+                for profile in new_list {
+                    if profile.profile_id == selected_profile.profile_id {
+                        found_profile = Some(profile.clone());
+                        break;
+                    }
+                }
+                // If we found a profile, the selected one still exist and we eventually update it's name if it has changed :
+                if found_profile.is_some() {
+                    self.set_profile_mode(3, found_profile.unwrap().profile_name)
+                } else {
+                    // Else, we go back to the No profile state.
+                    self.set_profile_mode(3, "".to_string())
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Used to define the profile mode used for cloning a repository.
+    pub fn set_profile_mode(&self, index: i32, profile_title: String) {
+        match index {
+            ClonePageProfileModeType::NO_PROFILE => {
+                self.imp()
+                    .button_stack
+                    .set_visible_child_name("simple clone");
+                self.imp().new_profile_revealer.set_reveal_child(false);
+                self.imp().profile_mode.replace(ProfileMode::NoProfile);
+                self.show_no_selected_profile(&gettext("_No profile"));
+            }
+            ClonePageProfileModeType::NEW_PROFILE => {
+                self.imp()
+                    .button_stack
+                    .set_visible_child_name("new profile");
+                self.imp().new_profile_revealer.set_reveal_child(true);
+                self.imp().profile_mode.replace(ProfileMode::NewProfile);
+                self.show_no_selected_profile(&gettext("_New profile"));
+            }
+            _ => {
+                self.imp()
+                    .button_stack
+                    .set_visible_child_name("simple clone");
+                let found_profile = self
+                    .imp()
+                    .app_database
+                    .get_git_profile_from_name(&profile_title);
+                match found_profile {
+                    Some(profile) => {
+                        self.show_selected_profile(&profile.profile_name);
+                        self.imp()
+                            .profile_mode
+                            .replace(ProfileMode::SelectedProfile(profile));
+                    }
+                    None => {}
+                }
+                self.imp().new_profile_revealer.set_reveal_child(false);
+            }
+        }
+    }
+
+    /**
      * Use to clear profiles list.
      */
-    pub fn clear_profiles_list(&self) {
+    pub fn clear_profiles_list(&self, unselect_all: bool) {
         let mut row = self.imp().profiles_list.row_at_index(2);
         while row != None {
             self.imp().profiles_list.remove(&row.unwrap());
@@ -318,19 +426,16 @@ impl BagitCloneRepositoryPage {
         }
 
         // We make sure that the selected row is the default one :
-        self.imp().profiles_list.unselect_all();
-        self.imp()
-            .profiles_list
-            .select_row(self.imp().profiles_list.row_at_index(0).as_ref());
-        self.imp().git_profiles.set_title(&gettext("_No profile"));
+        if unselect_all {
+            self.imp().profiles_list.unselect_all();
+        }
     }
 
     /**
      * Used to add a new git profile row to the profiles list.
      */
-    pub fn add_git_profile_row(&self, profile: BagitGitProfile) {
-        let action_row = adw::ActionRow::new();
-        action_row.set_title(&profile.profile_name);
+    pub fn add_git_profile_row(&self, profile: &BagitGitProfile) {
+        let action_row = GitProfileUtils::build_profile_row(&profile);
 
         self.imp().profiles_list.append(&action_row);
     }

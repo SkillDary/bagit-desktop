@@ -17,6 +17,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+use std::cell::Cell;
 use std::cell::RefCell;
 
 use glib::{ParamSpec, Properties, Value};
@@ -33,7 +34,11 @@ pub struct CommitObject {
     #[property(get, set)]
     title: RefCell<String>,
     #[property(get, set)]
+    description: RefCell<String>,
+    #[property(get, set)]
     subtitle: RefCell<String>,
+    #[property(get, set)]
+    is_pushed: Cell<bool>,
 }
 
 // The central trait for subclassing a GObject

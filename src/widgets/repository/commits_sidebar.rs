@@ -60,6 +60,10 @@ mod imp {
         #[template_child]
         pub history_button: TemplateChild<gtk::Button>,
         #[template_child]
+        pub total_files: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub select_by_default_button: TemplateChild<gtk::CheckButton>,
+        #[template_child]
         pub menu: TemplateChild<gtk::ListBox>,
         #[template_child]
         pub commit_history_list: TemplateChild<gtk::ListView>,
@@ -76,6 +80,7 @@ mod imp {
 
         pub changed_files: RefCell<FileTree>,
         pub change_from_file: Cell<bool>,
+        pub change_from_user: Cell<bool>,
     }
 
     #[template_callbacks]
@@ -111,12 +116,28 @@ mod imp {
         }
 
         #[template_callback]
+        fn select_button_changed(&self, _check_button: &gtk::CheckButton) {
+            if self.change_from_user.get() {
+                // We update the changed files list :
+                self.obj().clear_changed_files_list();
+                self.obj().emit_by_name::<()>("update-changed-files", &[]);
+            } else {
+                self.change_from_user.set(true);
+            }
+        }
+
+        #[template_callback]
         fn row_clicked(&self, row: Option<adw::ActionRow>) {
             if row != None {
                 let selected_row: adw::ActionRow = row.unwrap();
                 self.obj()
                     .emit_by_name::<()>("row-selected", &[&selected_row.index()]);
             }
+        }
+
+        #[template_callback]
+        fn show_commit_view(&self, _button: &gtk::Button) {
+            self.obj().emit_by_name::<()>("show-commit-view", &[]);
         }
     }
 
@@ -146,9 +167,19 @@ mod imp {
                         .build(),
                     Signal::builder("update-changed-files").build(),
                     Signal::builder("see-history").build(),
+                    Signal::builder("show-commit-view").build(),
+                    Signal::builder("update-file-information-label")
+                        .param_types([i32::static_type()])
+                        .build(),
                 ]
             });
+
             SIGNALS.as_ref()
+        }
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            self.change_from_user.set(true);
         }
     }
     impl WidgetImpl for BagitCommitsSideBar {}
@@ -172,6 +203,18 @@ impl BagitCommitsSideBar {
             .expect("Could not get current tasks.")
     }
 
+    /// Used to initialize the commits sidebar.
+    pub fn init_commits_sidebar(&self) {
+        self.imp().change_from_file.set(false);
+        self.clear_changed_files_list();
+
+        // We force the state of the selection button:
+        if !self.imp().select_by_default_button.is_active() {
+            self.imp().change_from_user.set(false);
+            self.imp().select_by_default_button.set_active(true);
+        }
+    }
+
     /// Sets up the commit list by creating a new `gio::ListStore` model to hold commit objects.
     fn setup_commit_list(&self) {
         let model: gio::ListStore = gio::ListStore::new(CommitObject::static_type());
@@ -191,12 +234,15 @@ impl BagitCommitsSideBar {
             let title: Label = Label::new(Some("Title"));
             let subtitle: Label = Label::new(Some("Subtitle"));
 
-            let row: gtk::Box = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+            let row: gtk::Box = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+            row.set_valign(gtk::Align::Center);
+            row.set_hexpand(true);
 
             row.set_margin_top(12);
             row.set_margin_bottom(12);
 
             let text_box: gtk::Box = gtk::Box::new(gtk::Orientation::Vertical, 8);
+            text_box.set_hexpand(true);
 
             title.add_css_class("heading");
             title.set_property("halign", Align::Start);
@@ -209,6 +255,15 @@ impl BagitCommitsSideBar {
             text_box.append(&subtitle);
 
             row.append(&text_box);
+
+            let local_image: gtk::Image = gtk::Image::from_icon_name("panel-modified-symbolic");
+            local_image.set_pixel_size(24);
+            local_image.set_tooltip_text(Some(&gettext("_Commit not pushed")));
+            local_image.add_css_class("warning");
+            local_image.set_visible(false);
+            local_image.set_halign(gtk::Align::End);
+            local_image.set_hexpand(true);
+            row.append(&local_image);
 
             list_item
                 .downcast_ref::<ListItem>()
@@ -253,8 +308,20 @@ impl BagitCommitsSideBar {
                 .and_downcast::<gtk::Label>()
                 .expect("Last child of `Box` has to be a `Label`.");
 
+            // Get 'is_pushed image' from 'ListItem'
+            let is_pushed_image: gtk::Image = list_item
+                .downcast_ref::<ListItem>()
+                .expect("Needs to be ListItem")
+                .child()
+                .and_downcast::<gtk::Box>()
+                .expect("The child has to be a `Box`.")
+                .last_child()
+                .and_downcast::<gtk::Image>()
+                .expect("Last child of `Box` has to be an `Image`.");
+
             title.set_label(&commit_object.title());
             subtitle.set_label(&commit_object.subtitle());
+            is_pushed_image.set_visible(!commit_object.is_pushed())
         });
 
         // TODO: Unbind.
@@ -368,14 +435,21 @@ impl BagitCommitsSideBar {
     }
 
     /**
-     * Used to clear changed files list.
+     * Used to clear changed files list for UI.
      */
-    pub fn clear_changed_files_list(&self) {
+    pub fn clear_changed_ui_files_list(&self) {
         let mut row = self.imp().menu.row_at_index(0);
         while row != None {
             self.imp().menu.remove(&row.unwrap());
             row = self.imp().menu.row_at_index(0);
         }
+    }
+
+    /// Used to clear changed list.
+    pub fn clear_changed_files_list(&self) {
+        self.imp()
+            .changed_files
+            .replace(FileTree::new(vec![], vec![]));
     }
 
     /**
@@ -409,7 +483,6 @@ impl BagitCommitsSideBar {
 
         let main_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
         let folder_box = gtk::Box::new(gtk::Orientation::Horizontal, 4);
-        folder_box.set_margin_end(6);
         let revealer = gtk::Revealer::new();
         revealer.set_reveal_child(folder.is_expanded);
         let file_list = gtk::ListBox::new();
@@ -417,7 +490,7 @@ impl BagitCommitsSideBar {
         let mut file_add_button_list: Vec<gtk::CheckButton> = Vec::new();
 
         let folder_label = gtk::Label::new(Some(&folder.path));
-        folder_label.set_max_width_chars(20);
+        //folder_label.set_max_width_chars(20);
         folder_label.set_ellipsize(gtk::pango::EllipsizeMode::End);
 
         let dropdown_button = gtk::Button::from_icon_name("go-down-symbolic");
@@ -447,6 +520,7 @@ impl BagitCommitsSideBar {
         let choice_box = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         choice_box.set_hexpand(true);
         choice_box.set_halign(gtk::Align::End);
+        choice_box.set_margin_end(12);
 
         let add_button: gtk::CheckButton;
         {
@@ -464,17 +538,20 @@ impl BagitCommitsSideBar {
         controller.connect_enter(clone!(
             @weak discard_button,
             @weak add_button,
-            @weak folder_box
+            @weak folder_box,
             => move |_, _, _| {
             discard_button.set_visible(true);
             add_button.set_visible(true);
+            folder_box.add_css_class("headerbar_bg_color");
         }));
         controller.connect_leave(clone!(
             @weak discard_button,
-            @weak add_button
+            @weak add_button,
+            @weak folder_box
              => move |_| {
                 discard_button.set_visible(false);
                 add_button.set_visible(add_button.is_active());
+                folder_box.remove_css_class("headerbar_bg_color");
         }));
         folder_box.add_controller(controller);
 
@@ -484,7 +561,7 @@ impl BagitCommitsSideBar {
         main_box.append(&folder_box);
 
         for file in &files {
-            let new_file_row = self.generate_changed_file(&file, 30, Some(add_button.clone()));
+            let new_file_row = self.generate_changed_file(&file, 30, 6, Some(add_button.clone()));
             file_list.append(&new_file_row.0);
             if file.is_opened {
                 file_list.select_row(Some(&new_file_row.0));
@@ -501,6 +578,13 @@ impl BagitCommitsSideBar {
                     let mut legacy_list = win.imp().changed_files.take();
 
                     legacy_list.set_selection_of_files_in_folder(&folder.path,button.is_active());
+                    win.emit_by_name::<()>("update-file-information-label", &[&legacy_list.get_number_of_selected_files()]);
+
+                    let are_all_files_selected = legacy_list.are_all_files_selected();
+                    if win.imp().select_by_default_button.is_active() != are_all_files_selected {
+                        win.imp().change_from_user.set(false);
+                        win.imp().select_by_default_button.set_active(are_all_files_selected);
+                    }
 
                     win.imp().changed_files.replace(legacy_list);
 
@@ -524,6 +608,7 @@ impl BagitCommitsSideBar {
         &self,
         file: &ChangedFile,
         margin_start: i32,
+        margin_end: i32,
         parent_folder_add_button: Option<gtk::CheckButton>,
     ) -> (adw::ActionRow, gtk::CheckButton) {
         let row = adw::ActionRow::new();
@@ -531,6 +616,8 @@ impl BagitCommitsSideBar {
         label.set_halign(gtk::Align::Start);
         label.set_margin_top(8);
         label.set_margin_bottom(8);
+        //label.set_max_width_chars(15);
+        label.set_ellipsize(gtk::pango::EllipsizeMode::End);
 
         let main_box = gtk::Box::new(gtk::Orientation::Horizontal, 4);
         main_box.set_margin_end(4);
@@ -539,6 +626,7 @@ impl BagitCommitsSideBar {
         let choice_box = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         choice_box.set_hexpand(true);
         choice_box.set_halign(gtk::Align::End);
+        choice_box.set_margin_end(margin_end);
 
         let add_button = self.generate_add_button(file.is_selected);
 
@@ -554,6 +642,14 @@ impl BagitCommitsSideBar {
                 new_file_info.is_selected = button.is_active();
 
                 legacy_list.change_file_information(&new_file_info);
+                win.emit_by_name::<()>("update-file-information-label", &[&legacy_list.get_number_of_selected_files()]);
+
+                let are_all_files_selected = legacy_list.are_all_files_selected();
+                if win.imp().select_by_default_button.is_active() != are_all_files_selected {
+                    win.imp().change_from_user.set(false);
+                    win.imp().select_by_default_button.set_active(are_all_files_selected);
+                }
+
                 let cloned_list = legacy_list.clone();
 
                 win.imp().changed_files.replace(legacy_list);
@@ -576,17 +672,21 @@ impl BagitCommitsSideBar {
         let controller = gtk::EventControllerMotion::new();
         controller.connect_enter(clone!(
             @weak discard_button,
-            @weak add_button
+            @weak add_button,
+            @weak row
             => move |_, _, _| {
-            discard_button.set_visible(true);
-            add_button.set_visible(true);
+                discard_button.set_visible(true);
+                add_button.set_visible(true);
+                row.add_css_class("headerbar_bg_color");
         }));
         controller.connect_leave(clone!(
             @weak discard_button,
-            @weak add_button
+            @weak add_button,
+            @weak row
              => move |_| {
                 discard_button.set_visible(false);
                 add_button.set_visible(add_button.is_active());
+                row.remove_css_class("headerbar_bg_color");
         }));
         row.add_controller(controller);
 
@@ -632,8 +732,6 @@ impl BagitCommitsSideBar {
         icon.set_margin_start(margin_start);
         icon.set_tooltip_text(Some(&icon_tooltip_text));
         icon.add_css_class(&css_class_name);
-        label.set_max_width_chars(15);
-        label.set_ellipsize(gtk::pango::EllipsizeMode::End);
 
         main_box.append(&icon);
         main_box.append(&label);
@@ -667,6 +765,16 @@ impl BagitCommitsSideBar {
         };
     }
 
+    /// Used to update the changed files indicator.
+    fn update_changed_files_indicator(&self, total_files: i32) {
+        let text = if total_files == 1 {
+            format!("{} {}", total_files, gettext("_Changed file"))
+        } else {
+            format!("{} {}", total_files, gettext("_Changed files"))
+        };
+        self.imp().total_files.set_text(&text);
+    }
+
     /**
      * Used to build a HashMap of parent with files.
      */
@@ -684,9 +792,14 @@ impl BagitCommitsSideBar {
             let status = change.status();
 
             // We only take files and folders that ain't in a gitignore file.
-            if status != Status::IGNORED {
-                let mut current_file =
-                    ChangedFile::new(parent.clone(), filename, status, false, false);
+            if !status.is_ignored() {
+                let mut current_file = ChangedFile::new(
+                    parent.clone(),
+                    filename,
+                    status,
+                    self.imp().select_by_default_button.is_active(),
+                    false,
+                );
                 let mut current_folder = ChangedFolder::new(parent.clone(), true);
 
                 let found_file = borrowed_changed_files.get_changed_file_from_list(&current_file);
@@ -713,10 +826,16 @@ impl BagitCommitsSideBar {
                 new_file_list.push(current_file.clone());
             }
         }
+        self.update_changed_files_indicator(new_file_list.len().try_into().unwrap());
 
-        self.imp()
-            .changed_files
-            .replace(FileTree::new(new_file_list, new_folder_list));
+        let new_file_tree = FileTree::new(new_file_list, new_folder_list);
+
+        self.emit_by_name::<()>(
+            "update-file-information-label",
+            &[&new_file_tree.get_number_of_selected_files()],
+        );
+
+        self.imp().changed_files.replace(new_file_tree);
 
         return hash_map;
     }

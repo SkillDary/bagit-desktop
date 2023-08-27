@@ -19,8 +19,13 @@
 
 pub mod changed_file;
 pub mod changed_folder;
+pub mod clone_page_profile_mode_type;
+pub mod commit_view_profile_mode_type;
 pub mod db;
 pub mod file_tree;
 pub mod git;
+pub mod git_profile_utils;
+pub mod gpg_utils;
+pub mod profile_mode;
 pub mod repository_utils;
 pub mod selected_repository;

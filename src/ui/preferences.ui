@@ -3,7 +3,7 @@
   <requires lib="gtk" version="4.0"/>
   <requires lib="Adw" version="1.0"/>
   <template class="BagitPreferences" parent="AdwApplicationWindow">
-    <property name="default-width">1100</property>
+    <property name="default-width">800</property>
     <property name="default-height">600</property>
     <child>
       <object class="GtkBox">

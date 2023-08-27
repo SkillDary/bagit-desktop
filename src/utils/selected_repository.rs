@@ -1,3 +1,22 @@
+/* selected_repository.rs
+ *
+ * Copyright 2023 SkillDary
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, version 3 of the License, only.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
 use git2::Repository;
 use std::fmt;
 use uuid::Uuid;
@@ -31,17 +50,18 @@ impl Default for SelectedRepository {
 
 impl SelectedRepository {
     /**
-     * Create a new SelectedRepository with path and found repository.
+     * Try creating a new SelectedRepository. Return an error if the repo cannot be openned.
      */
-    pub fn new_with_repository(repository: &BagitRepository) -> SelectedRepository {
-        let git_repo: Option<Repository> = match Repository::open(&repository.path) {
-            Ok(repo) => Some(repo),
-            Err(_) => None,
-        };
-        return SelectedRepository {
-            user_repository: repository.clone(),
-            git_repository: git_repo,
-        };
+    pub fn try_fetching_selected_repository(
+        repository: &BagitRepository,
+    ) -> Result<SelectedRepository, git2::Error> {
+        match Repository::open(&repository.path) {
+            Ok(repo) => Ok(SelectedRepository {
+                user_repository: repository.clone(),
+                git_repository: Some(repo),
+            }),
+            Err(e) => Err(e),
+        }
     }
 
     pub fn new(

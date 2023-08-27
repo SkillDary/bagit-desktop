@@ -1,4 +1,4 @@
-/* mod.rs
+/* clone_page_profile_mode_type.rs
  *
  * Copyright 2023 SkillDary
  *
@@ -17,8 +17,11 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-pub mod action_bar;
-pub mod preferences;
-pub mod profile_dialog;
-pub mod repositories;
-pub mod repository;
+pub trait ClonePageProfileModeValues {
+    const NO_PROFILE: i32 = 0;
+    const NEW_PROFILE: i32 = 1;
+}
+
+pub struct ClonePageProfileModeType;
+
+impl ClonePageProfileModeValues for ClonePageProfileModeType {}

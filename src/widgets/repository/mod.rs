@@ -17,6 +17,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+pub mod commit_view;
 pub mod commits_sidebar;
 
 mod imp;
@@ -29,7 +30,13 @@ glib::wrapper! {
 }
 
 impl CommitObject {
-    pub fn new(commit_id: String, title: String, subtitle: String) -> Self {
+    pub fn new(
+        commit_id: String,
+        title: String,
+        description: String,
+        subtitle: String,
+        is_pushed: bool,
+    ) -> Self {
         let object_builder: ObjectBuilder<'_, CommitObject> = Object::builder();
 
         let object_builder: ObjectBuilder<'_, CommitObject> =
@@ -38,6 +45,10 @@ impl CommitObject {
             object_builder.property("title", title);
         let object_builder: ObjectBuilder<'_, CommitObject> =
             object_builder.property("subtitle", subtitle);
+        let object_builder: ObjectBuilder<'_, CommitObject> =
+            object_builder.property("description", description);
+        let object_builder: ObjectBuilder<'_, CommitObject> =
+            object_builder.property("is-pushed", is_pushed);
 
         return object_builder.build();
     }

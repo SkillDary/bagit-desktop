@@ -9,7 +9,7 @@ msgstr ""
 "Project-Id-Version: bagit-desktop\n"
 "Report-Msgid-Bugs-To: https://gitlab.skilldary.com/Bagit/bagit-desktop/-/issues\n"
 "POT-Creation-Date: 2023-06-23 20:29+0200\n"
-"PO-Revision-Date: 2023-06-23 20:29+0200\n"
+"PO-Revision-Date: 2023-08-27 19:44+0200\n"
 "Last-Translator: Noah PENIN <peninnoah@skilldary.com>\n"
 "Language-Team: Bagit Desktop Translation Team <>\n"
 "Language: fr\n"
@@ -123,19 +123,22 @@ msgid "_Username"
 msgstr "Username"
 
 msgid "_Token or password"
-msgstr "Token or password"
+msgstr "Token or password (optional)"
 
 msgid "_SSH information"
 msgstr "SSH information"
 
 msgid "_Private key path"
-msgstr "Private key path"
+msgstr "Private key path (optional)"
 
 msgid "_Select Private key path"
 msgstr "Select a private key"
 
+msgid "_PGP information"
+msgstr "PGP information"
+
 msgid "_Passphrase"
-msgstr "Passphrase"
+msgstr "Passphrase (optional)"
 
 msgid "_Failed to open repository"
 msgstr "Failed to open repository"
@@ -188,6 +191,9 @@ msgstr "Profile's name"
 msgid "_Email address"
 msgstr "E-mail address"
 
+msgid "_Signing key"
+msgstr "Signing key (optional)"
+
 msgid "_New profile"
 msgstr "New profile"
 
@@ -197,6 +203,11 @@ msgstr "Profile name already used."
 msgid "_Wrong email"
 msgstr "E-mail has not the right format."
 
+############# repository_page.rs ###################
+
+msgid "_Commit created successfully"
+msgstr "Commit created successfully"
+
 ############# bagit-commits-sidebar.ui #############
 
 msgid "_Changes"
@@ -204,6 +215,15 @@ msgstr "Changes"
 
 msgid "_History"
 msgstr "History"
+
+msgid "_Commit not pushed"
+msgstr "This commit has not been pushed yet"
+
+msgid "_Changed files"
+msgstr "changed files"
+
+msgid "_Changed file"
+msgstr "changed file"
 
 msgid "_Commit subtitle format"
 msgstr "committed on %m/%d/%Y at %H:%M"
@@ -222,3 +242,57 @@ msgstr "File has been renamed"
 
 msgid "_File type modified"
 msgstr "File's type has been changed"
+
+msgid "_Commit changes"
+msgstr "Commit changes"
+
+############# bagit-commit-view.ui ##############
+
+msgid "_No committed file"
+msgstr "No file will be commited."
+
+msgid "_Committed file"
+msgstr "file will be committed."
+
+msgid "_Committed files"
+msgstr "files will be committed."
+
+msgid "_Author information"
+msgstr "Author's information"
+
+msgid "_Author"
+msgstr "Author's name"
+
+msgid "_Author email"
+msgstr "Author's email"
+
+msgid "_Message"
+msgstr "Message"
+
+msgid "_Message indication"
+msgstr "A commit message should be less than 50 characters long."
+
+msgid "_Description"
+msgstr "Description (optional)"
+
+msgid "_GPG indication"
+msgstr "Signing key to use if you want to sign your commit (e.g. 3AA5C34371567BD2)."
+
+msgid "_Commit"
+msgstr "Commit"
+
+############### bagit-profile-dialog.ui ############
+
+msgid "_Profile information"
+msgstr "Profile's information"
+
+############### profile_dialog.rs #################
+
+msgid "_Token or password dialog"
+msgstr "Token or password"
+
+msgid "_Private key path dialog"
+msgstr "Private key path"
+
+msgid "_Signing key dialog"
+msgstr "Signing key"

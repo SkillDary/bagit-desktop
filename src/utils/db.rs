@@ -71,7 +71,8 @@ impl AppDatabase {
                 email TEXT,
                 username TEXT,
                 password TEXT,
-                privateKeyPath TEXT
+                privateKeyPath TEXT,
+                signingKey TEXT
             );";
 
         connection.execute(query).unwrap();
@@ -129,6 +130,7 @@ impl AppDatabase {
             let username: String = statement.read::<String, _>("username").unwrap();
             let password: String = statement.read::<String, _>("password").unwrap();
             let private_key_path: String = statement.read::<String, _>("privateKeyPath").unwrap();
+            let signing_key: String = statement.read::<String, _>("signingKey").unwrap();
 
             let uuid: Uuid = Uuid::parse_str(&id).unwrap();
 
@@ -139,6 +141,7 @@ impl AppDatabase {
                 username,
                 password,
                 private_key_path,
+                signing_key,
             ));
         }
 
@@ -166,6 +169,27 @@ impl AppDatabase {
             )
         };
 
+        self.connection.execute(query).unwrap();
+    }
+
+    /// Used to update the profile used with a repository.
+    pub fn change_git_profile_of_repository(&self, repo_id: Uuid, profile_id: Option<Uuid>) {
+        let query: String = if profile_id.is_some() {
+            format!(
+                "UPDATE repository SET
+            gitProfileId='{}' 
+            WHERE repositoryId='{}';",
+                profile_id.unwrap(),
+                repo_id
+            )
+        } else {
+            format!(
+                "UPDATE repository SET
+            gitProfileId=NULL 
+            WHERE repositoryId='{}';",
+                repo_id
+            )
+        };
         self.connection.execute(query).unwrap();
     }
 
@@ -198,6 +222,7 @@ impl AppDatabase {
         username: &str,
         password: &str,
         private_key_path: &str,
+        signing_key: &str,
     ) -> bool {
         let query: String = format!(
             "SELECT profileId FROM gitProfile WHERE profileId='{}'
@@ -205,8 +230,9 @@ impl AppDatabase {
             AND email='{}'
             AND username='{}'
             AND password='{}'
-            AND privateKeyPath='{}';",
-            profile_id, profile_name, email, username, password, private_key_path
+            AND privateKeyPath='{}'
+            AND signingKey='{}';",
+            profile_id, profile_name, email, username, password, private_key_path, signing_key
         );
         let mut statement: sqlite::Statement<'_> = self.connection.prepare(query).unwrap();
 
@@ -243,6 +269,37 @@ impl AppDatabase {
         }
     }
 
+    /// Used to retrieve a profile by using his id.
+    pub fn get_git_profile_from_id(&self, profile_id: Uuid) -> Option<BagitGitProfile> {
+        let query: String = format!("SELECT * FROM gitProfile WHERE profileId='{}'", profile_id);
+        let mut statement: sqlite::Statement<'_> = self.connection.prepare(query).unwrap();
+
+        if let Ok(State::Row) = statement.next() {
+            let id: String = statement.read::<String, _>("profileId").unwrap();
+            let email: String = statement.read::<String, _>("email").unwrap();
+            let profile_name: String = statement.read::<String, _>("profileName").unwrap();
+            let username: String = statement.read::<String, _>("username").unwrap();
+            let password: String = statement.read::<String, _>("password").unwrap();
+            let private_key_path: String = statement.read::<String, _>("privateKeyPath").unwrap();
+            let signing_key: String = statement.read::<String, _>("signingKey").unwrap();
+
+            let uuid: Uuid = Uuid::parse_str(&id).unwrap();
+
+            return Some(BagitGitProfile::new(
+                uuid,
+                profile_name,
+                email,
+                username,
+                password,
+                private_key_path,
+                signing_key,
+            ));
+        } else {
+            return None;
+        }
+    }
+
+    /// Used to retrieve a profile by using his name.
     pub fn get_git_profile_from_name(&self, profile_name: &str) -> Option<BagitGitProfile> {
         let query: String = format!(
             "SELECT * FROM gitProfile WHERE profileName='{}'",
@@ -257,6 +314,7 @@ impl AppDatabase {
             let username: String = statement.read::<String, _>("username").unwrap();
             let password: String = statement.read::<String, _>("password").unwrap();
             let private_key_path: String = statement.read::<String, _>("privateKeyPath").unwrap();
+            let signing_key: String = statement.read::<String, _>("signingKey").unwrap();
 
             let uuid: Uuid = Uuid::parse_str(&id).unwrap();
 
@@ -267,6 +325,7 @@ impl AppDatabase {
                 username,
                 password,
                 private_key_path,
+                signing_key,
             ));
         } else {
             return None;
@@ -276,15 +335,16 @@ impl AppDatabase {
     /**
      * Used for adding a new git profile.
      */
-    pub fn add_git_profile(&self, profile: BagitGitProfile) {
+    pub fn add_git_profile(&self, profile: &BagitGitProfile) {
         let query: String = format!(
-            "INSERT INTO gitProfile VALUES ('{}', '{}', '{}', '{}', '{}', '{}');",
+            "INSERT INTO gitProfile VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}');",
             profile.profile_id.to_string(),
             profile.profile_name,
             profile.email,
             profile.username,
             profile.password,
-            profile.private_key_path
+            profile.private_key_path,
+            profile.signing_key
         );
 
         self.connection.execute(query).unwrap();
@@ -293,20 +353,22 @@ impl AppDatabase {
     /**
      * Used for updating a git profile.
      */
-    pub fn update_git_profile(&self, profile: BagitGitProfile) {
+    pub fn update_git_profile(&self, profile: &BagitGitProfile) {
         let query: String = format!(
             "UPDATE gitProfile SET
             profileName='{}',
             email='{}',
             username='{}',
             password='{}',
-            privateKeyPath='{}'
+            privateKeyPath='{}',
+            signingKey='{}'
             WHERE profileId='{}';",
             profile.profile_name,
             profile.email,
             profile.username,
             profile.password,
             profile.private_key_path,
+            profile.signing_key,
             profile.profile_id,
         );
 

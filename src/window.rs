@@ -21,8 +21,11 @@ use std::{fs, path::PathBuf, thread};
 
 use crate::{
     glib::clone,
-    models::bagit_git_profile::BagitGitProfile,
-    utils::{self, repository_utils::RepositoryUtils, selected_repository::SelectedRepository},
+    models::{bagit_git_profile::BagitGitProfile, bagit_repository::BagitRepository},
+    utils::{
+        self, profile_mode::ProfileMode, repository_utils::RepositoryUtils,
+        selected_repository::SelectedRepository,
+    },
 };
 use adw::{
     subclass::prelude::*,
@@ -90,10 +93,16 @@ mod imp {
             self.obj().connect_is_active_notify(clone!(
                 @weak self as win
                 => move |_| {
-                match win.stack.visible_child_name().unwrap().as_str() {
-                    "repository page" => win.repository_page.update_commits_sidebar(),
-                    _ => {}
-                }
+                    match win.stack.visible_child_name().unwrap().as_str() {
+                        "repository page" => {
+                            win.repository_page.update_commits_sidebar();
+                            win.repository_page.imp().commit_view.update_git_profiles_list()
+                        },
+                        "clone page" => win.clone_repository_page.update_git_profiles_list(
+                            &win.app_database.get_all_git_profiles()
+                        ),
+                        _ => {}
+                    }
             }));
         }
     }
@@ -138,13 +147,19 @@ impl BagitDesktopWindow {
                     let found_repository = win.imp().app_database.get_repository_from_path(&path);
                     win.imp().repository_page.imp().sidebar.clear_changed_files_list();
                     win.imp().repository_page.imp().sidebar.imp().change_from_file.set(false);
+                    win.imp().repository_page.imp().main_view_stack.set_visible_child_name("hello world");
+                    win.imp().repository_page.imp().commit_view.update_commit_view(0);
 
                     if found_repository.is_some() {
-                        win.imp().repository_page.imp().selected_repository.replace(
-                            SelectedRepository::new_with_repository(&found_repository.clone().unwrap())
-                        );
-                        win.imp().repository_page.update_commits_sidebar();
-                        win.imp().stack.set_visible_child_name("repository page");
+                        let repo = found_repository.unwrap();
+
+                        match SelectedRepository::try_fetching_selected_repository(&repo) {
+                            Ok(selected_repository) => {
+                                win.imp().repository_page.init_repository_page(selected_repository);
+                                win.imp().stack.set_visible_child_name("repository page");
+                            }
+                            Err(_) => {}
+                        }
                     }
                 }
             ),
@@ -228,9 +243,9 @@ impl BagitDesktopWindow {
             .append(&new_row);
     }
 
+    /// Used to initialize the repositories.
     fn init_repositories(&self) {
-        let all_repositories: Vec<crate::models::bagit_repository::BagitRepository> =
-            self.imp().app_database.get_all_repositories();
+        let all_repositories: Vec<BagitRepository> = self.imp().app_database.get_all_repositories();
 
         for repository in all_repositories {
             self.add_list_row(&repository.name, &repository.path)
@@ -248,9 +263,9 @@ impl BagitDesktopWindow {
                 // We must make sure entry fields are blank when going to the clone page :
                 win.imp().clone_repository_page.clear_page();
                 // We update the list of git profiles in the page :
-                let git_profiles = win.imp().app_database.get_all_git_profiles();
+                let git_profiles: Vec<BagitGitProfile> = win.imp().app_database.get_all_git_profiles();
                 for profile in git_profiles {
-                    win.imp().clone_repository_page.add_git_profile_row(profile);
+                    win.imp().clone_repository_page.add_git_profile_row(&profile);
                 }
                 win.imp().stack.set_visible_child_name("clone page");
             }),
@@ -309,27 +324,10 @@ impl BagitDesktopWindow {
         );
 
         self.imp().clone_repository_page.connect_closure(
-            "unique-name",
-            false,
-            closure_local!(@watch self as win => move |
-                _clone_repository_page: BagitCloneRepositoryPage,
-                image: gtk::Image,
-                profile_name: &str,
-                profile_id: &str
-                | {
-                    let same_profile_name_number = win.imp().app_database.get_number_of_git_profiles_with_name(
-                        &profile_name,
-                        &profile_id
-                    );
-                    image.set_visible(same_profile_name_number != 0);
-            }),
-        );
-
-        self.imp().clone_repository_page.connect_closure(
             "clone-repository",
             false,
             closure_local!(@watch self as win => move |
-                _clone_repository_page: BagitCloneRepositoryPage,
+                clone_repository_page: BagitCloneRepositoryPage,
                 url: &str,
                 location: &str
                 | {
@@ -339,31 +337,31 @@ impl BagitDesktopWindow {
                     let url_copy = url.to_owned();
                     let location_copy = location.to_owned();
 
-                    let selected_git_profile = win.imp().clone_repository_page.imp().git_profiles.title();
-                    let profile = win.imp().app_database.get_git_profile_from_name(&selected_git_profile);
+                    let borrowed_profile_mode = clone_repository_page.imp().profile_mode.take();
 
+                    let selected_profile: Option<BagitGitProfile> = match borrowed_profile_mode {
+                        ProfileMode::SelectedProfile(profile) => Some(profile),
+                        _ => None
+                    };
                     let (
                         username,
                         password,
                         private_key_path,
-                        passphrase
-                    ) = if selected_git_profile == gettext("_No profile") || profile.is_none() {
-                        (
+                        passphrase,
+                    ) =  match &selected_profile {
+                        None => (
                             "".to_string(),
                             "".to_string(),
                             "".to_string(),
-                            win.imp().clone_repository_page.imp().passphrase.text().to_string()
-                        )
-                    } else {
-                        let cloned_profile = profile.clone().unwrap();
-                        (
-                            cloned_profile.username,
-                            cloned_profile.password,
-                            cloned_profile.private_key_path,
                             win.imp().clone_repository_page.imp().passphrase.text().to_string(),
-                        )
+                        ),
+                        Some(profile) => (
+                            profile.username.to_string(),
+                            profile.password.to_string(),
+                            profile.private_key_path.to_string(),
+                            clone_repository_page.imp().passphrase.text().to_string(),
+                        ),
                     };
-
                     thread::spawn(move || {
                         let error_sender = error_sender.clone();
                         let result_sender = result_sender.clone();
@@ -382,12 +380,28 @@ impl BagitDesktopWindow {
                         match new_folder {
                             Ok(_) => {
                                 match RepositoryUtils::clone_repository(&url_copy, &new_path, callback) {
-                                    Ok(_) => result_sender.send(
-                                        (
-                                            RepositoryUtils::get_folder_name_from_os(&url_copy).to_string(),
-                                            new_path
-                                        )
-                                    ).expect("Could not send result through channel"),
+                                    Ok(repository) => {
+                                        match selected_profile {
+                                            Some(profile) => {
+                                                // Once the repository is cloned, we update it's config file:
+                                                match RepositoryUtils::override_git_config(&repository, &profile) {
+                                                    Ok(_) => result_sender.send(
+                                                        (
+                                                            RepositoryUtils::get_folder_name_from_os(&url_copy).to_string(),
+                                                            new_path
+                                                        )
+                                                    ).expect("Could not send result through channel"),
+                                                    Err(error) => error_sender.send(error.to_string()).expect("Could not send error through channel")
+                                                };
+                                            },
+                                            None => result_sender.send(
+                                                (
+                                                    RepositoryUtils::get_folder_name_from_os(&url_copy).to_string(),
+                                                    new_path
+                                                )
+                                            ).expect("Could not send result through channel")
+                                        }
+                                    }
                                     Err(e) => {
                                         // We must make sure to delete the created folder !
                                         let removed_directory = fs::remove_dir_all(&new_path);
@@ -418,8 +432,8 @@ impl BagitDesktopWindow {
                         clone!(
                             @weak win as win2 => @default-return Continue(false),
                                     move |elements| {
-                                        win2.imp().clone_repository_page.to_main_page();
                                         win2.save_repository(&elements.0, &elements.1);
+                                        win2.imp().clone_repository_page.to_main_page();
                                         Continue(true)
                                     }
                         ),
@@ -439,7 +453,8 @@ impl BagitDesktopWindow {
                 email: &str,
                 username: &str,
                 password: &str,
-                private_key_path: &str
+                private_key_path: &str,
+                signing_key: &str
                 | {
                     let (error_sender, error_receiver) = MainContext::channel::<String>(Priority::default());
                     let (result_sender, result_receiver) = MainContext::channel::<(String, String)>(Priority::default());
@@ -452,15 +467,31 @@ impl BagitDesktopWindow {
                     let password_copy = password.to_owned();
                     let private_key_path_copy = private_key_path.to_owned();
 
+                    let profile_id = Uuid::new_v4();
+
+                    // We make sure that the profile name is unique :
+                    let same_profile_name_number = win.imp().app_database.get_number_of_git_profiles_with_name(
+                        &profile_name,
+                        &profile_id.to_string()
+                    );
+                    let final_profil_name : String =  if same_profile_name_number != 0 {
+                        let new_name = format!("{} ({})", profile_name, same_profile_name_number);
+                        new_name
+                    } else {
+                        profile_name.to_string()
+                    };
+
+
                     let new_profile = BagitGitProfile::new(
-                        Uuid::new_v4(),
-                        profile_name.to_string(),
+                        profile_id,
+                        final_profil_name,
                         email.to_string(),
                         username.to_string(),
                         password.to_string(),
                         private_key_path.to_string(),
+                        signing_key.to_string()
                     );
-                    win.imp().app_database.add_git_profile(new_profile);
+                    win.imp().app_database.add_git_profile(&new_profile);
 
                     thread::spawn(move || {
                         let error_sender = error_sender.clone();
@@ -479,12 +510,18 @@ impl BagitDesktopWindow {
                         match new_folder {
                             Ok(_) => {
                                 match RepositoryUtils::clone_repository(&url_copy, &new_path, callback) {
-                                    Ok(_) => result_sender.send(
-                                        (
-                                            RepositoryUtils::get_folder_name_from_os(&url_copy).to_string(),
-                                            new_path
-                                        )
-                                    ).expect("Could not send result through channel"),
+                                    Ok(repository) => {
+                                        // Once the repository is cloned, we update it's config file:
+                                        match RepositoryUtils::override_git_config(&repository, &new_profile) {
+                                            Ok(_) => result_sender.send(
+                                                (
+                                                    RepositoryUtils::get_folder_name_from_os(&url_copy).to_string(),
+                                                    new_path
+                                                )
+                                            ).expect("Could not send result through channel"),
+                                            Err(error) => error_sender.send(error.to_string()).expect("Could not send error through channel")
+                                        };
+                                    },
                                     Err(e) => {
                                         // We must make sure to delete the created folder !
                                         let removed_directory = fs::remove_dir_all(&new_path);
@@ -496,7 +533,6 @@ impl BagitDesktopWindow {
                                 }
                             },
                             Err(e) => {
-                                println!("Folder not created");
                                 error_sender.send(e.to_string()).expect("Could not send error through channel")
                             }
                         }
@@ -518,8 +554,8 @@ impl BagitDesktopWindow {
                         clone!(
                             @weak win as win2 => @default-return Continue(false),
                                     move |elements| {
-                                        win2.imp().clone_repository_page.to_main_page();
                                         win2.save_repository(&elements.0, &elements.1);
+                                        win2.imp().clone_repository_page.to_main_page();
                                         Continue(true)
                                     }
                         ),
@@ -537,6 +573,16 @@ impl BagitDesktopWindow {
                 win.imp().repositories_window.imp().all_repositories.unselect_all();
                 win.imp().repositories_window.imp().recent_repositories.unselect_all();
                 win.imp().stack.set_visible_child_name("main page");
+            }),
+        );
+        self.imp().repository_page.connect_closure(
+            "commit-error",
+            false,
+            closure_local!(@watch self as win => move |
+                _repository_page: BagitRepositoryPage,
+                error_message: &str
+                | {
+                win.show_error_dialog(error_message);
             }),
         );
     }
@@ -562,52 +608,16 @@ impl BagitDesktopWindow {
     pub fn save_repository(&self, repository_name: &str, repository_path: &str) {
         self.add_list_row(&repository_name, &repository_path);
 
-        let profile_id: Option<Uuid> = if self
+        let profile_id: Option<Uuid> = match self
             .imp()
             .clone_repository_page
             .imp()
-            .git_profiles
-            .title()
-            .to_string()
-            == gettext("_No profile")
+            .profile_mode
+            .borrow()
+            .get_profile_mode()
         {
-            None
-        } else if self
-            .imp()
-            .clone_repository_page
-            .imp()
-            .git_profiles
-            .title()
-            .to_string()
-            == gettext("_New profile")
-        {
-            let profile = self.imp().app_database.get_git_profile_from_name(
-                self.imp()
-                    .clone_repository_page
-                    .imp()
-                    .profile_name
-                    .text()
-                    .as_str(),
-            );
-            if profile.is_some() {
-                Some(profile.unwrap().profile_id)
-            } else {
-                None
-            }
-        } else {
-            let profile = self.imp().app_database.get_git_profile_from_name(
-                self.imp()
-                    .clone_repository_page
-                    .imp()
-                    .git_profiles
-                    .title()
-                    .as_str(),
-            );
-            if profile.is_some() {
-                Some(profile.unwrap().profile_id)
-            } else {
-                None
-            }
+            ProfileMode::SelectedProfile(profile) => Some(profile.profile_id),
+            _ => None,
         };
 
         self.imp()

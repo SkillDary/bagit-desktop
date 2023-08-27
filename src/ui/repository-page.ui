@@ -5,122 +5,163 @@
   <template class="BagitRepositoryPage" parent="GtkBox">
     <property name="orientation">vertical</property>
     <child>
-      <object class="AdwHeaderBar" id="header_bar">
-        <binding name="show-start-title-buttons">
-          <lookup name="folded">leaflet</lookup>
-        </binding>
-        <property name="title-widget">
-          <object class="AdwWindowTitle">
-            <property name="title" translatable="yes">Bagit Desktop</property>
-          </object>
-        </property>
-        <style>
-          <class name="flat"/>
-        </style>
-        <child type="start">
+      <object class="AdwToastOverlay" id="toast_overlay">
+        <property name="child">
           <object class="GtkBox">
-            <child>
-              <object class="GtkButton">
-                <signal name="clicked" handler="go_home" swapped="true"/>
-                <property name="icon-name">user-home-symbolic</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkButton">
-                <binding name="visible">
-                  <lookup name="folded">leaflet</lookup>
-                </binding>
-                <property name="icon-name">go-previous-symbolic</property>
-              </object>
-            </child>
-          </object>
-        </child>
-        <child type="end">
-          <object class="GtkMenuButton">
-            <property name="icon-name">open-menu-symbolic</property>
-            <property name="menu-model">primary_menu</property>
-          </object>
-        </child>
-      </object>
-    </child>
-    <child>
-      <object class="AdwLeaflet" id="leaflet">
-        <property name="can-navigate-back">True</property>
-        <child>
-          <object class="GtkBox">
-            <property name="vexpand">True</property>
             <property name="orientation">vertical</property>
             <child>
-              <object class="BagitCommitsSideBar" id="sidebar"/>
+              <object class="AdwHeaderBar" id="header_bar">
+                <binding name="show-start-title-buttons">
+                  <lookup name="folded">leaflet</lookup>
+                </binding>
+                <property name="title-widget">
+                  <object class="AdwWindowTitle">
+                    <property name="title" translatable="yes">Bagit Desktop</property>
+                  </object>
+                </property>
+                <style>
+                  <class name="flat"/>
+                </style>
+                <child type="start">
+                  <object class="GtkBox">
+                    <child>
+                      <object class="GtkButton">
+                        <signal name="clicked" handler="go_home" swapped="true"/>
+                        <property name="icon-name">user-home-symbolic</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child type="end">
+                  <object class="GtkMenuButton">
+                    <property name="icon-name">open-menu-symbolic</property>
+                    <property name="menu-model">primary_menu</property>
+                  </object>
+                </child>
+              </object>
             </child>
-          </object>
-        </child>
-        <child>
-          <object class="AdwLeafletPage">
-            <property name="navigatable">False</property>
-            <property name="child">
-              <object class="GtkSeparator"/>
-            </property>
-          </object>
-        </child>
-        <child>
-          <object class="AdwLeafletPage">
-            <property name="child">
-              <object class="GtkBox">
-                <property name="orientation">vertical</property>
+            <child>
+              <object class="AdwLeaflet" id="leaflet">
+                <property name="can-navigate-back">True</property>
                 <child>
                   <object class="GtkBox">
-                    <property name="hexpand">True</property>
-                    <property name="margin-top">5</property>
-                    <property name="margin-bottom">5</property>
-                    <property name="margin-start">5</property>
-                    <property name="margin-end">5</property>
-                    <style>
-                      <class name="card"/>
-                      <class name="headerbar_bg_color"/>
-                    </style>
+                    <property name="vexpand">True</property>
+                    <property name="orientation">vertical</property>
                     <child>
+                      <object class="BagitCommitsSideBar" id="sidebar"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwLeafletPage">
+                    <property name="navigatable">False</property>
+                    <property name="child">
+                      <object class="GtkSeparator"/>
+                    </property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwLeafletPage">
+                    <property name="child">
                       <object class="GtkBox">
-                        <property name="hexpand">true</property>
-                        <property name="halign">GTK_ALIGN_END</property>
+                        <property name="orientation">vertical</property>
                         <child>
-                          <object class="GtkButton" id="git_action_button">
+                          <object class="GtkBox">
+                            <property name="hexpand">True</property>
                             <property name="margin-top">5</property>
                             <property name="margin-bottom">5</property>
                             <property name="margin-start">5</property>
                             <property name="margin-end">5</property>
-                            <property name="child">
-                              <object class="GtkLabel">
-                                <property name="label" translatable="yes">Hello</property>
-                              </object>
-                            </property>
                             <style>
-                              <class name="raised"/>
+                              <class name="card"/>
+                              <class name="headerbar_bg_color"/>
                             </style>
+                            <child>
+                              <object class="GtkBox">
+                                <property name="hexpand">true</property>
+                                <property name="halign">GTK_ALIGN_START</property>
+                                <child>
+                                  <object class="GtkButton">
+                                    <binding name="visible">
+                                      <lookup name="folded">leaflet</lookup>
+                                    </binding>
+                                    <property name="icon-name">go-previous-symbolic</property>
+                                    <property name="margin-top">5</property>
+                                    <property name="margin-bottom">5</property>
+                                    <property name="margin-start">5</property>
+                                    <property name="margin-end">5</property>
+                                    <signal name="clicked" handler="go_back" swapped="true"/>
+                                    <style>
+                                      <class name="flat"/>
+                                    </style>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkBox">
+                                <property name="hexpand">true</property>
+                                <property name="halign">GTK_ALIGN_END</property>
+                                <child>
+                                  <object class="GtkButton" id="git_action_button">
+                                    <property name="margin-top">5</property>
+                                    <property name="margin-bottom">5</property>
+                                    <property name="margin-start">5</property>
+                                    <property name="margin-end">5</property>
+                                    <property name="child">
+                                      <object class="GtkLabel">
+                                        <property name="label" translatable="yes">Hello</property>
+                                      </object>
+                                    </property>
+                                    <style>
+                                      <class name="raised"/>
+                                    </style>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkStack" id="main_view_stack">
+                            <property name="transition-type">GTK_STACK_TRANSITION_TYPE_CROSSFADE</property>
+                            <child>
+                              <object class="GtkStackPage">
+                                <property name="name">hello world</property>
+                                <property name="child">
+                                  <object class="GtkBox">
+                                    <property name="orientation">vertical</property>
+                                    <property name="spacing">4</property>
+                                    <child>
+                                      <object class="GtkLabel">
+                                        <property name="label" translatable="yes">Hello, World!</property>
+                                        <style>
+                                          <class name="title-2"/>
+                                        </style>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkStackPage">
+                                <property name="name">commit view</property>
+                                <property name="child">
+                                  <object class="BagitCommitView" id="commit_view"/>
+                                </property>
+                              </object>
+                            </child>
                           </object>
                         </child>
                       </object>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkBox">
-                    <property name="orientation">vertical</property>
-                    <property name="spacing">4</property>
-                    <child>
-                      <object class="GtkLabel">
-                        <property name="label" translatable="yes">Hello, World!</property>
-                        <style>
-                          <class name="title-2"/>
-                        </style>
-                      </object>
-                    </child>
+                    </property>
                   </object>
                 </child>
               </object>
-            </property>
+            </child>
           </object>
-        </child>
+        </property>
       </object>
     </child>
   </template>

@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="Adw" version="1.0"/>
+  <template class="BagitCommitView" parent="GtkBox">
+    <property name="width-request">400</property>
+    <property name="orientation">vertical</property>
+    <property name="vexpand">True</property>
+    <property name="hexpand">True</property>
+    <child>
+      <object class="GtkScrolledWindow">
+        <property name="vexpand">true</property>
+        <child>
+          <object class="AdwClamp">
+            <property name="child">
+              <object class="GtkBox">
+                <property name="orientation">vertical</property>
+                <property name="margin-top">24</property>
+                <property name="margin-bottom">24</property>
+                <property name="margin-start">12</property>
+                <property name="margin-end">12</property>
+                <property name="spacing">24</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">4</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <style>
+                          <class name="title-1"/>
+                        </style>
+                        <property name="label" translatable="yes">_Commit changes</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="file_information_label"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkListBox">
+                    <property name="selection-mode">none</property>
+                    <style>
+                      <class name="boxed-list"/>
+                    </style>
+                    <child>
+                      <object class="AdwExpanderRow" id="git_profiles">
+                        <property name="title" translatable="yes">_No profile</property>
+                        <child type="prefix">
+                          <object class="GtkRevealer" id="selected_profile_revealer">
+                            <property name="transition-type">crossfade</property>
+                            <property name="child">
+                              <object class="GtkButton">
+                                <property name="icon-name">view-reveal-symbolic</property>
+                                <property name="margin-top">10</property>
+                                <property name="margin-bottom">10</property>
+                                <style>
+                                  <class name="flat"/>
+                                </style>
+                                <signal name="clicked" handler="show_profile_information" swapped="true"/>
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkListBox" id="profiles_list">
+                            <signal name="row-selected" handler="row_clicked" swapped="true"/>
+                            <style>
+                              <class name="navigation-sidebar"/>
+                            </style>
+                            <child>
+                              <object class="AdwActionRow">
+                                <property name="child">
+                                  <object class="GtkLabel">
+                                    <property name="label" translatable="yes">_No profile</property>
+                                  </object>
+                                </property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkRevealer" id="no_profile_revealer">
+                    <property name="child">
+                      <object class="GtkBox">
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">24</property>
+                        <property name="margin-top">1</property>
+                        <property name="margin-start">1</property>
+                        <property name="margin-end">1</property>
+                        <property name="margin-bottom">1</property>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">4</property>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="halign">GTK_ALIGN_START</property>
+                                <property name="label" translatable="yes">_Author information</property>
+                                <style>
+                                  <class name="title-3"/>
+                                </style>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkListBox">
+                                <style>
+                                  <class name="boxed-list"/>
+                                </style>
+                                <child>
+                                  <object class="AdwEntryRow" id="author_row">
+                                    <property name="title" translatable="yes">_Author</property>
+                                    <signal name="changed" handler="author_row_changed" swapped="true"/>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="AdwEntryRow" id="author_email_row">
+                                    <property name="title" translatable="yes">_Author email</property>
+                                    <signal name="changed" handler="author_email_changed" swapped="true"/>
+                                    <child type="suffix">
+                                      <object class="GtkImage" id="email_error">
+                                        <property name="icon-name">emblem-important-symbolic</property>
+                                        <property name="tooltip-text" translatable="yes">_Wrong email</property>
+                                        <property name="visible">false</property>
+                                        <style>
+                                          <class name="error"/>
+                                        </style>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">4</property>
+                            <child>
+                              <object class="GtkListBox">
+                                <style>
+                                  <class name="boxed-list"/>
+                                </style>
+                                <child>
+                                  <object class="AdwPasswordEntryRow" id="signing_key_row">
+                                    <property name="title" translatable="yes">_Signing key</property>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="halign">GTK_ALIGN_START</property>
+                                <property name="label" translatable="yes">_GPG indication</property>
+                                <property name="wrap">true</property>
+                                <style>
+                                  <class name="dim-label"/>
+                                  <class name="caption"/>
+                                </style>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="orientation">horizontal</property>
+                            <property name="valign">center</property>
+                            <property name="hexpand">true</property>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="label" translatable="yes">_Save profile</property>
+                                <property name="halign">start</property>
+                                <property name="hexpand">true</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkCheckButton" id="save_profile_button">
+                                <property name="active">true</property>
+                                <property name="halign">end</property>
+                                <property name="hexpand">true</property>
+                                <signal name="toggled" handler="save_profile_button_changed" swapped="true"/>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">2</property>
+                    <child>
+                      <object class="GtkListBox">
+                        <style>
+                          <class name="boxed-list"/>
+                        </style>
+                        <child>
+                          <object class="AdwEntryRow" id="message_row">
+                            <property name="title" translatable="yes">_Message</property>
+                            <signal name="changed" handler="message_row_changed" swapped="true"/>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkRevealer" id="message_revealer">
+                        <property name="reveal-child">false</property>
+                        <property name="child">
+                          <object class="GtkBox">
+                            <property name="orientation">horizontal</property>
+                            <property name="spacing">2</property>
+                            <property name="valign">center</property>
+                            <property name="halign">start</property>
+                            <child>
+                              <object class="GtkImage">
+                                <property name="icon-name">info-symbolic</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="halign">GTK_ALIGN_START</property>
+                                <property name="label" translatable="yes">_Message indication</property>
+                                <style>
+                                  <class name="caption"/>
+                                </style>
+                              </object>
+                            </child>
+                          </object>
+                        </property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkListBox">
+                    <style>
+                      <class name="boxed-list"/>
+                    </style>
+                    <child>
+                      <object class="AdwEntryRow" id="description_row">
+                        <property name="title" translatable="yes">_Description</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="halign">GTK_ALIGN_CENTER</property>
+                    <child>
+                      <object class="GtkButton" id="commit_button">
+                        <property name="label" translatable="yes">_Commit</property>
+                        <signal name="clicked" handler="commit_files" swapped="true"/>
+                        <style>
+                          <class name="pill"/>
+                          <class name="suggested-action"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>
