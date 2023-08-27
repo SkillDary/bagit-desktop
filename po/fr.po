@@ -143,6 +143,9 @@ msgstr "Impossible d'ouvrir le dépôt"
 msgid "_Selected folder is not a repository"
 msgstr "Le dossier sélectionné n'est pas un dépôt."
 
+msgid "_Cloning repository"
+msgstr "Clonage du dépôt..."
+
 ####################### preferences.rs ##################################
 
 msgid "_New profile awaiting"

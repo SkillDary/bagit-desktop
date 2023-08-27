@@ -143,6 +143,9 @@ msgstr "Failed to open repository"
 msgid "_Selected folder is not a repository"
 msgstr "Selected folder is not a repository."
 
+msgid "_Cloning repository"
+msgstr "Cloning reposirory..."
+
 ####################### preferences.rs ##################################
 
 msgid "_New profile awaiting"

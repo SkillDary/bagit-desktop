@@ -1,5 +1,6 @@
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct BagitGitProfile {
     pub profile_id: Uuid,
     pub profile_name: String,

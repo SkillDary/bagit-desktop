@@ -186,7 +186,7 @@ impl BagitCommitsSideBar {
 
         let main_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
         let folder_box = gtk::Box::new(gtk::Orientation::Horizontal, 4);
-        folder_box.set_margin_end(2);
+        folder_box.set_margin_end(6);
         let revealer = gtk::Revealer::new();
         revealer.set_reveal_child(folder.is_expanded);
         let file_list = gtk::ListBox::new();
@@ -310,6 +310,7 @@ impl BagitCommitsSideBar {
         label.set_margin_bottom(8);
 
         let main_box = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+        main_box.set_margin_end(4);
         main_box.set_hexpand(true);
 
         let choice_box = gtk::Box::new(gtk::Orientation::Horizontal, 0);

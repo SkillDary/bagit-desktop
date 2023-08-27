@@ -25,13 +25,14 @@ use gettextrs::gettext;
 use gtk::glib::subclass::Signal;
 use gtk::{glib, prelude::*, template_callbacks, CompositeTemplate};
 use once_cell::sync::Lazy;
-use regex::Regex;
 
 use crate::models::bagit_git_profile::BagitGitProfile;
 
 mod imp {
 
     use uuid::Uuid;
+
+    use crate::utils::repository_utils::RepositoryUtils;
 
     use super::*;
 
@@ -72,11 +73,13 @@ mod imp {
         #[template_child]
         pub profiles_list: TemplateChild<gtk::ListBox>,
         #[template_child]
-        pub stack: TemplateChild<gtk::Stack>,
+        pub button_stack: TemplateChild<gtk::Stack>,
         #[template_child]
         pub passphrase_revealer: TemplateChild<gtk::Revealer>,
         #[template_child]
         pub new_profile_revealer: TemplateChild<gtk::Revealer>,
+        #[template_child]
+        pub main_stack: TemplateChild<gtk::Stack>,
     }
 
     #[template_callbacks]
@@ -94,7 +97,7 @@ mod imp {
                 .set_sensitive(self.obj().can_clone_button_with_new_profile_be_sensitive());
 
             self.passphrase_revealer
-                .set_reveal_child(self.obj().is_using_ssh(&url_text_row.text()));
+                .set_reveal_child(RepositoryUtils::is_using_ssh(&url_text_row.text()));
         }
 
         #[template_callback]
@@ -145,17 +148,17 @@ mod imp {
                 self.git_profiles.set_expanded(false);
                 match index {
                     0 => {
-                        self.stack.set_visible_child_name("simple clone");
+                        self.button_stack.set_visible_child_name("simple clone");
                         self.new_profile_revealer.set_reveal_child(false);
                         self.git_profiles.set_title(&gettext("_No profile"));
                     }
                     1 => {
-                        self.stack.set_visible_child_name("new profile");
+                        self.button_stack.set_visible_child_name("new profile");
                         self.new_profile_revealer.set_reveal_child(true);
                         self.git_profiles.set_title(&gettext("_New profile"));
                     }
                     _ => {
-                        self.stack.set_visible_child_name("simple clone");
+                        self.button_stack.set_visible_child_name("simple clone");
                         self.new_profile_revealer.set_reveal_child(false);
                         self.git_profiles.set_title(&selected_row.title());
                     }
@@ -175,6 +178,7 @@ mod imp {
 
         #[template_callback]
         pub fn try_clone_repository(&self, _clone_button: &gtk::Button) {
+            self.obj().to_loading_page();
             self.obj().emit_by_name::<()>(
                 "clone-repository",
                 &[&self.url_row.text(), &self.location_row.text()],
@@ -183,6 +187,7 @@ mod imp {
 
         #[template_callback]
         pub fn try_clone_repository_and_create_new_profile(&self, _clone_button: &gtk::Button) {
+            self.obj().to_loading_page();
             self.obj().emit_by_name::<()>(
                 "clone-repository-and-add-profile",
                 &[
@@ -278,21 +283,6 @@ impl BagitCloneRepositoryPage {
     }
 
     /**
-     * Check whether user is using https to clone a repository.
-     */
-    pub fn is_using_https(&self, url: &str) -> bool {
-        let re = Regex::new(r"https://.*").unwrap();
-        return re.is_match(url);
-    }
-
-    /**
-     * Check whether user is using ssh to clone a repository.
-     */
-    pub fn is_using_ssh(&self, url: &str) -> bool {
-        return url.contains("@");
-    }
-
-    /**
      * Used to clear page information.
      */
     pub fn clear_page(&self) {
@@ -312,7 +302,9 @@ impl BagitCloneRepositoryPage {
 
         self.imp().new_profile_revealer.set_reveal_child(false);
         self.imp().passphrase_revealer.set_reveal_child(false);
-        self.imp().stack.set_visible_child_name("simple clone");
+        self.imp()
+            .button_stack
+            .set_visible_child_name("simple clone");
     }
 
     /**
@@ -341,5 +333,21 @@ impl BagitCloneRepositoryPage {
         action_row.set_title(&profile.profile_name);
 
         self.imp().profiles_list.append(&action_row);
+    }
+
+    /**
+     * Used to go to the loading page of the cloning page.
+     */
+    pub fn to_loading_page(&self) {
+        self.imp().main_stack.set_visible_child_name("loading page");
+        self.imp().back_button.set_sensitive(false);
+    }
+
+    /**
+     * Used to go to the main page of the cloning page.
+     */
+    pub fn to_main_page(&self) {
+        self.imp().main_stack.set_visible_child_name("main page");
+        self.imp().back_button.set_sensitive(true);
     }
 }
