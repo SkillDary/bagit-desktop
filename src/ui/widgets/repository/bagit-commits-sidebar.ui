@@ -88,24 +88,13 @@
             <property name="name">history page</property>
             <property name="title">history page</property>
             <property name="child">
-              <object class="GtkListBox" id="menu2">
-                <signal name="row-selected" handler="row_clicked" swapped="true"/>
-                <style>
-                  <class name="navigation-sidebar"/>
-                </style>
+              <object class="GtkScrolledWindow" id="scrolled_window_commit_history">
+                <property name="vexpand">True</property>
                 <child>
-                  <object class="AdwActionRow">
-                    <property name="title" translatable="yes">Commits 1</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow">
-                    <property name="title" translatable="yes">Commits 2</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow">
-                    <property name="title" translatable="yes">Commits 3</property>
+                  <object class="GtkListView" id="commit_history_list">
+                    <style>
+                      <class name="navigation-sidebar"/>
+                    </style>
                   </object>
                 </child>
               </object>

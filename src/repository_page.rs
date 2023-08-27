@@ -21,13 +21,13 @@ use crate::utils::selected_repository::SelectedRepository;
 use crate::widgets::repository::commits_sidebar::BagitCommitsSideBar;
 use adw::subclass::prelude::*;
 use gtk::glib::closure_local;
-use gtk::glib::subclass::Signal;
 use gtk::{glib, prelude::*, template_callbacks, CompositeTemplate};
 use itertools::Itertools;
-use once_cell::sync::Lazy;
 use std::cell::RefCell;
 
 mod imp {
+    use gtk::glib::subclass::Signal;
+    use once_cell::sync::Lazy;
 
     use super::*;
 
@@ -115,6 +115,13 @@ impl BagitRepositoryPage {
         );
 
         self.imp().sidebar.connect_closure(
+            "see-history",
+            false,
+            closure_local!(@watch self as _win => move |_sidebar: BagitCommitsSideBar| {
+            }),
+        );
+
+        self.imp().sidebar.connect_closure(
             "update-changed-files",
             false,
             closure_local!(@watch self as win => move |
@@ -126,10 +133,25 @@ impl BagitRepositoryPage {
         );
     }
 
+    /// Updates the changed files and commit history.
+    pub fn update_commits_sidebar(&self) {
+        let selected_repository = self.imp().selected_repository.take();
+
+        let selected_repository_path = selected_repository.user_repository.path.clone();
+
+        self.imp().selected_repository.replace(selected_repository);
+
+        self.imp()
+            .sidebar
+            .refresh_commit_list_if_needed(selected_repository_path);
+
+        self.update_changed_files();
+    }
+
     /**
      * Used to update changed files list.
      */
-    pub fn update_changed_files(&self) {
+    fn update_changed_files(&self) {
         let borrowed_repo = self.imp().selected_repository.borrow();
         if borrowed_repo.git_repository.is_some() {
             let repo = borrowed_repo.git_repository.as_ref().unwrap();

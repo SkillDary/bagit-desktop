@@ -22,19 +22,29 @@ use crate::utils::changed_folder::ChangedFolder;
 use crate::utils::file_tree::FileTree;
 use adw::subclass::prelude::*;
 use gettextrs::gettext;
+use git2::Repository;
 use git2::{Status, Statuses};
-use gtk::glib::clone;
 use gtk::glib::subclass::Signal;
-use gtk::template_callbacks;
-use gtk::{glib, prelude::*, CompositeTemplate};
+use gtk::glib::{clone, SignalHandlerId};
+use gtk::pango::EllipsizeMode;
+use gtk::{
+    gio, glib, prelude::*, Align, CompositeTemplate, Label, ListItem, NoSelection,
+    SignalListItemFactory,
+};
 use once_cell::sync::Lazy;
-use std::cell::RefCell;
+
+extern crate chrono;
+
+use crate::utils::git::load_commit_history;
+
+use super::CommitObject;
 use std::collections::HashMap;
 use std::path::Path;
 
 mod imp {
-
+    use gtk::{gio, template_callbacks};
     use std::cell::Cell;
+    use std::cell::RefCell;
 
     use crate::utils::file_tree::FileTree;
 
@@ -52,7 +62,17 @@ mod imp {
         #[template_child]
         pub menu: TemplateChild<gtk::ListBox>,
         #[template_child]
+        pub commit_history_list: TemplateChild<gtk::ListView>,
+        #[template_child]
         pub commits_sidebar_stack: TemplateChild<gtk::Stack>,
+        #[template_child]
+        pub scrolled_window_commit_history: TemplateChild<gtk::ScrolledWindow>,
+
+        pub scroll_handler_id: RefCell<Option<SignalHandlerId>>,
+
+        pub commit_list: RefCell<Option<gio::ListStore>>,
+        pub current_branch_name: String,
+        pub last_commit_oid_of_commit_list: RefCell<String>,
 
         pub changed_files: RefCell<FileTree>,
         pub change_from_file: Cell<bool>,
@@ -76,19 +96,18 @@ mod imp {
 
         #[template_callback]
         fn history_button_clicked(&self, _button: &gtk::Button) {
-            println!("See history");
-
             self.changed_files_button
                 .remove_css_class("commits_siderbar_button_selected");
             self.history_button
                 .add_css_class("commits_siderbar_button_selected");
-            self.obj().emit_by_name::<()>("see-history", &[]);
 
             self.commits_sidebar_stack
                 .set_transition_type(gtk::StackTransitionType::SlideLeft);
 
             self.commits_sidebar_stack
                 .set_visible_child_name("history page");
+
+            self.obj().emit_by_name::<()>("see-history", &[]);
         }
 
         #[template_callback]
@@ -144,6 +163,210 @@ glib::wrapper! {
 }
 
 impl BagitCommitsSideBar {
+    /// Gets the state of the commit list.
+    fn commits(&self) -> gio::ListStore {
+        self.imp()
+            .commit_list
+            .borrow()
+            .clone()
+            .expect("Could not get current tasks.")
+    }
+
+    /// Sets up the commit list by creating a new `gio::ListStore` model to hold commit objects.
+    fn setup_commit_list(&self) {
+        let model: gio::ListStore = gio::ListStore::new(CommitObject::static_type());
+
+        self.imp().commit_list.replace(Some(model));
+
+        let selection_model: NoSelection = NoSelection::new(Some(self.commits()));
+        self.imp()
+            .commit_history_list
+            .set_model(Some(&selection_model));
+    }
+
+    /// Sets up a `SignalListItemFactory` for creating custom commit list item views.
+    fn setup_commit_list_factory(&self) {
+        let factory: SignalListItemFactory = SignalListItemFactory::new();
+        factory.connect_setup(move |_, list_item: &glib::Object| {
+            let title: Label = Label::new(Some("Title"));
+            let subtitle: Label = Label::new(Some("Subtitle"));
+
+            let row: gtk::Box = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+
+            row.set_margin_top(12);
+            row.set_margin_bottom(12);
+
+            let text_box: gtk::Box = gtk::Box::new(gtk::Orientation::Vertical, 8);
+
+            title.add_css_class("heading");
+            title.set_property("halign", Align::Start);
+            title.set_ellipsize(EllipsizeMode::End);
+            subtitle.add_css_class("caption");
+            subtitle.set_property("halign", Align::Start);
+            subtitle.set_ellipsize(EllipsizeMode::End);
+
+            text_box.append(&title);
+            text_box.append(&subtitle);
+
+            row.append(&text_box);
+
+            list_item
+                .downcast_ref::<ListItem>()
+                .expect("Needs to be ListItem")
+                .set_child(Some(&row));
+        });
+
+        factory.connect_bind(move |_, list_item: &glib::Object| {
+            // Get `CommitObject` from `ListItem`
+            let commit_object: CommitObject = list_item
+                .downcast_ref::<ListItem>()
+                .expect("Needs to be ListItem")
+                .item()
+                .and_downcast::<CommitObject>()
+                .expect("The item has to be a `CommitObject`.");
+
+            // Get `title` from `ListItem`
+            let title: Label = list_item
+                .downcast_ref::<ListItem>()
+                .expect("Needs to be ListItem")
+                .child()
+                .and_downcast::<gtk::Box>()
+                .expect("The child has to be a `Box`.")
+                .first_child()
+                .and_downcast::<gtk::Box>()
+                .expect("First child of `Box` has to be a `Box`.")
+                .first_child()
+                .and_downcast::<gtk::Label>()
+                .expect("First child of `Box` has to be a `Label`.");
+
+            // Get `subtitle` from `ListItem`
+            let subtitle: Label = list_item
+                .downcast_ref::<ListItem>()
+                .expect("Needs to be ListItem")
+                .child()
+                .and_downcast::<gtk::Box>()
+                .expect("The child has to be a `Box`.")
+                .first_child()
+                .and_downcast::<gtk::Box>()
+                .expect("First child of `Box` has to be a `Box`.")
+                .last_child()
+                .and_downcast::<gtk::Label>()
+                .expect("Last child of `Box` has to be a `Label`.");
+
+            title.set_label(&commit_object.title());
+            subtitle.set_label(&commit_object.subtitle());
+        });
+
+        // TODO: Unbind.
+
+        self.imp().commit_history_list.set_factory(Some(&factory));
+    }
+
+    /// Adds commits to the commit history.
+    pub fn add_commits_to_history(
+        &self,
+        nb_commits_to_load: i32,
+        selected_repository_path: String,
+    ) {
+        let repo: Repository = Repository::open(selected_repository_path).unwrap();
+
+        let head = repo.head().expect("Could not retrieve HEAD.");
+
+        let checked_out_branch: &str = head
+            .shorthand()
+            .expect("Could not retrieve name of checked-out branch.");
+
+        let branch: git2::Branch<'_> = repo
+            .find_branch(checked_out_branch, git2::BranchType::Local)
+            .unwrap();
+
+        let starting_commit_id: String = self.imp().last_commit_oid_of_commit_list.take();
+
+        let newly_loaded_commits: Vec<CommitObject> = load_commit_history(
+            &repo,
+            branch,
+            starting_commit_id.to_string(),
+            nb_commits_to_load,
+        );
+
+        // If there is no new commit, we don't go any further.
+        if newly_loaded_commits.is_empty() {
+            self.imp()
+                .last_commit_oid_of_commit_list
+                .replace(starting_commit_id);
+
+            return;
+        }
+
+        let new_starting_commit_id: String = newly_loaded_commits
+            .last()
+            .expect("Could not get last commit.")
+            .commit_id();
+
+        self.imp()
+            .last_commit_oid_of_commit_list
+            .replace(new_starting_commit_id);
+
+        self.commits().extend(newly_loaded_commits);
+    }
+
+    /// Sets up the callback for the infinite scroll.
+    fn setup_infinite_scroll(&self, selected_repository_path: String) {
+        let self_clone: BagitCommitsSideBar = self.clone();
+
+        let handler_id: Option<SignalHandlerId> = self.imp().scroll_handler_id.take();
+
+        if handler_id.is_some() {
+            self.imp()
+                .scrolled_window_commit_history
+                .disconnect(handler_id.unwrap());
+        }
+
+        let new_handler_id = self
+            .imp()
+            .scrolled_window_commit_history
+            .connect_edge_reached(move |_, pos: gtk::PositionType| match pos {
+                gtk::PositionType::Bottom => {
+                    self_clone.add_commits_to_history(25, selected_repository_path.clone());
+                }
+                _ => {}
+            });
+
+        self.imp().scroll_handler_id.replace(Some(new_handler_id));
+    }
+
+    /// Initialize the commit list.
+    pub fn init_commit_list(&self, selected_repository_path: String) {
+        self.imp()
+            .last_commit_oid_of_commit_list
+            .replace("".to_string());
+
+        self.setup_commit_list();
+
+        self.setup_commit_list_factory();
+
+        self.add_commits_to_history(25, selected_repository_path.clone());
+
+        self.setup_infinite_scroll(selected_repository_path);
+    }
+
+    /// Refreshes the commit list if needed.
+    ///
+    /// E.g. user changed branch from somewhere else.
+    pub fn refresh_commit_list_if_needed(&self, selected_repository_path: String) {
+        let repo: Repository = Repository::open(&selected_repository_path).unwrap();
+
+        let head = repo.head().expect("Could not retrieve HEAD.");
+
+        let checked_out_branch: &str = head
+            .shorthand()
+            .expect("Could not retrieve name of checked-out branch.");
+
+        if checked_out_branch != self.imp().current_branch_name {
+            self.init_commit_list(selected_repository_path);
+        }
+    }
+
     /**
      * Used to clear changed files list.
      */

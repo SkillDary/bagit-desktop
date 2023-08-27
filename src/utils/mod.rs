@@ -21,5 +21,6 @@ pub mod changed_file;
 pub mod changed_folder;
 pub mod db;
 pub mod file_tree;
+pub mod git;
 pub mod repository_utils;
 pub mod selected_repository;

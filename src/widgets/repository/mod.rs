@@ -18,3 +18,27 @@
  */
 
 pub mod commits_sidebar;
+
+mod imp;
+
+use glib::Object;
+use gtk::glib::{self, object::ObjectBuilder};
+
+glib::wrapper! {
+    pub struct CommitObject(ObjectSubclass<imp::CommitObject>);
+}
+
+impl CommitObject {
+    pub fn new(commit_id: String, title: String, subtitle: String) -> Self {
+        let object_builder: ObjectBuilder<'_, CommitObject> = Object::builder();
+
+        let object_builder: ObjectBuilder<'_, CommitObject> =
+            object_builder.property("commit-id", commit_id);
+        let object_builder: ObjectBuilder<'_, CommitObject> =
+            object_builder.property("title", title);
+        let object_builder: ObjectBuilder<'_, CommitObject> =
+            object_builder.property("subtitle", subtitle);
+
+        return object_builder.build();
+    }
+}

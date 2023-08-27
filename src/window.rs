@@ -91,7 +91,7 @@ mod imp {
                 @weak self as win
                 => move |_| {
                 match win.stack.visible_child_name().unwrap().as_str() {
-                    "repository page" => win.repository_page.update_changed_files(),
+                    "repository page" => win.repository_page.update_commits_sidebar(),
                     _ => {}
                 }
             }));
@@ -141,9 +141,9 @@ impl BagitDesktopWindow {
 
                     if found_repository.is_some() {
                         win.imp().repository_page.imp().selected_repository.replace(
-                            SelectedRepository::new_with_repository(&found_repository.unwrap())
+                            SelectedRepository::new_with_repository(&found_repository.clone().unwrap())
                         );
-                        win.imp().repository_page.update_changed_files();
+                        win.imp().repository_page.update_commits_sidebar();
                         win.imp().stack.set_visible_child_name("repository page");
                     }
                 }

@@ -205,6 +205,9 @@ msgstr "Changes"
 msgid "_History"
 msgstr "History"
 
+msgid "_Commit subtitle format"
+msgstr "committed on %m/%d/%Y at %H:%M"
+
 msgid "_Modified file"
 msgstr "File content has been modified"
 
