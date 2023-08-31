@@ -77,24 +77,27 @@ pub fn load_commit_history(
 
     let mut commit_object_vector: Vec<CommitObject> = Vec::new();
 
-    let mut number_added_commits: i32 = 0;
+    // We only load a maximum number of commits at a time.
+    let revwalk_result = revwalk.push_range(&format!(
+        "{}~{}..{}",
+        starting_commit_oid, nb_commits_to_load, starting_commit_oid
+    ));
+
+    match revwalk_result {
+        Ok(_) => {}
+        Err(_) => {}
+    }
+
     for commit_id in revwalk {
         if !starting_commit_id.is_empty() && commit_id == Ok(starting_commit_oid) {
             continue;
         }
-
-        number_added_commits += 1;
 
         let commit: git2::Commit<'_> = repository.find_commit(commit_id.unwrap()).unwrap();
 
         let commit_object: CommitObject = commit_to_commit_object(commit.clone());
 
         commit_object_vector.push(commit_object);
-
-        // We only load a maximum number of commits at a time.
-        if number_added_commits > nb_commits_to_load {
-            break;
-        }
     }
 
     return commit_object_vector;
