@@ -296,3 +296,14 @@ msgstr "Private key path"
 
 msgid "_Signing key dialog"
 msgstr "Signing key"
+
+############### bagit-passphrase-dialog.ui #######
+
+msgid "_Passphrase dialog"
+msgstr "Passphrase"
+
+msgid "_Passphrase key"
+msgstr "Please enter the passphrase for the signing key:"
+
+msgid "_Validate"
+msgstr "Validate"

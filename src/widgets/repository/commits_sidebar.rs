@@ -695,27 +695,27 @@ impl BagitCommitsSideBar {
         let icon_name: &str;
 
         match file.status.clone() {
-            Status::WT_MODIFIED => {
+            Status::WT_MODIFIED | Status::INDEX_MODIFIED => {
                 css_class_name = "warning";
                 icon_name = "panel-modified-symbolic";
                 icon_tooltip_text = gettext("_Modified file");
             }
-            Status::WT_NEW => {
+            Status::WT_NEW | Status::INDEX_NEW => {
                 css_class_name = "success";
                 icon_name = "list-add-symbolic";
                 icon_tooltip_text = gettext("_New file");
             }
-            Status::WT_DELETED => {
+            Status::WT_DELETED | Status::INDEX_DELETED => {
                 css_class_name = "error";
                 icon_name = "list-remove-symbolic";
                 icon_tooltip_text = gettext("_Deleted file");
             }
-            Status::WT_TYPECHANGE => {
+            Status::WT_TYPECHANGE | Status::INDEX_TYPECHANGE => {
                 css_class_name = "warning";
                 icon_name = "panel-modified-symbolic";
                 icon_tooltip_text = gettext("_File type file");
             }
-            Status::WT_RENAMED => {
+            Status::WT_RENAMED | Status::INDEX_RENAMED => {
                 css_class_name = "warning";
                 icon_name = "panel-modified-symbolic";
                 icon_tooltip_text = gettext("_Renamed file");

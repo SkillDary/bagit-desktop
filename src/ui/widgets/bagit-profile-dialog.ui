@@ -16,6 +16,9 @@
                 <property name="title" translatable="yes">_Profile information</property>
               </object>
             </property>
+            <style>
+              <class name="flat"/>
+            </style>
           </object>
         </child>
         <child>

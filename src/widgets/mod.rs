@@ -18,6 +18,7 @@
  */
 
 pub mod action_bar;
+pub mod passphrase_dialog;
 pub mod preferences;
 pub mod profile_dialog;
 pub mod repositories;

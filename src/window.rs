@@ -26,6 +26,7 @@ use crate::{
         self, profile_mode::ProfileMode, repository_utils::RepositoryUtils,
         selected_repository::SelectedRepository,
     },
+    widgets::passphrase_dialog::BagitGpgPassphraseDialog,
 };
 use adw::{
     subclass::prelude::*,
@@ -583,6 +584,52 @@ impl BagitDesktopWindow {
                 error_message: &str
                 | {
                 win.show_error_dialog(error_message);
+            }),
+        );
+        self.imp().repository_page.connect_closure(
+            "commit-files-with-signing-key",
+            false,
+            closure_local!(@watch self as win => move |
+                repository_page: BagitRepositoryPage,
+                author: &str,
+                author_email: &str,
+                message: &str,
+                signing_key: &str,
+                description: &str,
+                need_to_save_profile: bool
+                | {
+                    let ctx: MainContext = glib::MainContext::default();
+                    let cloned_signing_key = String::from(signing_key);
+                    let cloned_message = String::from(message);
+                    let cloned_author = String::from(author);
+                    let cloned_author_email = String::from(author_email);
+                    let cloned_description = String::from(description);
+                    let cloned_need_to_save_profile = need_to_save_profile.clone();
+                    ctx.spawn_local(clone!(@weak win as win2 => async move {
+                        let passphrase_dialog: BagitGpgPassphraseDialog = BagitGpgPassphraseDialog::new(&cloned_signing_key);
+                        passphrase_dialog.set_transient_for(Some(&win2));
+                        passphrase_dialog.set_modal(true);
+                        passphrase_dialog.present();
+
+                        passphrase_dialog.connect_closure("fetch-passphrase", false, closure_local!(
+                            move |
+                            passphrase_dialog: BagitGpgPassphraseDialog,
+                            passphrase: &str
+                            | {
+                                passphrase_dialog.close();
+                                repository_page.commit_files_and_update_ui(
+                                    &cloned_author,
+                                    &cloned_author_email,
+                                    &cloned_message,
+                                    &cloned_signing_key,
+                                    &passphrase,
+                                    &cloned_description,
+                                    cloned_need_to_save_profile,
+                                );
+                            }
+                        ));
+                    }
+                ));
             }),
         );
     }

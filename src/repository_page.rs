@@ -103,6 +103,16 @@ mod imp {
                     Signal::builder("commit-error")
                         .param_types([str::static_type()])
                         .build(),
+                    Signal::builder("commit-files-with-signing-key")
+                        .param_types([
+                            str::static_type(),
+                            str::static_type(),
+                            str::static_type(),
+                            str::static_type(),
+                            str::static_type(),
+                            bool::static_type(),
+                        ])
+                        .build(),
                 ]
             });
             SIGNALS.as_ref()
@@ -238,7 +248,7 @@ impl BagitRepositoryPage {
             "commit-files",
             false,
             closure_local!(@watch self as win => move |
-                commit_view: BagitCommitView,
+                _commit_view: BagitCommitView,
                 author: &str,
                 author_email: &str,
                 message: &str,
@@ -246,74 +256,28 @@ impl BagitRepositoryPage {
                 description: &str,
                 need_to_save_profile: bool
                 | {
-                    let borrowed_repo = win.imp().selected_repository.take();
-                    if borrowed_repo.git_repository.is_some() {
-                        let git_repository = borrowed_repo.git_repository.as_ref().unwrap();
-                        let selected_files = win.imp().sidebar.imp().changed_files.borrow().get_selected_files();
-
-                        // We save the profile if we need to :
-                        if need_to_save_profile {
-                            let new_profile_id = Uuid::new_v4();
-
-                            // We make sure that the profile name is unique :
-                            let same_profile_name_number = win.imp().app_database.get_number_of_git_profiles_with_name(
-                                &author,
-                                &new_profile_id.to_string()
-                            );
-                            let final_profil_name : String =  if same_profile_name_number != 0 {
-                                let new_name = format!("{} ({})", author, same_profile_name_number);
-                                new_name
-                            } else {
-                                author.to_string()
-                            };
-
-                            let new_profile = BagitGitProfile::new(
-                                new_profile_id.clone(),
-                                final_profil_name,
-                                author_email.to_string(),
-                                author.to_string(),
-                                String::from(""),
-                                String::from(""),
-                                signing_key.to_string()
-                            );
-                            win.imp().app_database.add_git_profile(&new_profile);
-
-                            // We set the new profile to the repository:
-                            win.imp().app_database.change_git_profile_of_repository(
-                                borrowed_repo.user_repository.repository_id,
-                                Some(new_profile_id)
-                            );
-                            win.imp().commit_view.imp().profile_mode.replace(
-                                ProfileMode::SelectedProfile(new_profile)
-                            );
-
-                            // We update the view:
-                            win.imp().commit_view.update_git_profiles_list();
-                        }
-                        match RepositoryUtils::commit_files(
-                            git_repository,
-                            selected_files,
-                            message,
-                            description,
+                    if signing_key.trim().is_empty() {
+                        win.commit_files_and_update_ui(
                             author,
                             author_email,
-                            signing_key
-                        ) {
-                            Ok(_) => {
-                                let toast = adw::Toast::new(&gettext("_Commit created successfully"));
-                                win.imp().toast_overlay.add_toast(toast);
-                                // We remove the last commit message:
-                                commit_view.imp().message_row.set_text("");
-                                commit_view.imp().description_row.set_text("");
-                                win.imp().selected_repository.replace(borrowed_repo);
-                                win.update_commits_sidebar();
-                                commit_view.update_commit_view(0);
-                            },
-                            Err(error) => {
-                                win.imp().selected_repository.replace(borrowed_repo);
-                                win.emit_by_name("commit-error", &[&error.to_string()])
-                            }
-                        }
+                            message,
+                            signing_key,
+                            "",
+                            description,
+                            need_to_save_profile
+                        );
+                    } else {
+                        win.imp().obj().emit_by_name::<()>(
+                            "commit-files-with-signing-key",
+                            &[
+                                &author,
+                                &author_email,
+                                &message,
+                                &signing_key,
+                                &description,
+                                &need_to_save_profile,
+                            ],
+                        );
                     }
                 }
             ),
@@ -432,6 +396,97 @@ impl BagitRepositoryPage {
                 }
                 Err(_) => {}
             };
+        }
+    }
+
+    /// Used to commit files and update UI.
+    pub fn commit_files_and_update_ui(
+        &self,
+        author: &str,
+        author_email: &str,
+        message: &str,
+        signing_key: &str,
+        passphrase: &str,
+        description: &str,
+        need_to_save_profile: bool,
+    ) {
+        let borrowed_repo = self.imp().selected_repository.take();
+        if borrowed_repo.git_repository.is_some() {
+            let git_repository = borrowed_repo.git_repository.as_ref().unwrap();
+            let selected_files = self
+                .imp()
+                .sidebar
+                .imp()
+                .changed_files
+                .borrow()
+                .get_selected_files();
+
+            // We save the profile if we need to :
+            if need_to_save_profile {
+                let new_profile_id = Uuid::new_v4();
+
+                // We make sure that the profile name is unique :
+                let same_profile_name_number = self
+                    .imp()
+                    .app_database
+                    .get_number_of_git_profiles_with_name(&author, &new_profile_id.to_string());
+                let final_profil_name: String = if same_profile_name_number != 0 {
+                    let new_name = format!("{} ({})", author, same_profile_name_number);
+                    new_name
+                } else {
+                    author.to_string()
+                };
+
+                let new_profile = BagitGitProfile::new(
+                    new_profile_id.clone(),
+                    final_profil_name,
+                    author_email.to_string(),
+                    author.to_string(),
+                    String::from(""),
+                    String::from(""),
+                    signing_key.to_string(),
+                );
+                self.imp().app_database.add_git_profile(&new_profile);
+
+                // We set the new profile to the repository:
+                self.imp().app_database.change_git_profile_of_repository(
+                    borrowed_repo.user_repository.repository_id,
+                    Some(new_profile_id),
+                );
+                self.imp()
+                    .commit_view
+                    .imp()
+                    .profile_mode
+                    .replace(ProfileMode::SelectedProfile(new_profile));
+
+                // We update the view:
+                self.imp().commit_view.update_git_profiles_list();
+            }
+            match RepositoryUtils::commit_files(
+                git_repository,
+                selected_files,
+                message,
+                description,
+                author,
+                author_email,
+                signing_key,
+                passphrase,
+            ) {
+                Ok(_) => {
+                    let toast = adw::Toast::new(&gettext("_Commit created successfully"));
+                    self.imp().toast_overlay.add_toast(toast);
+                    // We remove the last commit message:
+                    self.imp().commit_view.imp().message_row.set_text("");
+                    self.imp().commit_view.imp().description_row.set_text("");
+                    self.imp().selected_repository.replace(borrowed_repo);
+                    self.update_commits_sidebar();
+                    self.imp().commit_view.update_commit_view(0);
+                }
+                Err(error) => {
+                    self.imp().selected_repository.replace(borrowed_repo);
+                    self.emit_by_name("commit-error", &[&error.to_string()])
+                }
+            }
         }
     }
 }

@@ -296,3 +296,14 @@ msgstr "Emplacement de la clé privée"
 
 msgid "_Signing key dialog"
 msgstr "Clé de signature"
+
+############### bagit-passphrase-dialog.ui #######
+
+msgid "_Passphrase dialog"
+msgstr "Phrase de passe"
+
+msgid "_Passphrase key"
+msgstr "Veuillez entrer la phrase de passe pour la clé de signature suivante :"
+
+msgid "_Validate"
+msgstr "Valider"

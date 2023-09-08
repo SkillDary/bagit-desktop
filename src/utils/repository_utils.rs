@@ -336,6 +336,7 @@ impl RepositoryUtils {
         author: &str,
         author_email: &str,
         signing_key: &str,
+        passphrase: &str,
     ) -> Result<Oid, git2::Error> {
         let mut index = match RepositoryUtils::update_repository_index(repository, selected_files) {
             Ok(idx) => idx,
@@ -390,7 +391,11 @@ impl RepositoryUtils {
                 Ok(buffer) => {
                     let commit_as_str = std::str::from_utf8(&buffer).unwrap().to_string();
 
-                    let sig = GpgUtils::sign_commit_string(&commit_as_str, signing_key);
+                    let sig = GpgUtils::sign_commit_string_with_passphrase(
+                        &commit_as_str,
+                        signing_key,
+                        passphrase,
+                    );
 
                     match sig {
                         Ok(string_sig) => {
