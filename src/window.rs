@@ -23,10 +23,14 @@ use crate::{
     glib::clone,
     models::{bagit_git_profile::BagitGitProfile, bagit_repository::BagitRepository},
     utils::{
-        self, profile_mode::ProfileMode, repository_utils::RepositoryUtils,
-        selected_repository::SelectedRepository,
+        self, action_type::ActionType, profile_mode::ProfileMode,
+        repository_utils::RepositoryUtils, selected_repository::SelectedRepository,
     },
+    widgets::https_action_dialog::BagitHttpsActionDialog,
     widgets::passphrase_dialog::BagitGpgPassphraseDialog,
+    widgets::{
+        ssh_action_dialog::BagitSshActionDialog, ssh_passphrase_dialog::BagitSshPassphraseDialog,
+    },
 };
 use adw::{
     subclass::prelude::*,
@@ -146,10 +150,6 @@ impl BagitDesktopWindow {
                 | {
                     // We update the selected repository :
                     let found_repository = win.imp().app_database.get_repository_from_path(&path);
-                    win.imp().repository_page.imp().sidebar.clear_changed_files_list();
-                    win.imp().repository_page.imp().sidebar.imp().change_from_file.set(false);
-                    win.imp().repository_page.imp().main_view_stack.set_visible_child_name("hello world");
-                    win.imp().repository_page.imp().commit_view.update_commit_view(0);
 
                     if found_repository.is_some() {
                         let repo = found_repository.unwrap();
@@ -312,7 +312,7 @@ impl BagitDesktopWindow {
                     let dialog = gtk::FileDialog::builder()
                         .accept_label(gettext("_Add"))
                         .modal(true)
-                        .title(gettext("_Select Private key path"))
+                        .title(gettext("_Select private key path"))
                         .build();
 
                     if let Ok(res) = dialog.open_future(Some(&win2)).await {
@@ -339,6 +339,9 @@ impl BagitDesktopWindow {
                     let location_copy = location.to_owned();
 
                     let borrowed_profile_mode = clone_repository_page.imp().profile_mode.take();
+                    clone_repository_page.imp().profile_mode.replace(
+                        borrowed_profile_mode.clone()
+                    );
 
                     let selected_profile: Option<BagitGitProfile> = match borrowed_profile_mode {
                         ProfileMode::SelectedProfile(profile) => Some(profile),
@@ -577,7 +580,7 @@ impl BagitDesktopWindow {
             }),
         );
         self.imp().repository_page.connect_closure(
-            "commit-error",
+            "error",
             false,
             closure_local!(@watch self as win => move |
                 _repository_page: BagitRepositoryPage,
@@ -625,6 +628,148 @@ impl BagitDesktopWindow {
                                     &passphrase,
                                     &cloned_description,
                                     cloned_need_to_save_profile,
+                                );
+                            }
+                        ));
+                    }
+                ));
+            }),
+        );
+        self.imp().repository_page.connect_closure(
+            "missing-ssh-information",
+            false,
+            closure_local!(@watch self as win => move |
+                repository_page: BagitRepositoryPage,
+                username: &str,
+                private_key_path: &str,
+                action_type: ActionType
+                | {
+                    let ctx: MainContext = glib::MainContext::default();
+                    let cloned_username = String::from(username);
+                    let cloned_private_key_path= String::from(private_key_path);
+                    ctx.spawn_local(clone!(@weak win as win2 => async move {
+                        let dialog: BagitSshActionDialog = BagitSshActionDialog::new(&cloned_username, &cloned_private_key_path);
+                        dialog.set_transient_for(Some(&win2));
+                        dialog.set_modal(true);
+                        dialog.present();
+
+                        dialog.connect_closure("select-location", false, closure_local!(
+                            @watch win2 as win3 => move |
+                            ssh_dialog: BagitSshActionDialog,
+                            | {
+                                let ctx: MainContext = glib::MainContext::default();
+                                ctx.spawn_local(clone!(@weak win3 as win4 => async move {
+                                    let dialog = gtk::FileDialog::builder()
+                                        .accept_label(gettext("_Add"))
+                                        .modal(true)
+                                        .title(gettext("_Select private key path"))
+                                        .build();
+
+                                    if let Ok(res) = dialog.open_future(Some(&win4)).await {
+                                        ssh_dialog.imp().private_key_path.set_text(
+                                            res.path().unwrap_or(PathBuf::new()).to_str().unwrap()
+                                        );
+                                    }
+                                }));
+                            }
+                        ));
+
+                        dialog.connect_closure("push-with-ssh-informations", false, closure_local!(
+                            @watch repository_page =>
+                            move |
+                            dialog: BagitSshActionDialog,
+                            username: &str,
+                            private_key_path: &str,
+                            passphrase: &str,
+                            | {
+                                dialog.close();
+                                repository_page.do_git_action_with_information(
+                                    String::from(username),
+                                    String::new(),
+                                    String::from(private_key_path),
+                                    String::from(passphrase),
+                                    action_type
+                                );
+                            }
+                        ));
+                    }
+                ));
+            }),
+        );
+        self.imp().repository_page.connect_closure(
+            "ssh-passphrase-dialog",
+            false,
+            closure_local!(@watch self as win => move |
+                repository_page: BagitRepositoryPage,
+                username: &str,
+                private_key_path: &str,
+                action_type: ActionType
+                | {
+                    let ctx: MainContext = glib::MainContext::default();
+
+                    let cloned_username = String::from(username);
+                    let cloned_private_key_path= String::from(private_key_path);
+
+                    ctx.spawn_local(clone!(@weak win as win2, => async move {
+                        let dialog: BagitSshPassphraseDialog = BagitSshPassphraseDialog::new(cloned_username, cloned_private_key_path);
+                        dialog.set_transient_for(Some(&win2));
+                        dialog.set_modal(true);
+                        dialog.present();
+
+                        dialog.connect_closure("push-with-passphrase", false, closure_local!(
+                            @watch repository_page =>
+                            move |
+                            dialog: BagitSshPassphraseDialog,
+                            username: &str,
+                            private_key_path: &str,
+                            passphrase: &str,
+                            | {
+                                dialog.close();
+                                repository_page.do_git_action_with_information(
+                                    String::from(username),
+                                    String::new(),
+                                    String::from(private_key_path),
+                                    String::from(passphrase),
+                                    action_type
+                                );
+                            }
+                        ));
+                    }
+                ));
+            }),
+        );
+        self.imp().repository_page.connect_closure(
+            "missing-https-information",
+            false,
+            closure_local!(@watch self as win => move |
+                repository_page: BagitRepositoryPage,
+                username: &str,
+                password: &str,
+                action_type: ActionType
+                | {
+                    let ctx: MainContext = glib::MainContext::default();
+                    let cloned_username = String::from(username);
+                    let cloned_password = String::from(password);
+                    ctx.spawn_local(clone!(@weak win as win2 => async move {
+                        let dialog: BagitHttpsActionDialog = BagitHttpsActionDialog::new(&cloned_username, &cloned_password);
+                        dialog.set_transient_for(Some(&win2));
+                        dialog.set_modal(true);
+                        dialog.present();
+
+                        dialog.connect_closure("push-with-https-informations", false, closure_local!(
+                            @watch repository_page =>
+                            move |
+                            dialog: BagitHttpsActionDialog,
+                            username: &str,
+                            password: &str
+                            | {
+                                dialog.close();
+                                repository_page.do_git_action_with_information(
+                                    String::from(username),
+                                    String::from(password),
+                                    String::new(),
+                                    String::new(),
+                                    action_type
                                 );
                             }
                         ));

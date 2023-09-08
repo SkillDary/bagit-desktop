@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="Adw" version="1.0"/>
+  <template class="BagitSshPassphraseDialog" parent="AdwMessageDialog">
+    <property name="heading" translatable="yes">_Passphrase</property>
+    <property name="body" translatable="yes">_Passphrase information</property>
+    <property name="extra-child">
+      <object class="GtkListBox">
+        <style>
+          <class name="boxed-list"/>
+        </style>
+        <child>
+          <object class="AdwPasswordEntryRow" id="passphrase_row">
+            <property name="title" translatable="yes">_Passphrase</property>
+          </object>
+        </child>
+      </object>
+    </property>
+    <property name="default-response">ok</property>
+    <property name="close-response">cancel</property>
+    <signal name="response" handler="response_cb"/>
+    <responses>
+      <response id="cancel" translatable="yes">_Cancel</response>
+      <response id="validate" translatable="yes" appearance="suggested">_Validate</response>
+    </responses>
+  </template>
+</interface>

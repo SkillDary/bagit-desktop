@@ -287,7 +287,7 @@ impl BagitPreferences {
                     let dialog = gtk::FileDialog::builder()
                         .accept_label(gettext("_Add"))
                         .modal(true)
-                        .title(gettext("_Select location"))
+                        .title(gettext("_Select private key path"))
                         .build();
 
                     if let Ok(res) = dialog.open_future(Some(&win2)).await {

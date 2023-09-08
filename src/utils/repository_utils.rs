@@ -21,14 +21,14 @@ use std::{env, path::Path};
 
 use gettextrs::gettext;
 use git2::{
-    Commit, Cred, Delta, DiffOptions, ErrorClass, ErrorCode, Index, ObjectType, Oid,
-    RemoteCallbacks, Repository, Signature,
+    Commit, Cred, Delta, DiffOptions, ErrorClass, ErrorCode, FetchOptions, Index, ObjectType, Oid,
+    PushOptions, RemoteCallbacks, Repository, Signature,
 };
 use regex::Regex;
 
 use crate::{models::bagit_git_profile::BagitGitProfile, utils::gpg_utils::GpgUtils};
 
-use super::changed_file::ChangedFile;
+use super::{changed_file::ChangedFile, clone_mode::CloneMode};
 
 pub struct RepositoryUtils {}
 
@@ -189,6 +189,25 @@ impl RepositoryUtils {
         let _ = config.remove("commit.gpgsign");
 
         Ok(())
+    }
+
+    /// Used to get the clone mode of a repository.
+    pub fn get_clone_mode_of_repository(repository: &Repository) -> Result<CloneMode, git2::Error> {
+        let config = match repository.config() {
+            Ok(config) => config,
+            Err(error) => return Err(error),
+        };
+
+        match config.get_entry("remote.origin.url") {
+            Ok(url) => {
+                return Ok(if RepositoryUtils::is_using_https(url.value().unwrap()) {
+                    CloneMode::HTTPS
+                } else {
+                    CloneMode::SSH
+                });
+            }
+            Err(error) => return Err(error),
+        };
     }
 
     /// Used to write profile information to git config.
@@ -445,6 +464,137 @@ impl RepositoryUtils {
                 }
                 Err(e) => Err(e),
             }
+        }
+    }
+
+    /// Used to push changes.
+    pub fn push(
+        repository: &Repository,
+        username: String,
+        password: String,
+        private_key_path: String,
+        passphrase: String,
+    ) -> Result<(), git2::Error> {
+        let head = repository.head().expect("Could not retrieve HEAD.");
+
+        let checked_out_branch = head
+            .shorthand()
+            .expect("Could not retrieve name of checked-out branch.");
+
+        let branch = repository
+            .find_branch(checked_out_branch, git2::BranchType::Local)
+            .unwrap();
+
+        let mut remote = match repository.find_remote("origin") {
+            Ok(remote) => remote,
+            Err(error) => return Err(error),
+        };
+
+        let callback: RemoteCallbacks<'_>;
+
+        match RepositoryUtils::get_clone_mode_of_repository(&repository) {
+            Ok(clone_mode) => {
+                callback = match clone_mode {
+                    CloneMode::SSH => {
+                        RepositoryUtils::ssh_callback(username, passphrase, private_key_path)
+                    }
+                    CloneMode::HTTPS => RepositoryUtils::https_callback(username, password),
+                }
+            }
+            Err(error) => return Err(error),
+        };
+
+        let mut push_options = PushOptions::new();
+        push_options.remote_callbacks(callback);
+
+        let upstream_branch_reference: Option<git2::Reference<'_>> = match branch.upstream() {
+            Ok(branch) => Some(branch.into_reference()),
+            Err(_) => None,
+        };
+
+        match remote.push(
+            &[branch.into_reference().name().unwrap()],
+            Some(&mut push_options),
+        ) {
+            Ok(_) => {
+                if upstream_branch_reference.is_none() {
+                    let binding = repository
+                        .find_branch(checked_out_branch, git2::BranchType::Local)
+                        .unwrap();
+
+                    let remote_name = format!(
+                        "{}/{}",
+                        remote.name().unwrap(),
+                        binding.name().unwrap().unwrap()
+                    );
+
+                    repository
+                        .find_branch(checked_out_branch, git2::BranchType::Local)
+                        .unwrap()
+                        .set_upstream(Some(&remote_name))?;
+                }
+                return Ok(());
+            }
+            Err(error) => return Err(error),
+        }
+    }
+
+    /// Used to pull a repository's remote branch.
+    pub fn pull(
+        repository: &Repository,
+        username: String,
+        password: String,
+        private_key_path: String,
+        passphrase: String,
+    ) -> Result<(), git2::Error> {
+        let head = repository.head().expect("Could not retrieve HEAD.");
+
+        let checked_out_branch = head
+            .shorthand()
+            .expect("Could not retrieve name of checked-out branch.");
+
+        let branch = repository
+            .find_branch(checked_out_branch, git2::BranchType::Local)
+            .unwrap();
+
+        let callback: RemoteCallbacks<'_>;
+
+        match RepositoryUtils::get_clone_mode_of_repository(&repository) {
+            Ok(clone_mode) => {
+                callback = match clone_mode {
+                    CloneMode::SSH => {
+                        RepositoryUtils::ssh_callback(username, passphrase, private_key_path)
+                    }
+                    CloneMode::HTTPS => RepositoryUtils::https_callback(username, password),
+                }
+            }
+            Err(error) => return Err(error),
+        };
+
+        let mut fetch_options = FetchOptions::new();
+
+        fetch_options.remote_callbacks(callback);
+
+        repository.find_remote("origin")?.fetch(
+            &[branch.name().as_mut().unwrap().unwrap()],
+            Some(&mut fetch_options),
+            None,
+        )?;
+
+        let fetch_head = repository.find_reference("FETCH_HEAD")?;
+        let fetch_commit = repository.reference_to_annotated_commit(&fetch_head)?;
+        let analysis = repository.merge_analysis(&[&fetch_commit])?;
+
+        if analysis.0.is_up_to_date() {
+            Ok(())
+        } else if analysis.0.is_fast_forward() {
+            let refname = format!("refs/heads/{}", branch.name().as_mut().unwrap().unwrap());
+            let mut reference = repository.find_reference(&refname)?;
+            reference.set_target(fetch_commit.id(), "Fast-Forward")?;
+            repository.set_head(&refname)?;
+            repository.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
+        } else {
+            Err(git2::Error::from_str(&gettext("_An error has occured")))
         }
     }
 }

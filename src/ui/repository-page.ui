@@ -103,16 +103,27 @@
                                 <property name="hexpand">true</property>
                                 <property name="halign">GTK_ALIGN_END</property>
                                 <child>
-                                  <object class="GtkButton" id="git_action_button">
+                                  <object class="GtkButton" id="pull_button">
                                     <property name="margin-top">5</property>
                                     <property name="margin-bottom">5</property>
                                     <property name="margin-start">5</property>
                                     <property name="margin-end">5</property>
-                                    <property name="child">
-                                      <object class="GtkLabel">
-                                        <property name="label" translatable="yes">Hello</property>
-                                      </object>
-                                    </property>
+                                    <property name="label" translatable="yes">_Pull</property>
+                                    <signal name="clicked" handler="pull" swapped="true"/>
+                                    <style>
+                                      <class name="raised"/>
+                                    </style>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkButton" id="push_button">
+                                    <property name="margin-top">5</property>
+                                    <property name="margin-bottom">5</property>
+                                    <property name="margin-start">5</property>
+                                    <property name="margin-end">5</property>
+                                    <property name="sensitive">false</property>
+                                    <property name="label" translatable="yes">_Push</property>
+                                    <signal name="clicked" handler="push" swapped="true"/>
                                     <style>
                                       <class name="raised"/>
                                     </style>

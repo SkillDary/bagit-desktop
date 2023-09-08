@@ -140,4 +140,9 @@ impl FileTree {
 
         return count;
     }
+
+    /// Used to retrieve the number of changed files.
+    pub fn get_number_of_changed_files(&self) -> i32 {
+        return self.tree.len().try_into().unwrap();
+    }
 }

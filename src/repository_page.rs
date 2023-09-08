@@ -23,8 +23,8 @@ use crate::utils::selected_repository::SelectedRepository;
 use crate::widgets::repository::commits_sidebar::BagitCommitsSideBar;
 use adw::subclass::prelude::*;
 use gettextrs::gettext;
-use gtk::glib::closure_local;
 use gtk::glib::subclass::Signal;
+use gtk::glib::{clone, closure_local, MainContext, Priority};
 use gtk::prelude::ObjectExt;
 use gtk::subclass::widget::CompositeTemplateInitializingExt;
 use gtk::template_callbacks;
@@ -32,14 +32,16 @@ use gtk::{glib, prelude::*, CompositeTemplate};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use std::cell::RefCell;
+use std::thread;
 use uuid::Uuid;
 
 use crate::utils::profile_mode::ProfileMode;
+use crate::utils::{action_type::ActionType, clone_mode::CloneMode, db::AppDatabase};
 use crate::widgets::repository::commit_view::BagitCommitView;
 
 mod imp {
 
-    use crate::utils::db::AppDatabase;
+    use std::cell::Cell;
 
     use super::*;
 
@@ -57,10 +59,16 @@ mod imp {
         pub main_view_stack: TemplateChild<gtk::Stack>,
         #[template_child]
         pub commit_view: TemplateChild<BagitCommitView>,
+        #[template_child]
+        pub pull_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub push_button: TemplateChild<gtk::Button>,
 
         pub app_database: AppDatabase,
 
         pub selected_repository: RefCell<SelectedRepository>,
+
+        pub is_doing_git_action: Cell<bool>,
     }
 
     #[template_callbacks]
@@ -75,6 +83,16 @@ mod imp {
         #[template_callback]
         fn go_home(&self, _button: gtk::Button) {
             self.obj().emit_by_name::<()>("go-home", &[]);
+        }
+
+        #[template_callback]
+        fn pull(&self, _button: gtk::Button) {
+            self.obj().do_git_action_with_auth_check(ActionType::PULL);
+        }
+
+        #[template_callback]
+        fn push(&self, _button: gtk::Button) {
+            self.obj().do_git_action_with_auth_check(ActionType::PUSH);
         }
     }
 
@@ -100,7 +118,7 @@ mod imp {
             static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
                 vec![
                     Signal::builder("go-home").build(),
-                    Signal::builder("commit-error")
+                    Signal::builder("error")
                         .param_types([str::static_type()])
                         .build(),
                     Signal::builder("commit-files-with-signing-key")
@@ -113,6 +131,27 @@ mod imp {
                             bool::static_type(),
                         ])
                         .build(),
+                    Signal::builder("missing-ssh-information")
+                        .param_types([
+                            str::static_type(),
+                            str::static_type(),
+                            ActionType::static_type(),
+                        ])
+                        .build(),
+                    Signal::builder("missing-https-information")
+                        .param_types([
+                            str::static_type(),
+                            str::static_type(),
+                            ActionType::static_type(),
+                        ])
+                        .build(),
+                    Signal::builder("ssh-passphrase-dialog")
+                        .param_types([
+                            str::static_type(),
+                            str::static_type(),
+                            ActionType::static_type(),
+                        ])
+                        .build(),
                 ]
             });
             SIGNALS.as_ref()
@@ -121,6 +160,8 @@ mod imp {
             self.parent_constructed();
             self.obj().connect_sidebar_signals();
             self.obj().connect_commit_view_signals();
+
+            self.is_doing_git_action.set(false);
         }
     }
     impl WidgetImpl for BagitRepositoryPage {}
@@ -190,6 +231,18 @@ impl BagitRepositoryPage {
                 total: i32
                 | {
                     win.imp().commit_view.update_commit_view(total);
+                }
+            ),
+        );
+        self.imp().sidebar.connect_closure(
+            "set-push-button-sensitive",
+            false,
+            closure_local!(@watch self as win => move |
+                _sidebar: BagitCommitsSideBar,
+                sensitive_value: bool
+                | {
+                    win.imp().push_button.set_sensitive(sensitive_value && !win.imp().is_doing_git_action.get());
+                    win.imp().pull_button.set_sensitive(!sensitive_value && !win.imp().is_doing_git_action.get());
                 }
             ),
         );
@@ -488,5 +541,273 @@ impl BagitRepositoryPage {
                 }
             }
         }
+    }
+    /// Used to block git action buttons (if we are doing an async action, we need to block them).
+    fn block_git_action_buttons(&self) {
+        self.imp().is_doing_git_action.set(true);
+
+        self.imp().pull_button.set_sensitive(false);
+        self.imp().push_button.set_sensitive(false);
+    }
+
+    /// Check if we can pull (if we have no changed files).
+    fn check_if_can_pull(&self) -> bool {
+        let changed_files_number = self
+            .imp()
+            .sidebar
+            .imp()
+            .changed_files
+            .borrow()
+            .get_number_of_changed_files();
+
+        return changed_files_number == 0;
+    }
+
+    /// Used to define wich git action we need to do:
+    pub fn do_git_action_with_information(
+        &self,
+        username: String,
+        password: String,
+        private_key_path: String,
+        passphrase: String,
+        action_type: ActionType,
+    ) {
+        match action_type {
+            ActionType::PUSH => {
+                self.push_and_update_ui(username, password, private_key_path, passphrase)
+            }
+            ActionType::PULL => {
+                self.pull_and_update_ui(username, password, private_key_path, passphrase)
+            }
+        };
+    }
+
+    /// Used to do a git action that need authentification.
+    fn do_git_action_with_auth_check(&self, action_type: ActionType) {
+        let selected_repository = self.imp().selected_repository.take();
+        let profile_mode = self.imp().commit_view.imp().profile_mode.take();
+
+        self.imp().selected_repository.replace(
+            SelectedRepository::try_fetching_selected_repository(
+                &selected_repository.user_repository,
+            )
+            .unwrap(),
+        );
+
+        self.imp()
+            .commit_view
+            .imp()
+            .profile_mode
+            .replace(profile_mode.clone());
+
+        // If we want to pull, we need to check that we don't have changed files:
+        if action_type == ActionType::PULL && !self.check_if_can_pull() {
+            let toast = adw::Toast::new(&gettext("_Changed files when pull"));
+            self.imp().toast_overlay.add_toast(toast);
+            return;
+        }
+
+        match &selected_repository.git_repository {
+            Some(repository) => {
+                match RepositoryUtils::get_clone_mode_of_repository(&repository) {
+                    Ok(clone_mode) => match profile_mode {
+                        ProfileMode::SelectedProfile(profile) => {
+                            if !profile.does_profile_has_information_for_actions(&clone_mode) {
+                                match clone_mode {
+                                    CloneMode::SSH => self.emit_by_name::<()>(
+                                        "missing-ssh-information",
+                                        &[
+                                            &profile.username,
+                                            &profile.private_key_path,
+                                            &action_type,
+                                        ],
+                                    ),
+                                    CloneMode::HTTPS => self.emit_by_name::<()>(
+                                        "missing-https-information",
+                                        &[&profile.username, &profile.password, &action_type],
+                                    ),
+                                };
+                            } else {
+                                match clone_mode {
+                                    CloneMode::SSH => self.emit_by_name::<()>(
+                                        "ssh-passphrase-dialog",
+                                        &[
+                                            &profile.username,
+                                            &profile.private_key_path,
+                                            &action_type,
+                                        ],
+                                    ),
+                                    CloneMode::HTTPS => self.do_git_action_with_information(
+                                        profile.username,
+                                        profile.password,
+                                        profile.private_key_path,
+                                        "".to_string(),
+                                        action_type,
+                                    ),
+                                };
+                            }
+                        }
+                        _ => {
+                            match clone_mode {
+                                CloneMode::SSH => self.emit_by_name::<()>(
+                                    "missing-ssh-information",
+                                    &[
+                                        &self.imp().commit_view.imp().author_row.text().trim(),
+                                        &"",
+                                        &action_type,
+                                    ],
+                                ),
+                                CloneMode::HTTPS => self.emit_by_name::<()>(
+                                    "missing-https-information",
+                                    &[
+                                        &self.imp().commit_view.imp().author_row.text().trim(),
+                                        &"",
+                                        &action_type,
+                                    ],
+                                ),
+                            };
+                        }
+                    },
+                    Err(error) => self.emit_by_name::<()>("error", &[&error.to_string()]),
+                };
+            }
+            None => {}
+        }
+    }
+
+    /// Used to push and update ui.
+    pub fn push_and_update_ui(
+        &self,
+        username: String,
+        password: String,
+        private_key_path: String,
+        passphrase: String,
+    ) {
+        let selected_repository = self.imp().selected_repository.take();
+        self.imp().selected_repository.replace(
+            SelectedRepository::try_fetching_selected_repository(
+                &selected_repository.user_repository,
+            )
+            .unwrap(),
+        );
+
+        let (error_sender, error_receiver) = MainContext::channel::<String>(Priority::default());
+        let (result_sender, result_receiver) = MainContext::channel::<()>(Priority::default());
+
+        self.block_git_action_buttons();
+
+        thread::spawn(move || {
+            let error_sender = error_sender.clone();
+            let result_sender = result_sender.clone();
+
+            match RepositoryUtils::push(
+                &selected_repository.git_repository.as_ref().unwrap(),
+                username,
+                password,
+                private_key_path,
+                passphrase,
+            ) {
+                Ok(_) => result_sender
+                    .send(())
+                    .expect("Could not send result through channel"),
+                Err(error) => error_sender
+                    .send(error.to_string())
+                    .expect("Could not send error through channel"),
+            };
+        });
+
+        error_receiver.attach(
+            None,
+            clone!(@weak self as win => @default-return Continue(false),
+                        move |error| {
+                            win.emit_by_name::<()>("error", &[&error.to_string()]);
+                            win.imp().is_doing_git_action.set(false);
+                            win.update_commits_sidebar();
+                            Continue(true)
+                        }
+            ),
+        );
+
+        result_receiver.attach(
+            None,
+            clone!(
+                @weak self as win => @default-return Continue(false),
+                        move |_| {
+                            let toast = adw::Toast::new(&gettext("_Commits pushed"));
+                            win.imp().toast_overlay.add_toast(toast);
+                            win.imp().is_doing_git_action.set(false);
+                            win.update_commits_sidebar();
+                            Continue(true)
+                        }
+            ),
+        );
+    }
+
+    /// Used to push and update ui.
+    pub fn pull_and_update_ui(
+        &self,
+        username: String,
+        password: String,
+        private_key_path: String,
+        passphrase: String,
+    ) {
+        let selected_repository = self.imp().selected_repository.take();
+        self.imp().selected_repository.replace(
+            SelectedRepository::try_fetching_selected_repository(
+                &selected_repository.user_repository,
+            )
+            .unwrap(),
+        );
+
+        let (error_sender, error_receiver) = MainContext::channel::<String>(Priority::default());
+        let (result_sender, result_receiver) = MainContext::channel::<()>(Priority::default());
+
+        self.block_git_action_buttons();
+
+        thread::spawn(move || {
+            let error_sender = error_sender.clone();
+            let result_sender = result_sender.clone();
+
+            match RepositoryUtils::pull(
+                &selected_repository.git_repository.as_ref().unwrap(),
+                username,
+                password,
+                private_key_path,
+                passphrase,
+            ) {
+                Ok(_) => result_sender
+                    .send(())
+                    .expect("Could not send result through channel"),
+                Err(error) => error_sender
+                    .send(error.to_string())
+                    .expect("Could not send error through channel"),
+            };
+        });
+
+        error_receiver.attach(
+            None,
+            clone!(@weak self as win => @default-return Continue(false),
+                        move |error| {
+                            win.emit_by_name::<()>("error", &[&error.to_string()]);
+                            win.imp().is_doing_git_action.set(false);
+                            win.update_commits_sidebar();
+                            Continue(true)
+                        }
+            ),
+        );
+
+        result_receiver.attach(
+            None,
+            clone!(
+                @weak self as win => @default-return Continue(false),
+                        move |_| {
+                            let toast = adw::Toast::new(&gettext("_Remote branch pulled"));
+                            win.imp().toast_overlay.add_toast(toast);
+                            win.imp().is_doing_git_action.set(false);
+                            win.update_commits_sidebar();
+                            Continue(true)
+                        }
+            ),
+        );
     }
 }

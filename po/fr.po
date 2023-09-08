@@ -131,7 +131,7 @@ msgstr "Informations SSH"
 msgid "_Private key path"
 msgstr "Emplacement de la clé privée (optionnel)"
 
-msgid "_Select Private key path"
+msgid "_Select private key path"
 msgstr "Sélectionnez votre clé privée"
 
 msgid "_PGP information"
@@ -219,11 +219,14 @@ msgstr "Historique"
 msgid "_Commit not pushed"
 msgstr "Cette commission n'a pas encore été poussée"
 
+msgid "_No changed file"
+msgstr "Aucun fichier changé."
+
 msgid "_Changed files"
-msgstr "fichiers changés"
+msgstr "fichiers changés."
 
 msgid "_Changed file"
-msgstr "fichier changé"
+msgstr "fichier changé."
 
 msgid "_Commit subtitle format"
 msgstr "a commis le %d/%m/%Y à %H:%M"
@@ -249,7 +252,7 @@ msgstr "Commettre les changements"
 ############# bagit-commit-view.ui ##############
 
 msgid "_No committed file"
-msgstr "Auncun fichier ne sera commis."
+msgstr "Aucun fichier ne sera commis."
 
 msgid "_Committed file"
 msgstr "fichier sera commis."
@@ -307,3 +310,27 @@ msgstr "Veuillez entrer la phrase de passe pour la clé de signature suivante :"
 
 msgid "_Validate"
 msgstr "Valider"
+############### repository-page.ui ################
+
+msgid "_Push"
+msgstr "Pousser"
+
+msgid "_Pull"
+msgstr "Tirer"
+
+msgid "_Commits pushed"
+msgstr "Commissions poussées"
+
+msgid "_Changed files when pull"
+msgstr "Vous avez des fichiers modifiés, vous ne pouvez pas tirer la branche distante"
+
+msgid "_Remote branch pulled"
+msgstr "Branche distante tirée"
+
+############### bagit-https-action-dialog.ui ######
+
+msgid "_Missing information"
+msgstr "Informations manquantes"
+
+msgid "_Complete missing information"
+msgstr "Veuillez compléter les informations manquantes."

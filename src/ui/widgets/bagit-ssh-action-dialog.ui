@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="Adw" version="1.0"/>
+  <template class="BagitSshActionDialog" parent="AdwMessageDialog">
+    <property name="heading" translatable="yes">_Missing information</property>
+    <property name="body" translatable="yes">_Complete missing information</property>
+    <property name="extra-child">
+      <object class="GtkBox">
+        <property name="spacing">12</property>
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkListBox">
+            <style>
+              <class name="boxed-list"/>
+            </style>
+            <child>
+              <object class="AdwEntryRow" id="username_row">
+                <property name="width-request">200</property>
+                <property name="title" translatable="yes">_Username</property>
+              </object>
+            </child>
+            <child>
+              <object class="AdwEntryRow" id="private_key_path">
+                <property name="width-request">200</property>
+                <property name="title" translatable="yes">_Private key path</property>
+                <child type="suffix">
+                  <object class="GtkButton">
+                    <signal name="clicked" handler="select_location" swapped="true"/>
+                    <property name="margin-top">10</property>
+                    <property name="margin-bottom">10</property>
+                    <property name="icon-name">folder-symbolic</property>
+                    <style>
+                      <class name="flat"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkListBox">
+                <style>
+                  <class name="boxed-list"/>
+                </style>
+                <child>
+                  <object class="AdwPasswordEntryRow" id="passphrase_row">
+                    <property name="title" translatable="yes">_Passphrase</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="halign">GTK_ALIGN_START</property>
+                <property name="label" translatable="yes">_Passphrase information</property>
+                <style>
+                  <class name="dim-label"/>
+                  <class name="caption"/>
+                </style>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </property>
+    <property name="default-response">ok</property>
+    <property name="close-response">cancel</property>
+    <signal name="response" handler="response_cb"/>
+    <responses>
+      <response id="cancel" translatable="yes">_Cancel</response>
+      <response id="validate" translatable="yes" appearance="suggested">_Validate</response>
+    </responses>
+  </template>
+</interface>

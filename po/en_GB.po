@@ -131,7 +131,7 @@ msgstr "SSH information"
 msgid "_Private key path"
 msgstr "Private key path (optional)"
 
-msgid "_Select Private key path"
+msgid "_Select private key path"
 msgstr "Select a private key"
 
 msgid "_PGP information"
@@ -219,11 +219,14 @@ msgstr "History"
 msgid "_Commit not pushed"
 msgstr "This commit has not been pushed yet"
 
+msgid "_No changed file"
+msgstr "No changed file."
+
 msgid "_Changed files"
-msgstr "changed files"
+msgstr "changed files."
 
 msgid "_Changed file"
-msgstr "changed file"
+msgstr "changed file."
 
 msgid "_Commit subtitle format"
 msgstr "committed on %m/%d/%Y at %H:%M"
@@ -307,3 +310,27 @@ msgstr "Please enter the passphrase for the signing key:"
 
 msgid "_Validate"
 msgstr "Validate"
+############### repository-page.ui ################
+
+msgid "_Push"
+msgstr "Push"
+
+msgid "_Pull"
+msgstr "Pull"
+
+msgid "_Commits pushed"
+msgstr "Commit pushed"
+
+msgid "_Changed files when pull"
+msgstr "You have changed files, you cannot pulled the remote branch"
+
+msgid "_Remote branch pulled"
+msgstr "Remote branch pulled"
+
+############### bagit-https-action-dialog.ui ######
+
+msgid "_Missing information"
+msgstr "Missing information"
+
+msgid "_Complete missing information"
+msgstr "Please complete the missing information."

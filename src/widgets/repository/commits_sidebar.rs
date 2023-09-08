@@ -171,6 +171,9 @@ mod imp {
                     Signal::builder("update-file-information-label")
                         .param_types([i32::static_type()])
                         .build(),
+                    Signal::builder("set-push-button-sensitive")
+                        .param_types([bool::static_type()])
+                        .build(),
                 ]
             });
 
@@ -356,6 +359,14 @@ impl BagitCommitsSideBar {
             nb_commits_to_load,
         );
 
+        // We check if we have local commits to push. If so, we will activate the push button:
+        self.emit_by_name::<()>(
+            "set-push-button-sensitive",
+            &[&newly_loaded_commits
+                .iter()
+                .any(|commit| !commit.is_pushed())],
+        );
+
         // If there is no new commit, we don't go any further.
         if newly_loaded_commits.is_empty() {
             self.imp()
@@ -421,17 +432,20 @@ impl BagitCommitsSideBar {
     ///
     /// E.g. user changed branch from somewhere else.
     pub fn refresh_commit_list_if_needed(&self, selected_repository_path: String) {
-        let repo: Repository = Repository::open(&selected_repository_path).unwrap();
+        match Repository::open(&selected_repository_path) {
+            Ok(repo) => {
+                let head = repo.head().expect("Could not retrieve HEAD.");
 
-        let head = repo.head().expect("Could not retrieve HEAD.");
+                let checked_out_branch: &str = head
+                    .shorthand()
+                    .expect("Could not retrieve name of checked-out branch.");
 
-        let checked_out_branch: &str = head
-            .shorthand()
-            .expect("Could not retrieve name of checked-out branch.");
-
-        if checked_out_branch != self.imp().current_branch_name {
-            self.init_commit_list(selected_repository_path);
-        }
+                if checked_out_branch != self.imp().current_branch_name {
+                    self.init_commit_list(selected_repository_path);
+                }
+            }
+            Err(_) => {}
+        };
     }
 
     /**
@@ -767,7 +781,9 @@ impl BagitCommitsSideBar {
 
     /// Used to update the changed files indicator.
     fn update_changed_files_indicator(&self, total_files: i32) {
-        let text = if total_files == 1 {
+        let text = if total_files == 0 {
+            gettext("_No changed file")
+        } else if total_files == 1 {
             format!("{} {}", total_files, gettext("_Changed file"))
         } else {
             format!("{} {}", total_files, gettext("_Changed files"))

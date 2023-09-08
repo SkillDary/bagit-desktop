@@ -18,8 +18,11 @@
  */
 
 pub mod action_bar;
+pub mod https_action_dialog;
 pub mod passphrase_dialog;
 pub mod preferences;
 pub mod profile_dialog;
 pub mod repositories;
 pub mod repository;
+pub mod ssh_action_dialog;
+pub mod ssh_passphrase_dialog;
