@@ -21,8 +21,8 @@ use std::{env, path::Path};
 
 use gettextrs::gettext;
 use git2::{
-    Commit, Cred, Delta, DiffOptions, ErrorClass, ErrorCode, FetchOptions, Index, ObjectType, Oid,
-    PushOptions, RemoteCallbacks, Repository, Signature,
+    build::CheckoutBuilder, BranchType, Commit, Cred, Delta, DiffOptions, ErrorClass, ErrorCode,
+    FetchOptions, Index, ObjectType, Oid, PushOptions, RemoteCallbacks, Repository, Signature,
 };
 use regex::Regex;
 
@@ -596,5 +596,149 @@ impl RepositoryUtils {
         } else {
             Err(git2::Error::from_str(&gettext("_An error has occured")))
         }
+    }
+
+    /// Used to get branches (name and head status) of a repository.
+    /// If we want to find the remotes ones, it will return only the untracked ones.
+    pub fn get_branches(
+        repository: &Repository,
+        branch_type: BranchType,
+    ) -> Result<Vec<(String, bool)>, git2::Error> {
+        let mut res: Vec<(String, bool)> = vec![];
+
+        match repository.branches(Some(branch_type)) {
+            Ok(branches) => {
+                for branch_result in branches {
+                    let branch = branch_result.unwrap().0;
+
+                    if branch_type == BranchType::Remote
+                        && RepositoryUtils::find_tracking_branch(
+                            repository,
+                            branch.name().as_ref().unwrap().unwrap(),
+                        )
+                        .is_some()
+                    {
+                        continue;
+                    }
+                    res.push((
+                        branch.name().as_ref().unwrap().unwrap().to_string(),
+                        branch.is_head(),
+                    ));
+                }
+                return Ok(res);
+            }
+            Err(error) => return Err(error),
+        }
+    }
+
+    /// Used to get the current branch.
+    pub fn get_current_branch_name(repository: &Repository) -> Result<String, git2::Error> {
+        let head = repository.head()?;
+        Ok(head.shorthand().unwrap().to_string())
+    }
+
+    /// Used to find a branch tracking a remote one.
+    pub fn find_tracking_branch(
+        repository: &Repository,
+        remote_branch_name: &str,
+    ) -> Option<String> {
+        match repository.branches(Some(BranchType::Local)) {
+            Ok(branches) => {
+                for branch_result in branches {
+                    let branch = branch_result.unwrap().0;
+
+                    let upstream_branch = match branch.upstream() {
+                        Ok(branch) => Some(branch),
+                        Err(_) => None,
+                    };
+
+                    match upstream_branch {
+                        Some(upstream) => {
+                            if upstream.name().unwrap().unwrap() == remote_branch_name {
+                                return Some(branch.name().unwrap().unwrap().to_string());
+                            }
+                        }
+                        None => {}
+                    }
+                }
+            }
+            Err(_) => return None,
+        }
+        None
+    }
+
+    /// Used to create a new branch that tracks a remote branch.
+    pub fn track_remote_branch(
+        repository: &Repository,
+        remote_branch_name: &str,
+        local_branch_name: &str,
+    ) -> Result<(), git2::Error> {
+        let mut remote_branches = repository.branches(Some(BranchType::Remote))?;
+
+        // The tracked remote branch.
+        let tracked_branch = remote_branches.find(|branch| match branch {
+            Ok(element) => element.0.name().unwrap().unwrap() == remote_branch_name,
+            Err(_) => false,
+        });
+
+        match tracked_branch {
+            Some(branch) => {
+                // We create our local branch, tracking the remote one.
+                match repository.branch(
+                    local_branch_name,
+                    &branch.unwrap().0.into_reference().peel_to_commit()?,
+                    false,
+                ) {
+                    Ok(mut branch) => branch.set_upstream(Some(remote_branch_name))?,
+                    Err(error) => return Err(error),
+                }
+            }
+            None => {
+                return Err(git2::Error::new(
+                    git2::ErrorCode::NotFound,
+                    git2::ErrorClass::Checkout,
+                    &gettext("_Remote branch not found"),
+                ))
+            }
+        }
+        Ok(())
+    }
+
+    /// Used to checkout to another branch.
+    pub fn checkout_branch(
+        repository: &Repository,
+        branch_to_checkout_to: &str,
+        is_remote: bool,
+    ) -> Result<(), git2::Error> {
+        let mut binding = CheckoutBuilder::new();
+        let checkout_builder = binding.safe();
+        let mut final_branch_name_to_checkout_to = branch_to_checkout_to.to_string();
+
+        // If the selected branch is remote, we need to create a local branch tracking it.
+        if is_remote {
+            let local_branch_name = branch_to_checkout_to.split("origin/").last().unwrap();
+            tracing::info!(
+                "No local branch is tracking {}. We will create the local branch: {}.",
+                branch_to_checkout_to,
+                local_branch_name
+            );
+            match RepositoryUtils::track_remote_branch(
+                repository,
+                &branch_to_checkout_to,
+                local_branch_name,
+            ) {
+                Ok(_) => final_branch_name_to_checkout_to = local_branch_name.to_string(),
+                Err(error) => return Err(error),
+            };
+        }
+
+        let tree = repository.revparse_single(&final_branch_name_to_checkout_to)?;
+
+        repository.checkout_tree(&tree, Some(checkout_builder))?;
+
+        let full_branch_name = format!("refs/heads/{}", final_branch_name_to_checkout_to);
+        repository.set_head(&full_branch_name)?;
+
+        Ok(())
     }
 }

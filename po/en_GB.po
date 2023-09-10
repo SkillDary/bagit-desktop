@@ -334,3 +334,31 @@ msgstr "Missing information"
 
 msgid "_Complete missing information"
 msgstr "Please complete the missing information."
+
+############### bagit-branches-dialog.ui ##########
+
+msgid "_Change branch"
+msgstr "Change branch"
+
+msgid "_Local branches"
+msgstr "Local branches"
+
+msgid "_Untracked branches"
+msgstr "Untracked branches"
+
+msgid "_Current branch"
+msgstr "Current branch"
+
+msgid "_Loading branches"
+msgstr "Loading branches"
+
+msgid "_Change branch dialog title"
+msgstr "Change branch?"
+
+msgid "_Changes will be brought to"
+msgstr "Changes will be brought to"
+
+############### repository_utils.rs ################
+
+msgid "_Remote branch not found"
+msgstr "Branche distante non trouvée"

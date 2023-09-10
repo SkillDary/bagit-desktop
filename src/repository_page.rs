@@ -62,6 +62,8 @@ mod imp {
         #[template_child]
         pub commit_view: TemplateChild<BagitCommitView>,
         #[template_child]
+        pub branch_button: TemplateChild<gtk::Button>,
+        #[template_child]
         pub pull_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub push_button: TemplateChild<gtk::Button>,
@@ -89,6 +91,13 @@ mod imp {
         fn push(&self, _button: gtk::Button) {
             self.obj().do_git_action_with_auth_check(ActionType::PUSH);
         }
+
+        #[template_callback]
+        fn branch_button_action(&self, _button: gtk::Button) {
+            let repository = self.selected_repository.borrow();
+            self.obj()
+                .emit_by_name::<()>("select-branch", &[&repository.user_repository.path]);
+        }
     }
 
     // The central trait for subclassing a GObject
@@ -114,6 +123,9 @@ mod imp {
                 vec![
                     Signal::builder("go-home").build(),
                     Signal::builder("error")
+                        .param_types([str::static_type()])
+                        .build(),
+                    Signal::builder("select-branch")
                         .param_types([str::static_type()])
                         .build(),
                     Signal::builder("commit-files-with-signing-key")
@@ -390,6 +402,7 @@ impl BagitRepositoryPage {
         self.imp().selected_repository.replace(repository);
 
         self.update_commits_sidebar();
+        self.update_branch_name();
     }
 
     /// Updates the changed files and commit history.
@@ -442,6 +455,17 @@ impl BagitRepositoryPage {
                 }
                 Err(_) => {}
             };
+        }
+    }
+
+    pub fn update_branch_name(&self) {
+        let borrowed_repo = self.imp().selected_repository.borrow();
+        match &borrowed_repo.git_repository {
+            Some(repository) => match RepositoryUtils::get_current_branch_name(&repository) {
+                Ok(branch_name) => self.imp().branch_button.set_label(&branch_name),
+                Err(_) => {}
+            },
+            None => {}
         }
     }
 
@@ -798,6 +822,55 @@ impl BagitRepositoryPage {
                             win.imp().toast_overlay.add_toast(toast);
                             win.imp().is_doing_git_action.set(false);
                             win.update_commits_sidebar();
+                            Continue(true)
+                        }
+            ),
+        );
+    }
+
+    /// Used to change the current branch.
+    pub fn checkout_branch_and_update_ui(&self, branch_to_checkout_to: String, is_remote: bool) {
+        let selected_repository = self.imp().selected_repository.take();
+        self.imp().selected_repository.replace(
+            SelectedRepository::try_fetching_selected_repository(
+                &selected_repository.user_repository,
+            )
+            .unwrap(),
+        );
+
+        let (result_sender, result_receiver) =
+            MainContext::channel::<Result<(), String>>(Priority::default());
+
+        self.block_git_action_buttons();
+
+        thread::spawn(move || {
+            let result_sender = result_sender.clone();
+
+            match RepositoryUtils::checkout_branch(
+                &selected_repository.git_repository.as_ref().unwrap(),
+                &branch_to_checkout_to,
+                is_remote,
+            ) {
+                Ok(_) => result_sender
+                    .send(Ok(()))
+                    .expect("Could not send result through channel"),
+                Err(error) => result_sender
+                    .send(Err(error.to_string()))
+                    .expect("Could not send error through channel"),
+            };
+        });
+
+        result_receiver.attach(
+            None,
+            clone!(
+                @weak self as win => @default-return Continue(false),
+                        move |result| {
+                            win.imp().is_doing_git_action.set(false);
+                            win.update_commits_sidebar();
+                            match result {
+                                Ok(_) => {},
+                                Err(error) => win.emit_by_name::<()>("error", &[&error.to_string()])
+                            }
                             Continue(true)
                         }
             ),

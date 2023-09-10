@@ -34,10 +34,7 @@
                       <object class="GtkToggleButton" id="toggle_pane_button">
                         <property name="icon-name">panel-left-symbolic</property>
                         <property name="active">True</property>
-                        <property name="visible"
-                                  bind-source="flap"
-                                  bind-property="folded"
-                                  bind-flags="sync-create"/>
+                        <property name="visible" bind-source="flap" bind-property="folded" bind-flags="sync-create"/>
                       </object>
                     </child>
                   </object>
@@ -52,18 +49,9 @@
             </child>
             <child>
               <object class="AdwFlap" id="flap">
-                <property name="reveal-flap"
-                          bind-source="toggle_pane_button"
-                          bind-property="active"
-                          bind-flags="sync-create|bidirectional"/>
-                <property name="swipe-to-open"
-                          bind-source="flap"
-                          bind-property="folded"
-                          bind-flags="sync-create"/>
-                <property name="swipe-to-close"
-                          bind-source="flap"
-                          bind-property="folded"
-                          bind-flags="sync-create"/>
+                <property name="reveal-flap" bind-source="toggle_pane_button" bind-property="active" bind-flags="sync-create|bidirectional"/>
+                <property name="swipe-to-open" bind-source="flap" bind-property="folded" bind-flags="sync-create"/>
+                <property name="swipe-to-close" bind-source="flap" bind-property="folded" bind-flags="sync-create"/>
                 <property name="flap">
                   <object class="GtkBox">
                     <property name="vexpand">True</property>
@@ -74,7 +62,7 @@
                   </object>
                 </property>
                 <property name="separator">
-                   <object class="GtkSeparator"/>
+                  <object class="GtkSeparator"/>
                 </property>
                 <property name="content">
                   <object class="GtkBox">
@@ -94,6 +82,15 @@
                           <object class="GtkBox">
                             <property name="hexpand">true</property>
                             <property name="halign">GTK_ALIGN_START</property>
+                            <child>
+                              <object class="GtkButton" id="branch_button">
+                                <property name="margin-top">5</property>
+                                <property name="margin-bottom">5</property>
+                                <property name="margin-start">5</property>
+                                <property name="margin-end">5</property>
+                                <signal name="clicked" handler="branch_button_action" swapped="true"/>
+                              </object>
+                            </child>
                           </object>
                         </child>
                         <child>

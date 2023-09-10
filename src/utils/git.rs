@@ -97,8 +97,10 @@ pub fn load_commit_history(
     } else {
         starting_commit_oid = Oid::from_str(&starting_commit_id).expect("Invalid OID format");
         // In this situation, we try at first to position ourself in the commit Oid as the one on the local branch:
-        starting_upstream_commit_oid =
-            Some(Oid::from_str(&starting_commit_id).expect("Invalid OID format"));
+        starting_upstream_commit_oid = match &upstream_branch_reference {
+            Some(_) => Some(Oid::from_str(&starting_commit_id).expect("Invalid OID format")),
+            None => None,
+        }
     }
 
     let mut revwalk: git2::Revwalk<'_> = repository.revwalk().unwrap();

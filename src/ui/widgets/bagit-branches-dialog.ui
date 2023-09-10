@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="Adw" version="1.0"/>
+  <template class="BagitBranchesDialog" parent="AdwWindow">
+    <child>
+      <object class="GtkBox">
+        <property name="width-request">400</property>
+        <property name="height-request">500</property>
+        <property name="vexpand">True</property>
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="AdwHeaderBar">
+            <property name="title-widget">
+              <object class="AdwWindowTitle">
+                <property name="title" translatable="yes">_Change branch</property>
+              </object>
+            </property>
+            <style>
+              <class name="flat"/>
+            </style>
+          </object>
+        </child>
+        <child>
+          <object class="GtkScrolledWindow">
+            <property name="vexpand">true</property>
+            <child>
+              <object class="AdwClamp">
+                <property name="child">
+                  <object class="GtkStack" id="dialog_stack">
+                    <property name="transition-type">GTK_STACK_TRANSITION_TYPE_CROSSFADE</property>
+                    <child>
+                      <object class="GtkStackPage">
+                        <property name="name">loading page</property>
+                        <property name="child">
+                          <object class="GtkBox">
+                            <property name="vexpand">TRUE</property>
+                            <property name="hexpand">TRUE</property>
+                            <property name="valign">GTK_ALIGN_CENTER</property>
+                            <property name="halign">GTK_ALIGN_CENTER</property>
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">12</property>
+                            <child>
+                              <object class="GtkSpinner">
+                                <property name="spinning">TRUE</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="label" translatable="yes">_Loading branches</property>
+                                <style>
+                                  <class name="title-3"/>
+                                </style>
+                              </object>
+                            </child>
+                          </object>
+                        </property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkStackPage">
+                        <property name="name">branch page</property>
+                        <property name="child">
+                          <object class="GtkBox">
+                            <property name="orientation">vertical</property>
+                            <property name="margin-top">24</property>
+                            <property name="margin-bottom">24</property>
+                            <property name="margin-start">12</property>
+                            <property name="margin-end">12</property>
+                            <property name="spacing">12</property>
+                            <child>
+                              <object class="GtkBox">
+                               <property name="orientation">vertical</property>
+                               <property name="spacing">2</property>
+                               <child>
+                                 <object class="GtkLabel">
+                                   <property name="halign">start</property>
+                                   <property name="label" translatable="yes">_Local branches</property>
+                                   <style>
+                                     <class name="heading"/>
+                                   </style>
+                                 </object>
+                               </child>
+                               <child>
+                                 <object class="GtkListBox" id="local_branches">
+                                  <signal name="row-selected" handler="local_branch_selected" swapped="true"/>
+                                  <style>
+                                    <class name="boxed-list"/>
+                                  </style>
+                                </object>
+                               </child>
+                             </object>
+                            </child>
+                            <child>
+                             <object class="GtkBox">
+                               <property name="orientation">vertical</property>
+                               <property name="spacing">2</property>
+                               <child>
+                                 <object class="GtkLabel">
+
+                                   <property name="halign">start</property>
+                                   <property name="label" translatable="yes">_Untracked branches</property>
+                                   <style>
+                                     <class name="heading"/>
+                                   </style>
+                                 </object>
+                               </child>
+                               <child>
+                                 <object class="GtkListBox" id="remote_branches">
+                                  <signal name="row-selected" handler="remote_branch_selected" swapped="true"/>
+                                  <style>
+                                    <class name="boxed-list"/>
+                                  </style>
+                                </object>
+                               </child>
+                             </object>
+                            </child>
+                          </object>
+                        </property>
+                      </object>
+                    </child>
+                  </object>
+                </property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

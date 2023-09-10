@@ -6,6 +6,7 @@
     <file preprocess="xml-stripblanks">ui/widgets/bagit-action-bar.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/bagit-repositories.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/bagit-profile-dialog.ui</file>
+    <file preprocess="xml-stripblanks">ui/widgets/bagit-branches-dialog.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/bagit-gpg-passphrase-dialog.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/bagit-https-action-dialog.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/bagit-ssh-passphrase-dialog.ui</file>

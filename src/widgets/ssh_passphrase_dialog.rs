@@ -22,10 +22,7 @@ use adw::subclass::prelude::*;
 use adw::prelude::EditableExt;
 use adw::prelude::StaticType;
 use gtk::subclass::widget::CompositeTemplateInitializingExt;
-use gtk::{
-    gio,
-    glib::{self},
-};
+use gtk::{gio, glib};
 use gtk::{glib::subclass::Signal, prelude::ObjectExt, template_callbacks};
 use once_cell::sync::Lazy;
 

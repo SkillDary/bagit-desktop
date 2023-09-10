@@ -1,4 +1,4 @@
-/* preferences.rs
+/* profile_dialog.rs
  *
  * Copyright 2023 SkillDary
  *
@@ -24,10 +24,7 @@ use adw::traits::ActionRowExt;
 use adw::traits::EntryRowExt;
 use adw::traits::PreferencesRowExt;
 use gettextrs::gettext;
-use gtk::{
-    gio,
-    glib::{self},
-};
+use gtk::{gio, glib};
 
 use crate::models::bagit_git_profile::BagitGitProfile;
 

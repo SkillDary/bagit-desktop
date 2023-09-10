@@ -18,8 +18,9 @@
  */
 
 pub mod action_bar;
+pub mod branches_dialog;
+pub mod gpg_passphrase_dialog;
 pub mod https_action_dialog;
-pub mod passphrase_dialog;
 pub mod preferences;
 pub mod profile_dialog;
 pub mod repositories;

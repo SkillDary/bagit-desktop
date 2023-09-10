@@ -27,14 +27,16 @@ use crate::{
         repository_utils::RepositoryUtils, selected_repository::SelectedRepository,
     },
     widgets::https_action_dialog::BagitHttpsActionDialog,
-    widgets::passphrase_dialog::BagitGpgPassphraseDialog,
+    widgets::{
+        branches_dialog::BagitBranchesDialog, gpg_passphrase_dialog::BagitGpgPassphraseDialog,
+    },
     widgets::{
         ssh_action_dialog::BagitSshActionDialog, ssh_passphrase_dialog::BagitSshPassphraseDialog,
     },
 };
 use adw::{
     subclass::prelude::*,
-    traits::{ActionRowExt, PreferencesRowExt},
+    traits::{ActionRowExt, MessageDialogExt, PreferencesRowExt},
 };
 use gettextrs::gettext;
 use git2::Repository;
@@ -101,7 +103,8 @@ mod imp {
                     match win.stack.visible_child_name().unwrap().as_str() {
                         "repository page" => {
                             win.repository_page.update_commits_sidebar();
-                            win.repository_page.imp().commit_view.update_git_profiles_list()
+                            win.repository_page.imp().commit_view.update_git_profiles_list();
+                            win.repository_page.update_branch_name();
                         },
                         "clone page" => win.clone_repository_page.update_git_profiles_list(
                             &win.app_database.get_all_git_profiles()
@@ -590,6 +593,37 @@ impl BagitDesktopWindow {
             }),
         );
         self.imp().repository_page.connect_closure(
+            "select-branch",
+            false,
+            closure_local!(@watch self as win => move |
+                _repository_page: BagitRepositoryPage,
+                repo_path: &str,
+                | {
+                    let ctx: MainContext = glib::MainContext::default();
+                    let repo_path_clone = String::from(repo_path);
+                    ctx.spawn_local(clone!(@weak win as win2 => async move {
+                        let branch_dialog = BagitBranchesDialog::new(repo_path_clone.to_string());
+                        branch_dialog.set_transient_for(Some(&win2));
+                        branch_dialog.set_modal(true);
+                        branch_dialog.present();
+                        branch_dialog.fetch_branches();
+
+                        branch_dialog.connect_closure("select-branch", false, closure_local!(
+                            @watch win2 as win3 =>
+                            move |
+                            branch_dialog: BagitBranchesDialog,
+                            branch_name: &str,
+                            is_remote: bool
+                            | {
+                                branch_dialog.close();
+                                win3.show_checkout_dialog(branch_name.to_string(), is_remote);
+                            }
+                        ));
+                    }
+                ));
+            }),
+        );
+        self.imp().repository_page.connect_closure(
             "commit-files-with-signing-key",
             false,
             closure_local!(@watch self as win => move |
@@ -777,6 +811,38 @@ impl BagitDesktopWindow {
                 ));
             }),
         );
+    }
+
+    /// Used to show validate dialog for switching branch.
+    pub fn show_checkout_dialog(&self, branch_name: String, is_remote: bool) {
+        let dialog_body = format!("{} {}", gettext("_Changes will be brought to"), branch_name);
+        let ctx: MainContext = glib::MainContext::default();
+        ctx.spawn_local(clone!(@weak self as win => async move {
+            let branch_dialog = adw::MessageDialog::builder()
+            .modal(true)
+            .transient_for(&win)
+            .heading(&gettext("_Change branch dialog title"))
+            .body(&dialog_body)
+            .build();
+
+            branch_dialog.add_response("cancel", &gettext("_Cancel"));
+            branch_dialog.add_response("validate", &gettext("_Validate"));
+
+
+            branch_dialog.connect_response(None,clone!(
+                @weak win as win2,
+                => move |_, response| {
+                    match response {
+                        "validate" => {
+                            win2.imp().repository_page.checkout_branch_and_update_ui(branch_name.to_owned(), is_remote);
+                        },
+                        _ => {}
+                    }
+                }
+            ));
+
+            branch_dialog.present();
+        }));
     }
 
     pub fn show_error_dialog(&self, error_message: &str) {
