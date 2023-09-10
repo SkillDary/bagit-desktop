@@ -52,7 +52,9 @@ mod imp {
         #[template_child]
         pub toast_overlay: TemplateChild<adw::ToastOverlay>,
         #[template_child]
-        pub leaflet: TemplateChild<adw::Leaflet>,
+        pub toggle_pane_button: TemplateChild<gtk::ToggleButton>,
+        #[template_child]
+        pub flap: TemplateChild<adw::Flap>,
         #[template_child]
         pub sidebar: TemplateChild<BagitCommitsSideBar>,
         #[template_child]
@@ -73,13 +75,6 @@ mod imp {
 
     #[template_callbacks]
     impl BagitRepositoryPage {
-        #[template_callback]
-        fn go_back(&self, _button: gtk::Button) {
-            if self.leaflet.is_folded() {
-                self.leaflet.navigate(adw::NavigationDirection::Back);
-            }
-        }
-
         #[template_callback]
         fn go_home(&self, _button: gtk::Button) {
             self.obj().emit_by_name::<()>("go-home", &[]);
@@ -217,9 +212,7 @@ impl BagitRepositoryPage {
                 | {
                     win.imp().main_view_stack.set_visible_child_name("commit view");
                     win.imp().commit_view.update_commit_view(win.imp().sidebar.imp().changed_files.borrow().get_number_of_selected_files());
-                    if win.imp().leaflet.is_folded() {
-                        win.imp().leaflet.navigate(adw::NavigationDirection::Forward);
-                    }
+                    win.imp().flap.set_reveal_flap(false);
                 }
             ),
         );

@@ -5,6 +5,9 @@
   <template class="BagitCommitsSideBar" parent="GtkBox">
     <property name="orientation">vertical</property>
     <property name="width-request">400</property>
+    <style>
+      <class name="background"/>
+    </style>
     <child>
       <object class="GtkBox">
         <property name="homogeneous">True</property>
