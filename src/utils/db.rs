@@ -156,16 +156,16 @@ impl AppDatabase {
             format!(
                 "INSERT INTO repository VALUES ('{}', '{}', '{}', '{}');",
                 new_id.to_string(),
-                name,
-                path,
+                name.replace("'", "''"),
+                path.replace("'", "''"),
                 profile_id.unwrap().to_string()
             )
         } else {
             format!(
                 "INSERT INTO repository(repositoryId, name, path) VALUES ('{}', '{}', '{}');",
                 new_id.to_string(),
-                name,
-                path
+                name.replace("'", "''"),
+                path.replace("'", "''")
             )
         };
 
@@ -232,7 +232,13 @@ impl AppDatabase {
             AND password='{}'
             AND privateKeyPath='{}'
             AND signingKey='{}';",
-            profile_id, profile_name, email, username, password, private_key_path, signing_key
+            profile_id,
+            profile_name.replace("'", "''"),
+            email.replace("'", "''"),
+            username.replace("'", "''"),
+            password.replace("'", "''"),
+            private_key_path.replace("'", "''"),
+            signing_key.replace("'", "''")
         );
         let mut statement: sqlite::Statement<'_> = self.connection.prepare(query).unwrap();
 
@@ -245,7 +251,10 @@ impl AppDatabase {
     }
 
     pub fn get_repository_from_path(&self, path: &str) -> Option<BagitRepository> {
-        let query: String = format!("SELECT * FROM repository WHERE path='{}'", path);
+        let query: String = format!(
+            "SELECT * FROM repository WHERE path='{}'",
+            path.replace("'", "''")
+        );
         let mut statement: sqlite::Statement<'_> = self.connection.prepare(query).unwrap();
 
         if let Ok(State::Row) = statement.next() {
@@ -303,7 +312,7 @@ impl AppDatabase {
     pub fn get_git_profile_from_name(&self, profile_name: &str) -> Option<BagitGitProfile> {
         let query: String = format!(
             "SELECT * FROM gitProfile WHERE profileName='{}'",
-            profile_name
+            profile_name.replace("'", "''")
         );
         let mut statement: sqlite::Statement<'_> = self.connection.prepare(query).unwrap();
 
@@ -339,12 +348,12 @@ impl AppDatabase {
         let query: String = format!(
             "INSERT INTO gitProfile VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}');",
             profile.profile_id.to_string(),
-            profile.profile_name,
-            profile.email,
-            profile.username,
-            profile.password,
-            profile.private_key_path,
-            profile.signing_key
+            profile.profile_name.replace("'", "''"),
+            profile.email.replace("'", "''"),
+            profile.username.replace("'", "''"),
+            profile.password.replace("'", "''"),
+            profile.private_key_path.replace("'", "''"),
+            profile.signing_key.replace("'", "''")
         );
 
         self.connection.execute(query).unwrap();
@@ -363,12 +372,12 @@ impl AppDatabase {
             privateKeyPath='{}',
             signingKey='{}'
             WHERE profileId='{}';",
-            profile.profile_name,
-            profile.email,
-            profile.username,
-            profile.password,
-            profile.private_key_path,
-            profile.signing_key,
+            profile.profile_name.replace("'", "''"),
+            profile.email.replace("'", "''"),
+            profile.username.replace("'", "''"),
+            profile.password.replace("'", "''"),
+            profile.private_key_path.replace("'", "''"),
+            profile.signing_key.replace("'", "''"),
             profile.profile_id,
         );
 
@@ -394,7 +403,8 @@ impl AppDatabase {
     ) -> Vec<String> {
         let query: String = format!(
             "SELECT profileName FROM gitProfile WHERE profileName LIKE '%{}%' AND profileId!='{}';",
-            profile_name, profile_id
+            profile_name.replace("'", "''"),
+            profile_id
         );
 
         let mut statement: sqlite::Statement<'_> = self.connection.prepare(query).unwrap();
