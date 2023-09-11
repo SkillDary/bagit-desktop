@@ -116,6 +116,17 @@ msgstr "dépôts supprimés automatiquement"
 
 msgid "_Repository doesn't exist anymore"
 msgstr "Le dépôt n'existe plus sur votre machine"
+msgid "_Discard file dialog"
+msgstr "Annuler les changements du fichier ?"
+
+msgid "_Discard folder dialog"
+msgstr "Annuler les changements du dossier ?"
+
+msgid "_Discard file message"
+msgstr "Vous vous apprêtez à annuler les changements effectués sur le fichier suivant :"
+
+msgid "_Discard folder message"
+msgstr "Vous vous apprêtez à annuler les changements effectués sur tous les fichiers du dossier suivant :"
 
 ########## clone-repository-page.ui ###################
 

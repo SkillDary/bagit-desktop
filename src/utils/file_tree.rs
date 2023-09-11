@@ -126,6 +126,19 @@ impl FileTree {
         return changed_files;
     }
 
+    /// Used to get all files of a folder.
+    pub fn get_files_of_folder(&self, folder_path: &str) -> Vec<ChangedFile> {
+        let mut changed_files: Vec<ChangedFile> = vec![];
+
+        for file in &self.tree {
+            if file.parent == folder_path {
+                changed_files.push(file.clone());
+            }
+        }
+
+        return changed_files;
+    }
+
     /**
      * Used to retrieve the number of selected files.
      */

@@ -18,6 +18,7 @@
  */
 
 use crate::models::bagit_git_profile::BagitGitProfile;
+use crate::utils::changed_file::ChangedFile;
 use crate::utils::repository_utils::RepositoryUtils;
 use crate::utils::selected_repository::SelectedRepository;
 use crate::widgets::repository::commits_sidebar::BagitCommitsSideBar;
@@ -127,6 +128,9 @@ mod imp {
                         .build(),
                     Signal::builder("select-branch")
                         .param_types([str::static_type()])
+                        .build(),
+                    Signal::builder("discard-dialog")
+                        .param_types([bool::static_type(), str::static_type()])
                         .build(),
                     Signal::builder("commit-files-with-signing-key")
                         .param_types([
@@ -248,6 +252,28 @@ impl BagitRepositoryPage {
                 | {
                     win.imp().push_button.set_sensitive(sensitive_value && !win.imp().is_doing_git_action.get());
                     win.imp().pull_button.set_sensitive(!sensitive_value && !win.imp().is_doing_git_action.get());
+                }
+            ),
+        );
+        self.imp().sidebar.connect_closure(
+            "discard-file",
+            false,
+            closure_local!(@watch self as win => move |
+                _sidebar: BagitCommitsSideBar,
+                file_path: &str
+                | {
+                    win.emit_by_name::<()>("discard-dialog", &[&false, &file_path]);
+                }
+            ),
+        );
+        self.imp().sidebar.connect_closure(
+            "discard-folder",
+            false,
+            closure_local!(@watch self as win => move |
+                _sidebar: BagitCommitsSideBar,
+                folder_path: &str
+                | {
+                    win.emit_by_name::<()>("discard-dialog", &[&true, &folder_path]);
                 }
             ),
         );
@@ -828,6 +854,26 @@ impl BagitRepositoryPage {
         );
     }
 
+    /// Used to discard a file and update UI.
+    pub fn discard_file_and_update_ui(&self, file_path: &str) {
+        let selected_repository = self.imp().selected_repository.take();
+        self.imp().selected_repository.replace(
+            SelectedRepository::try_fetching_selected_repository(
+                &selected_repository.user_repository,
+            )
+            .unwrap(),
+        );
+        match RepositoryUtils::discard_one_file(
+            &selected_repository.git_repository.unwrap(),
+            file_path,
+        ) {
+            Ok(_) => {
+                self.update_commits_sidebar();
+            }
+            Err(error) => self.emit_by_name::<()>("error", &[&error.to_string()]),
+        };
+    }
+
     /// Used to change the current branch.
     pub fn checkout_branch_and_update_ui(&self, branch_to_checkout_to: String, is_remote: bool) {
         let selected_repository = self.imp().selected_repository.take();
@@ -875,5 +921,32 @@ impl BagitRepositoryPage {
                         }
             ),
         );
+    }
+
+    /// Used to discard a folder and update UI.
+    pub fn discard_folder_and_update_ui(&self, folder_path: &str) {
+        let selected_repository = self.imp().selected_repository.take();
+        self.imp().selected_repository.replace(
+            SelectedRepository::try_fetching_selected_repository(
+                &selected_repository.user_repository,
+            )
+            .unwrap(),
+        );
+
+        let folder_files: Vec<ChangedFile>;
+        {
+            let file_tree = self.imp().sidebar.imp().changed_files.borrow();
+            folder_files = file_tree.get_files_of_folder(folder_path);
+        }
+
+        match RepositoryUtils::discard_folder(
+            &selected_repository.git_repository.unwrap(),
+            &folder_files,
+        ) {
+            Ok(_) => {
+                self.update_commits_sidebar();
+            }
+            Err(error) => self.emit_by_name::<()>("error", &[&error.to_string()]),
+        };
     }
 }

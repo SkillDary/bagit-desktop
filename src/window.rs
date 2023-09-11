@@ -803,6 +803,17 @@ impl BagitDesktopWindow {
             }),
         );
         self.imp().repository_page.connect_closure(
+            "discard-dialog",
+            false,
+            closure_local!(@watch self as win => move |
+                _repository_page: BagitRepositoryPage,
+                is_discarding_folder: bool,
+                discarded_element: &str
+                | {
+                win.show_discard_dialog(is_discarding_folder, discarded_element.to_string());
+            }),
+        );
+        self.imp().repository_page.connect_closure(
             "commit-files-with-signing-key",
             false,
             closure_local!(@watch self as win => move |
@@ -1042,10 +1053,60 @@ impl BagitDesktopWindow {
         }));
     }
 
+    /// Used to show the dialog for discarding an element.
+    pub fn show_discard_dialog(&self, is_discarding_folder: bool, discarded_element: String) {
+        let (discard_message, discard_title) = if is_discarding_folder {
+            (
+                format!(
+                    "{}\n{}",
+                    gettext("_Discard folder message"),
+                    discarded_element
+                ),
+                gettext("_Discard folder dialog"),
+            )
+        } else {
+            (
+                format!(
+                    "{}\n{}",
+                    gettext("_Discard file message"),
+                    discarded_element
+                ),
+                gettext("_Discard file dialog"),
+            )
+        };
+
+        let cloned_discared_element = discarded_element.clone();
+        let ctx: MainContext = glib::MainContext::default();
+        ctx.spawn_local(clone!(@weak self as win => async move {
+            let discard_dialog = adw::MessageDialog::builder()
+                .modal(true)
+                .transient_for(&win)
+                .heading(discard_title)
+                .body(discard_message)
+                .build();
+
+            discard_dialog.add_response("cancel", &gettext("_Cancel"));
+            discard_dialog.add_response("validate", &gettext("_Validate"));
+
+            discard_dialog.connect_response(None,clone!(
+                @weak win as win2,
+                => move |_, response| {
+                    match response {
+                        "validate" => {
+                            win2.imp().repository_page.discard_file_and_update_ui(&cloned_discared_element);
+                        },
+                        _ => {}
+                    }
+                }
+            ));
+
+            discard_dialog.present();
+        }));
+    }
+
     /// Used to save a new cloned repository
     pub fn save_clone_repository(&self, new_repository: &mut BagitRepository) {
         self.add_list_row_to_all_repositories(&new_repository);
-
         let profile_id: Option<Uuid> = match self
             .imp()
             .clone_repository_page

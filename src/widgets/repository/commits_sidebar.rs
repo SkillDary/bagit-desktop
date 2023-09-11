@@ -20,6 +20,7 @@
 use crate::utils::changed_file::ChangedFile;
 use crate::utils::changed_folder::ChangedFolder;
 use crate::utils::file_tree::FileTree;
+use crate::utils::repository_utils::RepositoryUtils;
 use adw::subclass::prelude::*;
 use gettextrs::gettext;
 use git2::Repository;
@@ -173,6 +174,12 @@ mod imp {
                         .build(),
                     Signal::builder("set-push-button-sensitive")
                         .param_types([bool::static_type()])
+                        .build(),
+                    Signal::builder("discard-file")
+                        .param_types([str::static_type()])
+                        .build(),
+                    Signal::builder("discard-folder")
+                        .param_types([str::static_type()])
                         .build(),
                 ]
             });
@@ -544,7 +551,13 @@ impl BagitCommitsSideBar {
                 .generate_add_button(borrowed_tree.are_all_files_in_folder_selected(&folder.path))
         }
 
+        let discard_folder_path = folder.path.clone();
         let discard_button = self.generate_discard_button();
+        discard_button.connect_clicked(clone!(
+            @weak self as win => move |_button| {
+                win.emit_by_name::<()>("discard-folder", &[&discard_folder_path]);
+            }
+        ));
 
         choice_box.append(&discard_button);
         choice_box.append(&add_button);
@@ -679,7 +692,18 @@ impl BagitCommitsSideBar {
                 win.imp().change_from_file.set(false);
         }));
 
+        let discard_file_clone = file.clone();
         let discard_button = self.generate_discard_button();
+        discard_button.connect_clicked(clone!(
+            @weak self as win => move |_button| {
+                let file_path = if discard_file_clone.parent.is_empty() {
+                    discard_file_clone.name.clone()
+                } else {
+                    RepositoryUtils::build_path_of_file(&discard_file_clone.parent, &discard_file_clone.name)
+                };
+                win.emit_by_name::<()>("discard-file", &[&file_path]);
+            }
+        ));
 
         choice_box.append(&discard_button);
         choice_box.append(&add_button);

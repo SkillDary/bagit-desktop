@@ -741,4 +741,46 @@ impl RepositoryUtils {
 
         Ok(())
     }
+
+    /// Used to discard one file.
+    pub fn discard_one_file(repository: &Repository, file_path: &str) -> Result<(), git2::Error> {
+        let mut binding = CheckoutBuilder::new();
+        let checkout = binding.force().remove_untracked(true).path(file_path);
+
+        let head = repository.head()?;
+        let head_commit = head.peel_to_commit()?;
+
+        let head_tree = head_commit.tree()?;
+
+        repository.checkout_tree(head_tree.as_object(), Some(checkout))?;
+
+        Ok(())
+    }
+
+    /// Used to discard folder.
+    pub fn discard_folder(
+        repository: &Repository,
+        folder_files: &Vec<ChangedFile>,
+    ) -> Result<(), git2::Error> {
+        let mut binding = CheckoutBuilder::new();
+        let checkout = binding.force().remove_untracked(true);
+
+        for file in folder_files {
+            let file_path = if file.parent.is_empty() {
+                file.name.clone()
+            } else {
+                RepositoryUtils::build_path_of_file(&file.parent, &file.name)
+            };
+            checkout.path(file_path);
+        }
+
+        let head = repository.head()?;
+        let head_commit = head.peel_to_commit()?;
+
+        let head_tree = head_commit.tree()?;
+
+        repository.checkout_tree(head_tree.as_object(), Some(checkout))?;
+
+        Ok(())
+    }
 }
