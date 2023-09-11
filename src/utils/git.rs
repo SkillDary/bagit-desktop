@@ -135,18 +135,6 @@ pub fn load_commit_history(
         None => None,
     };
 
-    let mut current_upstream_oid: Option<git2::Oid> = match upstream_revwalk {
-        Some(mut rev) => {
-            let oid: Option<Oid> = match rev.next() {
-                Some(next_value) => Some(next_value.unwrap()),
-                None => None,
-            };
-            upstream_revwalk = Some(rev);
-            oid
-        }
-        None => None,
-    };
-
     revwalk.push(starting_commit_oid).unwrap();
 
     revwalk.set_sorting(git2::Sort::TOPOLOGICAL).unwrap();
@@ -182,6 +170,18 @@ pub fn load_commit_history(
         Ok(_) => {}
         Err(_) => {}
     }
+
+    let mut current_upstream_oid: Option<git2::Oid> = match upstream_revwalk {
+        Some(mut rev) => {
+            let oid: Option<Oid> = match rev.next() {
+                Some(next_value) => Some(next_value.unwrap()),
+                None => None,
+            };
+            upstream_revwalk = Some(rev);
+            oid
+        }
+        None => None,
+    };
 
     for commit_id in revwalk {
         if !starting_commit_id.is_empty() && commit_id == Ok(starting_commit_oid) {
