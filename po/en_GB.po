@@ -39,6 +39,9 @@ msgstr "Quit"
 
 ############# window.ui ########################
 
+msgid "_Toggle selection mode"
+msgstr "Toggle selection mode"
+
 msgid "_Preferences"
 msgstr "Preferences"
 
@@ -89,6 +92,30 @@ msgstr "Une erreur est survenue."
 
 msgid "_Error message"
 msgstr "Error message"
+
+msgid "_Repo already present"
+msgstr "Selected repository already present"
+
+msgid "_Delete selected repositories"
+msgstr "Delete selected repositories"
+
+msgid "_No deleted repositories"
+msgstr "No deleted repositories"
+
+msgid "_Deleted repository"
+msgstr "deleted repository"
+
+msgid "_Deleted repositories"
+msgstr "deleted repositories"
+
+msgid "_Automatically deleted repository"
+msgstr "automatically deleted repository"
+
+msgid "_Automatically deleted repositories"
+msgstr "automatically deleted repositories"
+
+msgid "_Repository doesn't exist anymore"
+msgstr "This repository doesn't exist anymore on your device"
 
 ########## clone-repositories.ui ###################
 

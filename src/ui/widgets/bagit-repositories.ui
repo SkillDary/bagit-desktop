@@ -26,40 +26,41 @@
                     <property name="orientation">vertical</property>
                     <property name="spacing">12</property>
                     <child>
-                      <object class="GtkSearchEntry">
-                        <property name="margin-top">10</property>
-                        <property name="margin-start">80</property>
-                        <property name="margin-end">80</property>
-                        <property name="margin-bottom">20</property>
-                        <property name="placeholder-text" translatable="yes">_Search in all repositories...</property>
+                      <object class="GtkSearchEntry" id="search_bar">
+                       <property name="margin-top">10</property>
+                       <property name="margin-start">80</property>
+                       <property name="margin-end">80</property>
+                       <property name="margin-bottom">20</property>
+                       <property name="placeholder-text" translatable="yes">_Search in all repositories...</property>
+                       <signal name="search-changed" handler="search_changed" swapped="true"/>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkLabel">
-                        <property name="halign">start</property>
-                        <property name="label" translatable="yes">_Recent repositories</property>
-                        <style>
-                          <class name="heading"/>
-                        </style>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkListBox" id="recent_repositories">
-                        <style>
-                          <class name="boxed-list"/>
-                        </style>
-                        <child>
-                          <object class="AdwActionRow">
-                            <property name="height-request">64</property>
-                            <property name="title">Item 1</property>
-                            <property name="subtitle">Subtitle</property>
-                            <child type="suffix">
-                              <object class="GtkImage">
-                                <property name="icon-name">go-next-symbolic</property>
+                      <object class="GtkRevealer" id="recent_repositories_revealer">
+                        <property name="reveal-child">true</property>
+                        <property name="child">
+                          <object class="GtkBox">
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">12</property>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="halign">start</property>
+                                <property name="label" translatable="yes">_Recent repositories</property>
+                                <style>
+                                  <class name="heading"/>
+                                </style>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkListBox" id="recent_repositories">
+                                <signal name="row-selected" handler="row_clicked" swapped="true"/>
+                                <style>
+                                  <class name="boxed-list"/>
+                                </style>
                               </object>
                             </child>
                           </object>
-                        </child>
+                        </property>
                       </object>
                     </child>
                   </object>

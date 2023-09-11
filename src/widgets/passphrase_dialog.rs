@@ -1,4 +1,4 @@
-/* ssh_passphrase_dialog.rs
+/* passphrase_dialog.rs
  *
  * Copyright 2023 SkillDary
  *
@@ -17,10 +17,13 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+//use adw::prelude::WidgetExt;
 use adw::subclass::prelude::*;
 
 use adw::prelude::EditableExt;
+use adw::prelude::MessageDialogExt;
 use adw::prelude::StaticType;
+use gettextrs::gettext;
 use gtk::subclass::widget::CompositeTemplateInitializingExt;
 use gtk::{
     gio,
@@ -31,34 +34,25 @@ use once_cell::sync::Lazy;
 
 mod imp {
 
-    use std::cell::RefCell;
-
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/com/skilldary/bagit/desktop/ui/widgets/bagit-ssh-passphrase-dialog.ui")]
-    pub struct BagitSshPassphraseDialog {
+    #[template(resource = "/com/skilldary/bagit/desktop/ui/widgets/bagit-gpg-passphrase-dialog.ui")]
+    pub struct BagitGpgPassphraseDialog {
         #[template_child]
         pub passphrase_row: TemplateChild<adw::PasswordEntryRow>,
-
-        pub username: RefCell<String>,
-        pub private_key_path: RefCell<String>,
     }
 
     #[template_callbacks]
-    impl BagitSshPassphraseDialog {
+    impl BagitGpgPassphraseDialog {
         #[template_callback]
         fn response_cb(&self, choice: Option<&str>) {
             match choice {
                 Some(choice) => match choice {
-                    "validate" => {
+                    "ok" => {
                         self.obj().emit_by_name::<()>(
-                            "push-with-passphrase",
-                            &[
-                                &self.username.take(),
-                                &self.private_key_path.take(),
-                                &self.passphrase_row.text().trim(),
-                            ],
+                            "fetch-passphrase",
+                            &[&self.passphrase_row.text().trim()],
                         );
                     }
                     _ => {}
@@ -69,9 +63,9 @@ mod imp {
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for BagitSshPassphraseDialog {
-        const NAME: &'static str = "BagitSshPassphraseDialog";
-        type Type = super::BagitSshPassphraseDialog;
+    impl ObjectSubclass for BagitGpgPassphraseDialog {
+        const NAME: &'static str = "BagitGpgPassphraseDialog";
+        type Type = super::BagitGpgPassphraseDialog;
         type ParentType = adw::MessageDialog;
 
         fn class_init(klass: &mut Self::Class) {
@@ -84,38 +78,50 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for BagitSshPassphraseDialog {
+    impl ObjectImpl for BagitGpgPassphraseDialog {
         fn signals() -> &'static [Signal] {
             static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
-                vec![Signal::builder("push-with-passphrase")
-                    .param_types([str::static_type(), str::static_type(), str::static_type()])
+                vec![Signal::builder("fetch-passphrase")
+                    .param_types([str::static_type()])
                     .build()]
             });
             SIGNALS.as_ref()
         }
     }
-    impl WidgetImpl for BagitSshPassphraseDialog {}
-    impl WindowImpl for BagitSshPassphraseDialog {}
-    impl AdwWindowImpl for BagitSshPassphraseDialog {}
-    impl MessageDialogImpl for BagitSshPassphraseDialog {}
+    impl WidgetImpl for BagitGpgPassphraseDialog {}
+    impl WindowImpl for BagitGpgPassphraseDialog {}
+    impl AdwWindowImpl for BagitGpgPassphraseDialog {}
+    impl MessageDialogImpl for BagitGpgPassphraseDialog {}
 }
 
 glib::wrapper! {
-    pub struct BagitSshPassphraseDialog(ObjectSubclass<imp::BagitSshPassphraseDialog>)
+    pub struct BagitGpgPassphraseDialog(ObjectSubclass<imp::BagitGpgPassphraseDialog>)
         @extends gtk::Widget, gtk::Window, adw::MessageDialog,  @implements gio::ActionGroup, gio::ActionMap;
 }
 
-impl Default for BagitSshPassphraseDialog {
+impl Default for BagitGpgPassphraseDialog {
     fn default() -> Self {
         glib::Object::new()
     }
 }
 
-impl BagitSshPassphraseDialog {
-    pub fn new(username: String, private_key_path: String) -> Self {
-        let win: BagitSshPassphraseDialog = Self::default();
-        win.imp().username.replace(username);
-        win.imp().private_key_path.replace(private_key_path);
+impl BagitGpgPassphraseDialog {
+    pub fn new(signing_key: &str) -> Self {
+        let win: BagitGpgPassphraseDialog = Self::default();
+        let body_text = format!("{}\n{}", gettext("_Passphrase key"), signing_key);
+        win.set_body(&body_text);
+
+        /*
+        let eventctl = gtk::EventControllerKey::new();
+
+        eventctl.connect_key_pressed(|eventctl, keyval, keycode, state| {
+            println!("Key : {:?}", keyval.name());
+
+            gtk::Inhibit(false)
+        });
+
+        win.add_controller(eventctl);
+        */
         win
     }
 }

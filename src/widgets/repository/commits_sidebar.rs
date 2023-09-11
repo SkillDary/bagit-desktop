@@ -208,6 +208,7 @@ impl BagitCommitsSideBar {
 
     /// Used to initialize the commits sidebar.
     pub fn init_commits_sidebar(&self) {
+        self.select_changed_files_stack();
         self.imp().change_from_file.set(false);
         self.clear_changed_files_list();
 
@@ -854,5 +855,25 @@ impl BagitCommitsSideBar {
         self.imp().changed_files.replace(new_file_tree);
 
         return hash_map;
+    }
+
+    // Used to select the changed files stack for initializing the page.
+    fn select_changed_files_stack(&self) {
+        self.imp()
+            .history_button
+            .remove_css_class("commits_siderbar_button_selected");
+        self.imp()
+            .changed_files_button
+            .add_css_class("commits_siderbar_button_selected");
+        self.imp()
+            .commits_sidebar_stack
+            .set_transition_type(gtk::StackTransitionType::SlideRight);
+        self.imp()
+            .commits_sidebar_stack
+            .set_visible_child_name("changes page");
+
+        self.imp()
+            .commits_sidebar_stack
+            .set_visible_child_name("changes page");
     }
 }

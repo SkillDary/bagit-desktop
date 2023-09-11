@@ -3,47 +3,85 @@
   <requires lib="gtk" version="4.0"/>
   <requires lib="Adw" version="1.0"/>
   <template class="BagitActionBar" parent="GtkBox">
-    <property name="spacing">15</property>
-    <property name="homogeneous">true</property>
-    <property name="margin-top">5</property>
-    <property name="margin-bottom">5</property>
+    <property name="hexpand">true</property>
+    <property name="halign">center</property>
     <child>
-      <object class="GtkButton" id="create_repository_button">
-        <signal name="clicked" handler="create_repository_button_clicked" swapped="true"/>
-        <property name="child">
-          <object class="GtkLabel">
-            <property name="label" translatable="yes">_Create a new repository</property>
+      <object class="GtkStack" id="action_stack">
+        <property name="visible">True</property>
+        <property name="transition-type">GTK_STACK_TRANSITION_TYPE_CROSSFADE</property>
+        <property name="hhomogeneous">false</property>
+        <child>
+          <object class="GtkStackPage">
+            <property name="name">normal actions</property>
+            <property name="child">
+              <object class="GtkBox">
+                <property name="spacing">15</property>
+                <property name="homogeneous">true</property>
+                <property name="margin-top">5</property>
+                <property name="margin-bottom">5</property>
+                <child>
+                  <object class="GtkButton" id="create_repository_button">
+                    <signal name="clicked" handler="create_repository_button_clicked" swapped="true"/>
+                    <property name="child">
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">_Create a new repository</property>
+                      </object>
+                    </property>
+                    <style>
+                      <class name="raised"/>
+                    </style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="add_existing_repository_button">
+                    <signal name="clicked" handler="add_existing_repository_button_clicked" swapped="true"/>
+                    <property name="child">
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">_Add an existing repository</property>
+                      </object>
+                    </property>
+                    <style>
+                      <class name="raised"/>
+                    </style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="clone_button">
+                    <signal name="clicked" handler="clone_button_clicked" swapped="true"/>
+                    <property name="child">
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">_Clone a repository</property>
+                      </object>
+                    </property>
+                    <style>
+                      <class name="raised"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </property>
           </object>
-        </property>
-        <style>
-          <class name="raised"/>
-        </style>
-      </object>
-    </child>
-    <child>
-      <object class="GtkButton" id="add_existing_repository_button">
-        <signal name="clicked" handler="add_existing_repository_button_clicked" swapped="true"/>
-        <property name="child">
-          <object class="GtkLabel">
-            <property name="label" translatable="yes">_Add an existing repository</property>
+        </child>
+        <child>
+          <object class="GtkStackPage">
+            <property name="name">destructive action</property>
+            <property name="child">
+              <object class="GtkButton" id="delete_button">
+                <property name="margin-top">5</property>
+                <property name="margin-bottom">5</property>
+                <signal name="clicked" handler="delete_button_clicked" swapped="true"/>
+                <property name="child">
+                  <object class="GtkLabel">
+                    <property name="label" translatable="yes">_Delete selected repositories</property>
+                  </object>
+                </property>
+                <style>
+                  <class name="destructive-action"/>
+                </style>
+              </object>
+            </property>
           </object>
-        </property>
-        <style>
-          <class name="raised"/>
-        </style>
-      </object>
-    </child>
-    <child>
-      <object class="GtkButton" id="clone_button">
-        <signal name="clicked" handler="clone_button_clicked" swapped="true"/>
-        <property name="child">
-          <object class="GtkLabel">
-            <property name="label" translatable="yes">_Clone a repository</property>
-          </object>
-        </property>
-        <style>
-          <class name="raised"/>
-        </style>
+        </child>
       </object>
     </child>
   </template>

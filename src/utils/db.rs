@@ -63,6 +63,7 @@ impl AppDatabase {
                 repositoryId TEXT PRIMARY KEY,
                 name TEXT, 
                 path TEXT,
+                lastOpening TEXT,
                 gitProfileId TEXT
             );
             CREATE TABLE IF NOT EXISTS gitProfile (
@@ -87,6 +88,72 @@ impl AppDatabase {
      */
     pub fn get_all_repositories(&self) -> Vec<BagitRepository> {
         let query: &str = "SELECT * FROM repository;";
+        let mut repositories: Vec<BagitRepository> = Vec::new();
+
+        let mut statement: sqlite::Statement<'_> = self.connection.prepare(query).unwrap();
+
+        while let Ok(State::Row) = statement.next() {
+            let id: String = statement.read::<String, _>("repositoryId").unwrap();
+            let uuid: Uuid = Uuid::parse_str(&id).unwrap();
+
+            let git_profile_id: Option<String> =
+                statement.read::<Option<String>, _>("gitProfileId").unwrap();
+            let git_profile_uuid: Option<Uuid> = if git_profile_id.is_some() {
+                Some(Uuid::parse_str(&git_profile_id.unwrap()).unwrap())
+            } else {
+                None
+            };
+
+            repositories.push(BagitRepository::new(
+                uuid,
+                statement.read::<String, _>("name").unwrap(),
+                statement.read::<String, _>("path").unwrap(),
+                git_profile_uuid,
+            ));
+        }
+
+        return repositories;
+    }
+
+    /// Used to get recent repositories (a maximum number of 3 repositories, ordered by last opening datetime)
+    pub fn get_recent_repositories(&self) -> Vec<BagitRepository> {
+        let query: &str = "SELECT * FROM repository ORDER BY lastOpening DESC LIMIT 3;";
+        let mut repositories: Vec<BagitRepository> = Vec::new();
+
+        let mut statement: sqlite::Statement<'_> = self.connection.prepare(query).unwrap();
+
+        while let Ok(State::Row) = statement.next() {
+            let id: String = statement.read::<String, _>("repositoryId").unwrap();
+            let uuid: Uuid = Uuid::parse_str(&id).unwrap();
+
+            let git_profile_id: Option<String> =
+                statement.read::<Option<String>, _>("gitProfileId").unwrap();
+
+            let git_profile_uuid: Option<Uuid> = if git_profile_id.is_some() {
+                Some(Uuid::parse_str(&git_profile_id.unwrap()).unwrap())
+            } else {
+                None
+            };
+
+            repositories.push(BagitRepository::new(
+                uuid,
+                statement.read::<String, _>("name").unwrap(),
+                statement.read::<String, _>("path").unwrap(),
+                git_profile_uuid,
+            ));
+        }
+
+        return repositories;
+    }
+
+    /**
+     * Used for getting all repositories.
+     */
+    pub fn get_all_repositories_with_search(&self, search: &str) -> Vec<BagitRepository> {
+        let query: &str = &format!(
+            "SELECT * FROM repository WHERE name LIKE '%{}%' OR path LIKE '%{}%';",
+            search, search
+        );
         let mut repositories: Vec<BagitRepository> = Vec::new();
 
         let mut statement: sqlite::Statement<'_> = self.connection.prepare(query).unwrap();
@@ -150,22 +217,21 @@ impl AppDatabase {
     /**
      * Used for adding a new repository.
      */
-    pub fn add_repository(&self, name: &str, path: &str, profile_id: Option<Uuid>) {
-        let new_id: Uuid = Uuid::new_v4();
-        let query: String = if profile_id.is_some() {
+    pub fn add_repository(&self, repository: &BagitRepository) {
+        let query: String = if repository.git_profile_id.is_some() {
             format!(
-                "INSERT INTO repository VALUES ('{}', '{}', '{}', '{}');",
-                new_id.to_string(),
-                name.replace("'", "''"),
-                path.replace("'", "''"),
-                profile_id.unwrap().to_string()
+                "INSERT INTO repository VALUES ('{}', '{}', '{}', datetime('now'), '{}');",
+                repository.repository_id.to_string(),
+                repository.name.replace("'", "''"),
+                repository.path.replace("'", "''"),
+                repository.git_profile_id.unwrap().to_string()
             )
         } else {
             format!(
-                "INSERT INTO repository(repositoryId, name, path) VALUES ('{}', '{}', '{}');",
-                new_id.to_string(),
-                name.replace("'", "''"),
-                path.replace("'", "''")
+                "INSERT INTO repository(repositoryId, name, path, lastOpening) VALUES ('{}', '{}', '{}', datetime('now'));",
+                repository.repository_id.to_string(),
+                repository.name.replace("'", "''"),
+                repository.path.replace("'", "''")
             )
         };
 
@@ -393,6 +459,17 @@ impl AppDatabase {
     }
 
     /**
+     * Used to delete a repository.
+     */
+    pub fn delete_repository(&self, repository_id: &str) {
+        let query: String = format!(
+            "DELETE FROM repository WHERE repositoryId='{}';",
+            repository_id
+        );
+        self.connection.execute(query).unwrap();
+    }
+
+    /**
      * Used to a list of profile names containing a string.
      * We make sure to select all profiles without the one we check.
      */
@@ -444,5 +521,35 @@ impl AppDatabase {
             }
         }
         return matches;
+    }
+
+    /// Used to update the last opening date of a repository.
+    pub fn update_last_opening_of_repository(&self, repository_id: Uuid) {
+        let query: String = format!(
+            "UPDATE repository SET
+            lastOpening=datetime('now') WHERE repositoryId='{}';",
+            repository_id
+        );
+
+        self.connection.execute(query).unwrap();
+    }
+
+    /// Check for deleted repositories on the device.
+    /// If deleted repo were found, we return their ids.
+    pub fn check_for_deleted_repositories(&self) -> Vec<Uuid> {
+        let all_repo = self.get_all_repositories();
+        let mut deleted_ids: Vec<Uuid> = vec![];
+
+        for repo in all_repo {
+            match git2::Repository::open(&repo.path) {
+                Ok(_) => {}
+                Err(_) => {
+                    self.delete_repository(&repo.repository_id.to_string());
+                    deleted_ids.push(repo.repository_id)
+                }
+            }
+        }
+
+        return deleted_ids;
     }
 }

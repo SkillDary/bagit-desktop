@@ -31,11 +31,15 @@ mod imp {
     #[template(resource = "/com/skilldary/bagit/desktop/ui/widgets/bagit-action-bar.ui")]
     pub struct BagitActionBar {
         #[template_child]
+        pub action_stack: TemplateChild<gtk::Stack>,
+        #[template_child]
         pub create_repository_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub add_existing_repository_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub clone_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub delete_button: TemplateChild<gtk::Button>,
     }
 
     #[gtk::template_callbacks]
@@ -52,6 +56,12 @@ mod imp {
         #[template_callback]
         fn clone_button_clicked(&self, _button: &gtk::Button) {
             self.obj().emit_by_name::<()>("clone-repository", &[]);
+        }
+
+        #[template_callback]
+        fn delete_button_clicked(&self, _button: &gtk::Button) {
+            self.obj()
+                .emit_by_name::<()>("delete-selected-repositories", &[]);
         }
     }
 
@@ -78,6 +88,7 @@ mod imp {
                 vec![
                     Signal::builder("clone-repository").build(),
                     Signal::builder("add-existing-repository").build(),
+                    Signal::builder("delete-selected-repositories").build(),
                 ]
             });
             SIGNALS.as_ref()

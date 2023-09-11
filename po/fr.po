@@ -39,6 +39,9 @@ msgstr "Quitter"
 
 ############# window.ui ########################
 
+msgid "_Toggle selection mode"
+msgstr "Basculer le mode de sélection"
+
 msgid "_Preferences"
 msgstr "Préférences"
 
@@ -90,6 +93,30 @@ msgstr "Une erreur est survenue."
 msgid "_Error message"
 msgstr "Message de l'erreur"
 
+msgid "_Repo already present"
+msgstr "Le dépôt sélectionné est déjà présent"
+
+msgid "_Delete selected repositories"
+msgstr "Supprimer les dépôts sélectionnés"
+
+msgid "_No deleted repositories"
+msgstr "Aucun dépôt supprimé"
+
+msgid "_Deleted repository"
+msgstr "dépôt supprimé"
+
+msgid "_Deleted repositories"
+msgstr "dépôts supprimés"
+
+msgid "_Automatically deleted repository"
+msgstr "dépôt supprimé automatiquement"
+
+msgid "_Automatically deleted repositories"
+msgstr "dépôts supprimés automatiquement"
+
+msgid "_Repository doesn't exist anymore"
+msgstr "Le dépôt n'existe plus sur votre machine"
+
 ########## clone-repository-page.ui ###################
 
 msgid "_Repository URL"
@@ -138,7 +165,7 @@ msgid "_PGP information"
 msgstr "Informations GPG"
 
 msgid "_Passphrase"
-msgstr "Phrase de passe (optionnelle)"
+msgstr "Phrase de passe SSH (optionnelle)"
 
 msgid "_Failed to open repository"
 msgstr "Impossible d'ouvrir le dépôt"

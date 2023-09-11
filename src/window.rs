@@ -23,13 +23,12 @@ use crate::{
     glib::clone,
     models::{bagit_git_profile::BagitGitProfile, bagit_repository::BagitRepository},
     utils::{
-        self, action_type::ActionType, profile_mode::ProfileMode,
+        self, action_type::ActionType, db::AppDatabase, profile_mode::ProfileMode,
         repository_utils::RepositoryUtils, selected_repository::SelectedRepository,
     },
+    widgets::branches_dialog::BagitBranchesDialog,
+    widgets::gpg_passphrase_dialog::BagitGpgPassphraseDialog,
     widgets::https_action_dialog::BagitHttpsActionDialog,
-    widgets::{
-        branches_dialog::BagitBranchesDialog, gpg_passphrase_dialog::BagitGpgPassphraseDialog,
-    },
     widgets::{
         ssh_action_dialog::BagitSshActionDialog, ssh_passphrase_dialog::BagitSshPassphraseDialog,
     },
@@ -43,6 +42,7 @@ use git2::Repository;
 use gtk::{
     gio,
     glib::{self, MainContext, Priority},
+    template_callbacks,
 };
 use gtk::{glib::closure_local, prelude::*};
 use uuid::Uuid;
@@ -51,6 +51,7 @@ use crate::clone_repository_page::BagitCloneRepositoryPage;
 use crate::repository_page::BagitRepositoryPage;
 use crate::widgets::action_bar::BagitActionBar;
 use crate::widgets::repositories::BagitRepositories;
+use std::cell::RefCell;
 
 mod imp {
 
@@ -59,9 +60,12 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/com/skilldary/bagit/desktop/ui/window.ui")]
     pub struct BagitDesktopWindow {
-        // Template widgets
+        #[template_child]
+        pub toast_overlay: TemplateChild<adw::ToastOverlay>,
         #[template_child]
         pub header_bar: TemplateChild<adw::HeaderBar>,
+        #[template_child]
+        pub selection_button: TemplateChild<gtk::ToggleButton>,
         #[template_child]
         pub stack: TemplateChild<gtk::Stack>,
         #[template_child]
@@ -76,6 +80,31 @@ mod imp {
         pub repository_page: TemplateChild<BagitRepositoryPage>,
 
         pub app_database: utils::db::AppDatabase,
+
+        pub selected_repositories_ids_for_deletion: RefCell<Vec<Uuid>>,
+    }
+
+    #[template_callbacks]
+    impl BagitDesktopWindow {
+        #[template_callback]
+        fn selection_button_toggled(&self, toggle_button: gtk::ToggleButton) {
+            self.repositories_window
+                .imp()
+                .recent_repositories_revealer
+                .set_reveal_child(!toggle_button.is_active());
+
+            if toggle_button.is_active() {
+                self.action_bar_content
+                    .imp()
+                    .action_stack
+                    .set_visible_child_name("destructive action");
+            } else {
+                self.action_bar_content
+                    .imp()
+                    .action_stack
+                    .set_visible_child_name("normal actions");
+            }
+        }
     }
 
     #[glib::object_subclass]
@@ -86,6 +115,7 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
+            klass.bind_template_callbacks();
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -131,49 +161,195 @@ impl BagitDesktopWindow {
             .property("application", application)
             .build();
 
-        win.open_repository_signal();
+        win.repositories_page_signals();
         win.repository_page_signals();
-        win.clone_button_signal();
+        win.action_bar_signals();
         win.clone_repository_page_signals();
-        win.add_existing_repository_button_signal();
-        win.init_repositories();
+        win.init_all_repositories();
+        win.update_recent_repositories();
         win
     }
 
     /*
-     * Opens the repository the user clicked on.
+     * Signals send by the repositories page.
      */
-    pub fn open_repository_signal(&self) {
+    pub fn repositories_page_signals(&self) {
         self.imp().repositories_window.connect_closure(
-            "row-selected",
+            "open-repository",
             false,
             closure_local!(@watch self as win => move |
-                _repository: BagitRepositories,
+                _repositories: BagitRepositories,
                 path: &str
                 | {
-                    // We update the selected repository :
-                    let found_repository = win.imp().app_database.get_repository_from_path(&path);
+                    // If we aren't in the selection mode, we go to the selected repository:
+                    if !win.imp().selection_button.is_active() {
+                        // We update the selected repository :
+                        let found_repository = win.imp().app_database.get_repository_from_path(&path);
+                        win.imp().repository_page.imp().sidebar.clear_changed_files_list();
+                        win.imp().repository_page.imp().sidebar.imp().change_from_file.set(false);
+                        win.imp().repository_page.imp().main_view_stack.set_visible_child_name("hello world");
+                        win.imp().repository_page.imp().commit_view.update_commit_view(0);
 
-                    if found_repository.is_some() {
-                        let repo = found_repository.unwrap();
+                        if found_repository.is_some() {
+                            let repo = found_repository.unwrap();
 
-                        match SelectedRepository::try_fetching_selected_repository(&repo) {
-                            Ok(selected_repository) => {
-                                win.imp().repository_page.init_repository_page(selected_repository);
-                                win.imp().stack.set_visible_child_name("repository page");
+                            match SelectedRepository::try_fetching_selected_repository(&repo) {
+                                Ok(selected_repository) => {
+                                    let repo_id = selected_repository.user_repository.repository_id;
+
+                                    thread::spawn(move ||{
+                                            AppDatabase::init_database().update_last_opening_of_repository(repo_id);
+                                        }
+                                    );
+                                    win.imp().repository_page.init_repository_page(selected_repository);
+                                    win.imp().stack.set_visible_child_name("repository page");
+                                }
+                                Err(_) => {}
                             }
-                            Err(_) => {}
                         }
+                    }
+                }
+            ),
+        );
+        self.imp().repositories_window.connect_closure(
+            "search-event",
+            false,
+            closure_local!(@watch self as win => move |
+                _repositories: BagitRepositories,
+                search: &str
+                | {
+                    win.imp().repositories_window.clear_all_repositories_ui_list();
+                    if search.is_empty() {
+                        win.init_all_repositories();
+                    } else {
+                        win.find_repositories_with_search(search);
                     }
                 }
             ),
         );
     }
 
+    /// Used to build a new repository row.
+    pub fn build_repository_row(&self, bagit_repository: &BagitRepository) -> adw::ActionRow {
+        if !self.imp().repositories_window.is_visible() {
+            self.imp().status_page.set_visible(false);
+            self.imp().repositories_window.set_visible(true);
+        }
+
+        let full_path: String = format!("{}{}", "~", bagit_repository.path);
+
+        let new_row: adw::ActionRow = adw::ActionRow::new();
+        let row_image: gtk::Image = gtk::Image::builder().icon_name("go-next-symbolic").build();
+        let check_button: gtk::CheckButton = gtk::CheckButton::new();
+        check_button.add_css_class("selection-mode");
+
+        let cloned_repo = bagit_repository.clone();
+
+        check_button.connect_toggled(clone!(
+            @weak self as win
+            => move |button| {
+                let mut selected_list = win.imp().selected_repositories_ids_for_deletion.take();
+                if button.is_active() {
+                    selected_list.push(cloned_repo.repository_id);
+                } else {
+                    let index = selected_list.iter().position(|&id| id == cloned_repo.repository_id).unwrap();
+                    selected_list.remove(index);
+                }
+                win.imp().selected_repositories_ids_for_deletion.replace(selected_list);
+            }
+        ));
+
+        let open_repo_revealer: gtk::Revealer = gtk::Revealer::builder()
+            .transition_type(gtk::RevealerTransitionType::Crossfade)
+            .child(&row_image)
+            .reveal_child(true)
+            .build();
+
+        let delete_repo_button_revealer: gtk::Revealer = gtk::Revealer::builder()
+            .transition_type(gtk::RevealerTransitionType::SlideLeft)
+            .child(&check_button)
+            .build();
+
+        self.imp()
+            .selection_button
+            .bind_property("active", &open_repo_revealer, "reveal-child")
+            .transform_to(|_, active: bool| Some(!active))
+            .build();
+
+        self.imp()
+            .selection_button
+            .bind_property("active", &delete_repo_button_revealer, "reveal-child")
+            .build();
+        new_row.set_title(&bagit_repository.name);
+        new_row.set_subtitle(&full_path);
+        new_row.set_height_request(64);
+        new_row.add_prefix(&delete_repo_button_revealer);
+        new_row.add_suffix(&open_repo_revealer);
+
+        return new_row;
+    }
+
+    /// Add a new row to the list of all repositories.
+    pub fn add_list_row_to_all_repositories(&self, bagit_repository: &BagitRepository) {
+        let new_row = self.build_repository_row(bagit_repository);
+
+        self.imp()
+            .repositories_window
+            .imp()
+            .all_repositories
+            .append(&new_row);
+    }
+
+    /// Add a new row to the list of recent repositories.
+    pub fn add_list_row_to_recent_repositories(&self, bagit_repository: &BagitRepository) {
+        let new_row = self.build_repository_row(bagit_repository);
+
+        self.imp()
+            .repositories_window
+            .imp()
+            .recent_repositories
+            .append(&new_row);
+    }
+
+    /// Used to initialize the repositories.
+    fn init_all_repositories(&self) {
+        let all_repositories: Vec<BagitRepository> = self.imp().app_database.get_all_repositories();
+
+        for repository in all_repositories {
+            self.add_list_row_to_all_repositories(&repository);
+        }
+    }
+
+    /// Used to initialize the repositories.
+    fn update_recent_repositories(&self) {
+        let recent_repositories: Vec<BagitRepository> =
+            self.imp().app_database.get_recent_repositories();
+
+        self.imp()
+            .repositories_window
+            .clear_recent_repositories_ui_list();
+
+        for repository in recent_repositories {
+            self.add_list_row_to_recent_repositories(&repository);
+        }
+    }
+
+    /// Used to initialize the repositories.
+    fn find_repositories_with_search(&self, search: &str) {
+        let found_repositories: Vec<BagitRepository> = self
+            .imp()
+            .app_database
+            .get_all_repositories_with_search(search);
+
+        for repository in found_repositories {
+            self.add_list_row_to_all_repositories(&repository);
+        }
+    }
+
     /**
-     * Used for listenning to the "Add an existing repository" button of the BagitActionBar widget.
+     * Used for listenning to the clone button of the BagitActionBar widget.
      */
-    fn add_existing_repository_button_signal(&self) {
+    fn action_bar_signals(&self) {
         self.imp().action_bar_content.connect_closure(
             "add-existing-repository",
             false,
@@ -190,6 +366,16 @@ impl BagitDesktopWindow {
                         let folder_path = folder.path().unwrap_or(PathBuf::new());
                         let folder_path_str = folder_path.to_str().unwrap();
 
+                        // We must check if the selected repository isn't already in the application:
+                        match win2.imp().app_database.get_repository_from_path(&folder_path_str) {
+                            Some(_) => {
+                                let toast = adw::Toast::new(&gettext("_Repo already present"));
+                                win2.imp().toast_overlay.add_toast(toast);
+                                return;
+                            },
+                            None => {},
+                        };
+
                         let repository = Repository::open(&folder_path);
 
                         // We make sure the selected folder is a valid repository.
@@ -197,15 +383,15 @@ impl BagitDesktopWindow {
                             Ok(_) => {
                                 let folder_name = RepositoryUtils::get_folder_name_from_os(folder_path_str);
 
-                                win2.add_list_row(
-                                    &folder_name,
-                                    folder_path_str
+                                let new_bagit_repository = BagitRepository::new(Uuid::new_v4(), folder_name, folder_path_str.to_string(), None);
+
+                                win2.add_list_row_to_all_repositories(
+                                    &new_bagit_repository
                                 );
                                 win2.imp().app_database.add_repository(
-                                    &folder_name,
-                                    &folder_path_str,
-                                    None
+                                    &new_bagit_repository
                                 );
+                                win2.update_recent_repositories();
                             }
                             Err(_) => {
                                 gtk::AlertDialog::builder()
@@ -219,47 +405,6 @@ impl BagitDesktopWindow {
                 }));
             }),
         );
-    }
-
-    /**
-     * Add a new row to the list of all repositories.
-     */
-    pub fn add_list_row(&self, repo_name: &str, repo_path: &str) {
-        if !self.imp().repositories_window.is_visible() {
-            self.imp().status_page.set_visible(false);
-            self.imp().repositories_window.set_visible(true);
-        }
-
-        let full_path: String = format!("{}{}", "~", repo_path);
-
-        let new_row: adw::ActionRow = adw::ActionRow::new();
-        let row_image: gtk::Image = gtk::Image::new();
-        row_image.set_icon_name(Some("go-next-symbolic"));
-        new_row.set_title(repo_name);
-        new_row.set_subtitle(&full_path);
-        new_row.set_height_request(64);
-        new_row.add_suffix(&row_image);
-
-        self.imp()
-            .repositories_window
-            .imp()
-            .all_repositories
-            .append(&new_row);
-    }
-
-    /// Used to initialize the repositories.
-    fn init_repositories(&self) {
-        let all_repositories: Vec<BagitRepository> = self.imp().app_database.get_all_repositories();
-
-        for repository in all_repositories {
-            self.add_list_row(&repository.name, &repository.path)
-        }
-    }
-
-    /**
-     * Used for listenning to the clone button of the BagitActionBar widget.
-     */
-    fn clone_button_signal(&self) {
         self.imp().action_bar_content.connect_closure(
             "clone-repository",
             false,
@@ -272,6 +417,35 @@ impl BagitDesktopWindow {
                     win.imp().clone_repository_page.add_git_profile_row(&profile);
                 }
                 win.imp().stack.set_visible_child_name("clone page");
+            }),
+        );
+        self.imp().action_bar_content.connect_closure(
+            "delete-selected-repositories",
+            false,
+            closure_local!(@watch self as win => move |_action_bar_content: BagitActionBar| {
+                let selected_repositories = win.imp().selected_repositories_ids_for_deletion.take();
+                let total_deleted = selected_repositories.len();
+
+                for repository_id in selected_repositories {
+                    win.imp().app_database.delete_repository(&repository_id.to_string());
+                }
+
+                let toast_text = if total_deleted == 0 {
+                    gettext("_No deleted repositories")
+                } else if total_deleted == 1 {
+                    format!("{} {}", total_deleted, gettext("_Deleted repository"))
+                } else {
+                    format!("{} {}", total_deleted, gettext("_Deleted repositories"))
+                };
+
+                win.imp().repositories_window.clear_all_repositories_ui_list();
+                win.init_all_repositories();
+                win.update_recent_repositories();
+                win.imp().selection_button.set_active(false);
+
+                let toast = adw::Toast::new(&toast_text);
+                win.imp().toast_overlay.add_toast(toast);
+                return;
             }),
         );
     }
@@ -439,7 +613,9 @@ impl BagitDesktopWindow {
                         clone!(
                             @weak win as win2 => @default-return Continue(false),
                                     move |elements| {
-                                        win2.save_repository(&elements.0, &elements.1);
+                                        let mut new_repository = BagitRepository::new(Uuid::new_v4(), elements.0, elements.1, None);
+
+                                        win2.save_clone_repository(&mut new_repository);
                                         win2.imp().clone_repository_page.to_main_page();
                                         Continue(true)
                                     }
@@ -561,7 +737,9 @@ impl BagitDesktopWindow {
                         clone!(
                             @weak win as win2 => @default-return Continue(false),
                                     move |elements| {
-                                        win2.save_repository(&elements.0, &elements.1);
+                                        let mut new_repository = BagitRepository::new(Uuid::new_v4(), elements.0, elements.1, None);
+
+                                        win2.save_clone_repository(&mut new_repository);
                                         win2.imp().clone_repository_page.to_main_page();
                                         Continue(true)
                                     }
@@ -580,6 +758,7 @@ impl BagitDesktopWindow {
                 win.imp().repositories_window.imp().all_repositories.unselect_all();
                 win.imp().repositories_window.imp().recent_repositories.unselect_all();
                 win.imp().stack.set_visible_child_name("main page");
+                win.update_recent_repositories();
             }),
         );
         self.imp().repository_page.connect_closure(
@@ -863,8 +1042,9 @@ impl BagitDesktopWindow {
         }));
     }
 
-    pub fn save_repository(&self, repository_name: &str, repository_path: &str) {
-        self.add_list_row(&repository_name, &repository_path);
+    /// Used to save a new cloned repository
+    pub fn save_clone_repository(&self, new_repository: &mut BagitRepository) {
+        self.add_list_row_to_all_repositories(&new_repository);
 
         let profile_id: Option<Uuid> = match self
             .imp()
@@ -878,9 +1058,10 @@ impl BagitDesktopWindow {
             _ => None,
         };
 
-        self.imp()
-            .app_database
-            .add_repository(&repository_name, &repository_path, profile_id);
+        new_repository.git_profile_id = profile_id;
+
+        self.imp().app_database.add_repository(&new_repository);
+        self.update_recent_repositories();
         self.imp().stack.set_visible_child_name("main page");
     }
 }
