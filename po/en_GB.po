@@ -408,6 +408,9 @@ msgstr "Current branch"
 msgid "_Loading branches"
 msgstr "Loading branches"
 
+msgid "_No branches"
+msgstr "No branches"
+
 msgid "_Change branch dialog title"
 msgstr "Change branch?"
 

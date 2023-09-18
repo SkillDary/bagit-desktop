@@ -408,6 +408,9 @@ msgstr "Branche courante"
 msgid "_Loading branches"
 msgstr "Chargement des branches"
 
+msgid "_No branches"
+msgstr "Aucunes branches"
+
 msgid "_Change branch dialog title"
 msgstr "Changer de branche ?"
 

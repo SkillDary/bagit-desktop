@@ -988,10 +988,15 @@ impl BagitDesktopWindow {
                             move |
                             branch_dialog: BagitBranchesDialog,
                             branch_name: &str,
-                            is_remote: bool
+                            is_remote: bool,
+                            has_changed_files
                             | {
                                 branch_dialog.close();
-                                win3.show_checkout_dialog(branch_name.to_string(), is_remote);
+                                if has_changed_files {
+                                    win3.show_checkout_dialog(branch_name.to_string(), is_remote);
+                                } else {
+                                    win3.imp().repository_page.checkout_branch_and_update_ui(branch_name.to_owned(), is_remote);
+                                }
                             }
                         ));
                     }

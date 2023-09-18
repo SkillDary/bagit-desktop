@@ -27,6 +27,7 @@ use git2::Repository;
 use gtk::glib::clone;
 use gtk::glib::MainContext;
 use gtk::glib::Priority;
+use gtk::traits::WidgetExt;
 use gtk::{gio, glib};
 
 use adw::prelude::StaticType;
@@ -52,9 +53,13 @@ mod imp {
         #[template_child]
         pub dialog_stack: TemplateChild<gtk::Stack>,
         #[template_child]
+        pub local_branches_label: TemplateChild<gtk::Label>,
+        #[template_child]
         pub local_branches: TemplateChild<gtk::ListBox>,
         #[template_child]
-        pub remote_branches: TemplateChild<gtk::ListBox>,
+        pub untracked_branches: TemplateChild<gtk::ListBox>,
+        #[template_child]
+        pub untracked_branches_label: TemplateChild<gtk::Label>,
 
         pub repository_path: RefCell<String>,
         pub id_doing_operations: Cell<bool>,
@@ -66,16 +71,28 @@ mod imp {
         fn local_branch_selected(&self, row: Option<adw::ActionRow>) {
             if row != None {
                 let selected_row: adw::ActionRow = row.unwrap();
-                self.obj()
-                    .emit_by_name::<()>("select-branch", &[&selected_row.title(), &false]);
+                self.obj().emit_by_name::<()>(
+                    "select-branch",
+                    &[
+                        &selected_row.title(),
+                        &false,
+                        &self.obj().has_changed_files(),
+                    ],
+                );
             }
         }
         #[template_callback]
-        fn remote_branch_selected(&self, row: Option<adw::ActionRow>) {
+        fn untracked_branch_selected(&self, row: Option<adw::ActionRow>) {
             if row != None {
                 let selected_row: adw::ActionRow = row.unwrap();
-                self.obj()
-                    .emit_by_name::<()>("select-branch", &[&selected_row.title(), &true]);
+                self.obj().emit_by_name::<()>(
+                    "select-branch",
+                    &[
+                        &selected_row.title(),
+                        &true,
+                        &self.obj().has_changed_files(),
+                    ],
+                );
             }
         }
     }
@@ -100,7 +117,7 @@ mod imp {
         fn signals() -> &'static [Signal] {
             static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
                 vec![Signal::builder("select-branch")
-                    .param_types([str::static_type(), bool::static_type()])
+                    .param_types([str::static_type(), bool::static_type(), bool::static_type()])
                     .build()]
             });
             SIGNALS.as_ref()
@@ -147,72 +164,56 @@ impl BagitBranchesDialog {
             .dialog_stack
             .set_visible_child_name("loading page");
         self.clear_changed_ui_files_list();
-        let (local_sender, local_receiver) =
-            MainContext::channel::<Result<Vec<(String, bool)>, String>>(Priority::default());
-        let (remote_sender, remote_receiver) =
-            MainContext::channel::<Result<Vec<(String, bool)>, String>>(Priority::default());
+
+        let (sender, receiver) = MainContext::channel::<
+            Result<(Vec<(String, bool)>, Vec<(String, bool)>), String>,
+        >(Priority::default());
 
         let repo_path = self.imp().repository_path.borrow().clone();
         thread::spawn(move || {
-            let local_sender = local_sender.clone();
-            let remote_sender = remote_sender.clone();
+            let sender = sender.clone();
 
             match Repository::open(repo_path) {
                 Ok(repo) => {
-                    match RepositoryUtils::get_branches(&repo, git2::BranchType::Local) {
-                        Ok(branches) => {
-                            local_sender
-                                .send(Ok(branches))
-                                .expect("Cannot send local branches");
-                            //win.add_local_branches(branches);
-                        }
-                        Err(error) => local_sender
-                            .send(Err(error.to_string()))
-                            .expect("Cannot send error"),
-                    };
-                    match RepositoryUtils::get_branches(&repo, git2::BranchType::Remote) {
-                        Ok(branches) => {
-                            remote_sender
-                                .send(Ok(branches))
-                                .expect("Cannot send local branches");
-                            //win.add_remote_branches(branches);
-                        }
-                        Err(error) => remote_sender
-                            .send(Err(error.to_string()))
-                            .expect("Cannot send error"),
-                    };
+                    let local_branches =
+                        match RepositoryUtils::get_branches(&repo, git2::BranchType::Local) {
+                            Ok(branches) => branches,
+                            Err(_) => vec![],
+                        };
+
+                    let untracked_branches =
+                        match RepositoryUtils::get_branches(&repo, git2::BranchType::Remote) {
+                            Ok(branches) => branches,
+                            Err(_) => vec![],
+                        };
+
+                    sender
+                        .send(Ok((local_branches, untracked_branches)))
+                        .expect("Cannot send result");
                 }
-                Err(error) => local_sender
+                Err(error) => sender
                     .send(Err(error.to_string()))
                     .expect("Cannot send error"),
             };
         });
 
-        local_receiver.attach(
+        receiver.attach(
             None,
             clone!(@weak self as win => @default-return Continue(false),
                         move |result| {
                             match result {
-                                Ok(branches) => {
-                                    win.imp().dialog_stack.set_visible_child_name("branch page");
-                                    win.add_local_branches(branches)
+                                Ok(branches_tuple) => {
+                                    if branches_tuple.0.is_empty() && branches_tuple.1.is_empty() {
+                                        win.imp().dialog_stack.set_visible_child_name("no branches page");
+                                    } else {
+                                        win.imp().dialog_stack.set_visible_child_name("branches page");
+                                        win.add_local_branches(branches_tuple.0);
+                                        win.add_untracked_branches(branches_tuple.1);
+                                    }
                                 },
-                                Err(_) => {}
-                            }
-                            Continue(true)
-                        }
-            ),
-        );
-        remote_receiver.attach(
-            None,
-            clone!(@weak self as win => @default-return Continue(false),
-                        move |result| {
-                            match result {
-                                Ok(branches) => {
-                                    win.imp().dialog_stack.set_visible_child_name("branch page");
-                                    win.add_remote_branches(branches)
-                                },
-                                Err(_) => {}
+                                Err(_) => {
+                                    win.imp().dialog_stack.set_visible_child_name("no branches page");
+                                }
                             }
                             win.imp().id_doing_operations.set(false);
                             Continue(true)
@@ -229,10 +230,12 @@ impl BagitBranchesDialog {
             local_row = self.imp().local_branches.row_at_index(0);
         }
 
-        let mut remote_row = self.imp().remote_branches.row_at_index(0);
-        while remote_row != None {
-            self.imp().remote_branches.remove(&remote_row.unwrap());
-            remote_row = self.imp().remote_branches.row_at_index(0);
+        let mut untracked_row = self.imp().untracked_branches.row_at_index(0);
+        while untracked_row != None {
+            self.imp()
+                .untracked_branches
+                .remove(&untracked_row.unwrap());
+            untracked_row = self.imp().untracked_branches.row_at_index(0);
         }
     }
 
@@ -254,17 +257,44 @@ impl BagitBranchesDialog {
 
     /// Used to add local branches.
     fn add_local_branches(&self, branches: Vec<(String, bool)>) {
+        self.imp()
+            .local_branches_label
+            .set_visible(!branches.is_empty());
+
         for branch in branches {
             let row = self.build_branch_row(&branch.0, branch.1);
             self.imp().local_branches.append(&row);
         }
     }
 
-    /// Used to add remote branches.
-    fn add_remote_branches(&self, branches: Vec<(String, bool)>) {
+    /// Used to add untracked branches.
+    fn add_untracked_branches(&self, branches: Vec<(String, bool)>) {
+        self.imp()
+            .untracked_branches_label
+            .set_visible(!branches.is_empty());
+
         for branch in branches {
             let row = self.build_branch_row(&branch.0, branch.1);
-            self.imp().remote_branches.append(&row);
+            self.imp().untracked_branches.append(&row);
         }
+    }
+
+    /// Used to checked if there is changed files in the current branch.
+    /// If an error occurs, it will return true by default.
+    fn has_changed_files(&self) -> bool {
+        let string_path: String;
+        {
+            string_path = self.imp().repository_path.borrow().clone();
+        }
+
+        match Repository::open(string_path) {
+            Ok(repo) => {
+                if let Ok(statuses) = repo.statuses(None) {
+                    return !statuses.is_empty();
+                }
+            }
+            Err(_) => {}
+        }
+        return true;
     }
 }
