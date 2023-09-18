@@ -40,6 +40,10 @@
                         <property name="reveal-child">true</property>
                         <property name="child">
                           <object class="GtkBox">
+                            <property name="margin-start">1</property>
+                            <property name="margin-end">1</property>
+                            <property name="margin-top">1</property>
+                            <property name="margin-bottom">1</property>
                             <property name="orientation">vertical</property>
                             <property name="spacing">12</property>
                             <child>

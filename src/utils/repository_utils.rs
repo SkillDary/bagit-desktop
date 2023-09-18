@@ -475,7 +475,7 @@ impl RepositoryUtils {
         private_key_path: String,
         passphrase: String,
     ) -> Result<(), git2::Error> {
-        let head = repository.head().expect("Could not retrieve HEAD.");
+        let head = repository.head()?;
 
         let checked_out_branch = head
             .shorthand()
@@ -547,7 +547,7 @@ impl RepositoryUtils {
         private_key_path: String,
         passphrase: String,
     ) -> Result<(), git2::Error> {
-        let head = repository.head().expect("Could not retrieve HEAD.");
+        let head = repository.head()?;
 
         let checked_out_branch = head
             .shorthand()

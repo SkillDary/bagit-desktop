@@ -45,7 +45,10 @@ mod imp {
     #[gtk::template_callbacks]
     impl BagitActionBar {
         #[template_callback]
-        fn create_repository_button_clicked(&self, _button: &gtk::Button) {}
+        fn create_repository_button_clicked(&self, _button: &gtk::Button) {
+            self.obj()
+                .emit_by_name::<()>("go-to-create-repository-page", &[]);
+        }
 
         #[template_callback]
         fn add_existing_repository_button_clicked(&self, _button: &gtk::Button) {
@@ -86,6 +89,7 @@ mod imp {
         fn signals() -> &'static [Signal] {
             static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
                 vec![
+                    Signal::builder("go-to-create-repository-page").build(),
                     Signal::builder("clone-repository").build(),
                     Signal::builder("add-existing-repository").build(),
                     Signal::builder("delete-selected-repositories").build(),

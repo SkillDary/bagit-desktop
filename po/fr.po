@@ -128,6 +128,17 @@ msgstr "Vous vous apprêtez à annuler les changements effectués sur le fichier
 msgid "_Discard folder message"
 msgstr "Vous vous apprêtez à annuler les changements effectués sur tous les fichiers du dossier suivant :"
 
+############# create-repository-page.ui ############
+
+msgid "_Name of the repository"
+msgstr "Nom du dépôt"
+
+msgid "_Create repository location"
+msgstr "L'emplacement dans lequel sera créé le dépôt."
+
+msgid "_Create a repository and save profile"
+msgstr "Créer un dépôt et enregistrer le nouveau profil"
+
 ########## clone-repository-page.ui ###################
 
 msgid "_Repository URL"
@@ -140,7 +151,7 @@ msgid "_Location"
 msgstr "Emplacement"
 
 msgid "_Saved location"
-msgstr "L'emplacement où sera cloner le dépôt."
+msgstr "L'emplacement dans lequel sera cloné le dépôt."
 
 msgid "_Passphrase information"
 msgstr "La phrase de passe à utiliser si la clé privée en nécessite une."
@@ -348,6 +359,7 @@ msgstr "Veuillez entrer la phrase de passe pour la clé de signature suivante :"
 
 msgid "_Validate"
 msgstr "Valider"
+
 ############### repository-page.ui ################
 
 msgid "_Push"
@@ -364,6 +376,12 @@ msgstr "Vous avez des fichiers modifiés, vous ne pouvez pas tirer la branche di
 
 msgid "_Remote branch pulled"
 msgstr "Branche distante tirée"
+
+msgid "_You are on"
+msgstr "Vous voici sur"
+
+msgid "_Status page text"
+msgstr "Vous pouvez commettre, pousser, tirer..."
 
 ############### bagit-https-action-dialog.ui ######
 

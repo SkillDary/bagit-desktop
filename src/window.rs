@@ -20,10 +20,11 @@
 use std::{fs, path::PathBuf, thread};
 
 use crate::{
+    create_repository_page::BagitCreateRepositoryPage,
     glib::clone,
     models::{bagit_git_profile::BagitGitProfile, bagit_repository::BagitRepository},
     utils::{
-        self, action_type::ActionType, db::AppDatabase, profile_mode::ProfileMode,
+        self, action_type::ActionType, profile_mode::ProfileMode,
         repository_utils::RepositoryUtils, selected_repository::SelectedRepository,
     },
     widgets::branches_dialog::BagitBranchesDialog,
@@ -55,6 +56,8 @@ use std::cell::RefCell;
 
 mod imp {
 
+    use crate::create_repository_page::BagitCreateRepositoryPage;
+
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
@@ -74,6 +77,8 @@ mod imp {
         pub status_page: TemplateChild<adw::StatusPage>,
         #[template_child]
         pub action_bar_content: TemplateChild<BagitActionBar>,
+        #[template_child]
+        pub create_repository_page: TemplateChild<BagitCreateRepositoryPage>,
         #[template_child]
         pub clone_repository_page: TemplateChild<BagitCloneRepositoryPage>,
         #[template_child]
@@ -136,6 +141,9 @@ mod imp {
                             win.repository_page.imp().commit_view.update_git_profiles_list();
                             win.repository_page.update_branch_name();
                         },
+                        "create repository page" => win.create_repository_page.update_git_profiles_list(
+                            &win.app_database.get_all_git_profiles()
+                        ),
                         "clone page" => win.clone_repository_page.update_git_profiles_list(
                             &win.app_database.get_all_git_profiles()
                         ),
@@ -164,6 +172,9 @@ impl BagitDesktopWindow {
         win.repositories_page_signals();
         win.repository_page_signals();
         win.action_bar_signals();
+        win.create_repository_button_signal();
+        win.clone_button_signal();
+        win.create_repository_page_signals();
         win.clone_repository_page_signals();
         win.init_all_repositories();
         win.update_recent_repositories();
@@ -183,24 +194,14 @@ impl BagitDesktopWindow {
                 | {
                     // If we aren't in the selection mode, we go to the selected repository:
                     if !win.imp().selection_button.is_active() {
-                        // We update the selected repository :
+                        // We update the selected repository:
                         let found_repository = win.imp().app_database.get_repository_from_path(&path);
-                        win.imp().repository_page.imp().sidebar.clear_changed_files_list();
-                        win.imp().repository_page.imp().sidebar.imp().change_from_file.set(false);
-                        win.imp().repository_page.imp().main_view_stack.set_visible_child_name("hello world");
-                        win.imp().repository_page.imp().commit_view.update_commit_view(0);
 
                         if found_repository.is_some() {
                             let repo = found_repository.unwrap();
 
                             match SelectedRepository::try_fetching_selected_repository(&repo) {
                                 Ok(selected_repository) => {
-                                    let repo_id = selected_repository.user_repository.repository_id;
-
-                                    thread::spawn(move ||{
-                                            AppDatabase::init_database().update_last_opening_of_repository(repo_id);
-                                        }
-                                    );
                                     win.imp().repository_page.init_repository_page(selected_repository);
                                     win.imp().stack.set_visible_child_name("repository page");
                                 }
@@ -405,6 +406,193 @@ impl BagitDesktopWindow {
                 }));
             }),
         );
+    }
+
+    /// Listener for the "create a repository" button of the BagitActionBar widget.
+    fn create_repository_button_signal(&self) {
+        self.imp().action_bar_content.connect_closure(
+            "go-to-create-repository-page",
+            false,
+            closure_local!(@watch self as win => move |_action_bar_content: BagitActionBar| {
+                win.imp().create_repository_page.clear_page();
+
+                let git_profiles: Vec<BagitGitProfile> = win.imp().app_database.get_all_git_profiles();
+                for profile in git_profiles {
+                    win.imp().create_repository_page.add_git_profile_row(&profile);
+                }
+
+                win.imp().stack.set_visible_child_name("create repository page");
+            }),
+        );
+    }
+
+    fn create_repository_page_signals(&self) {
+        self.imp().create_repository_page.connect_closure(
+            "go-back", 
+            false,
+            closure_local!(@watch self as win => move |_create_repository_page: BagitCreateRepositoryPage| {
+                win.imp().stack.set_visible_child_name("main page");
+            })
+        );
+
+        self.imp().create_repository_page.connect_closure(
+            "select-location", 
+            false,
+            closure_local!(@watch self as win => move |_create_repository_page: BagitCreateRepositoryPage| {
+                let ctx: MainContext = glib::MainContext::default();
+                ctx.spawn_local(clone!(@weak win as win2 => async move {
+                    let dialog = gtk::FileDialog::builder()
+                        .accept_label(gettext("_Add"))
+                        .modal(true)
+                        .title(gettext("_Select location"))
+                        .build();
+
+                    if let Ok(res) = dialog.select_folder_future(Some(&win2)).await {
+                        win2.imp().create_repository_page.imp().location_row.set_text(
+                            res.path().unwrap_or(PathBuf::new()).to_str().unwrap()
+                        );
+                    }
+                }));
+            })
+        );
+
+        self.imp().create_repository_page.connect_closure(
+            "select-private-key", 
+            false,
+            closure_local!(@watch self as win => move |_create_repository_page: BagitCreateRepositoryPage| {
+                let ctx: MainContext = glib::MainContext::default();
+                ctx.spawn_local(clone!(@weak win as win2 => async move {
+                    let dialog = gtk::FileDialog::builder()
+                        .accept_label(gettext("_Add"))
+                        .modal(true)
+                        .title(gettext("_Select Private key path"))
+                        .build();
+
+                    if let Ok(res) = dialog.open_future(Some(&win2)).await {
+                        win2.imp().create_repository_page.imp().private_key_path.set_text(
+                            res.path().unwrap_or(PathBuf::new()).to_str().unwrap()
+                        );
+                    }
+                }));
+            })
+        );
+
+        self.imp().create_repository_page.connect_closure(
+            "create-repository",
+            false,
+            closure_local!(@watch self as win => move |
+                create_repository_page: BagitCreateRepositoryPage,
+                repository_name: &str,
+                location: &str
+                | {
+                    let repository_path = format!("{}/{}", location, repository_name);
+
+                    let repository;
+
+                    match fs::create_dir(&repository_path) {
+                        Ok(_) => {
+                            match Repository::init(&repository_path) {
+                                Ok(repo) => repository = repo,
+                                Err(error) => {
+                                    win.show_error_dialog(&error.to_string());
+
+                                    tracing::warn!("Could not create new repository: {}", error);
+
+                                    return;
+                                },
+                            };
+                        },
+                        Err(error) => {
+                            win.show_error_dialog(&error.to_string());
+
+                            tracing::warn!("Could not create new directory in order to create new repository: {}", error);
+
+                            return;
+                        },
+                    }
+
+                    let borrowed_profile_mode = create_repository_page.imp().profile_mode.take();
+
+                    let selected_profile: Option<BagitGitProfile> = match borrowed_profile_mode {
+                        ProfileMode::SelectedProfile(profile) => Some(profile),
+                        _ => None
+                    };
+
+                    match selected_profile {
+                        Some(profile) => {
+                            // Once the repository is created, we update its config file:
+                            match RepositoryUtils::override_git_config(&repository, &profile) {
+                                Ok(_) => tracing::debug!("Override of git config successful."),
+                                Err(error) =>  tracing::warn!("Could not override git config: {}", error)
+                            };
+                        },
+                        None => {},
+                    }
+
+                    let mut new_repository = BagitRepository::new(Uuid::new_v4(), repository_name.to_string(), repository_path, None);
+
+                    let profile_mode =  create_repository_page.imp().profile_mode.take();
+
+                    create_repository_page.imp().profile_mode.replace(profile_mode.clone());
+
+                    win.save_repository(&mut new_repository, profile_mode);
+
+                    win.imp().stack.set_visible_child_name("main page");
+                }
+            ),
+        );
+
+        self.imp().create_repository_page.connect_closure(
+            "create-repository-and-add-profile",
+            false,
+            closure_local!(@watch self as win => move |
+                create_repository_page: BagitCreateRepositoryPage,
+                repository_name: &str,
+                location: &str,
+                profile_name: &str,
+                email: &str,
+                username: &str,
+                password: &str,
+                private_key_path: &str,
+                signing_key: &str
+                | {
+                    let profile_id = Uuid::new_v4();
+
+                    // We make sure that the profile name is unique:
+                    let same_profile_name_number = win.imp().app_database.get_number_of_git_profiles_with_name(
+                        &profile_name,
+                        &profile_id.to_string()
+                    );
+
+                    let final_profil_name : String =  if same_profile_name_number != 0 {
+                        let new_name = format!("{} ({})", profile_name, same_profile_name_number);
+                        new_name
+                    } else {
+                        profile_name.to_string()
+                    };
+
+                    let new_profile = BagitGitProfile::new(
+                        profile_id,
+                        final_profil_name,
+                        email.to_string(),
+                        username.to_string(),
+                        password.to_string(),
+                        private_key_path.to_string(),
+                        signing_key.to_string()
+                    );
+
+                    win.imp().app_database.add_git_profile(&new_profile);
+
+                    create_repository_page.emit_by_name::<()>("create-repository", &[&repository_name, &location]);
+                }
+            ),
+        );
+    }
+
+    /**
+     * Used for listenning to the clone button of the BagitActionBar widget.
+     */
+    fn clone_button_signal(&self) {
         self.imp().action_bar_content.connect_closure(
             "clone-repository",
             false,
@@ -615,7 +803,11 @@ impl BagitDesktopWindow {
                                     move |elements| {
                                         let mut new_repository = BagitRepository::new(Uuid::new_v4(), elements.0, elements.1, None);
 
-                                        win2.save_clone_repository(&mut new_repository);
+                                        let profile_mode = clone_repository_page.imp().profile_mode.take();
+
+                                        clone_repository_page.imp().profile_mode.replace(profile_mode.clone());
+
+                                        win2.save_repository(&mut new_repository, profile_mode);
                                         win2.imp().clone_repository_page.to_main_page();
                                         Continue(true)
                                     }
@@ -629,7 +821,7 @@ impl BagitDesktopWindow {
             "clone-repository-and-add-profile",
             false,
             closure_local!(@watch self as win => move |
-                _clone_repository_page: BagitCloneRepositoryPage,
+                clone_repository_page: BagitCloneRepositoryPage,
                 url: &str,
                 location: &str,
                 profile_name: &str,
@@ -739,7 +931,11 @@ impl BagitDesktopWindow {
                                     move |elements| {
                                         let mut new_repository = BagitRepository::new(Uuid::new_v4(), elements.0, elements.1, None);
 
-                                        win2.save_clone_repository(&mut new_repository);
+                                        let profile_mode = clone_repository_page.imp().profile_mode.take();
+
+                                        clone_repository_page.imp().profile_mode.replace(profile_mode.clone());
+
+                                        win2.save_repository(&mut new_repository, profile_mode);
                                         win2.imp().clone_repository_page.to_main_page();
                                         Continue(true)
                                     }
@@ -1104,17 +1300,10 @@ impl BagitDesktopWindow {
         }));
     }
 
-    /// Used to save a new cloned repository
-    pub fn save_clone_repository(&self, new_repository: &mut BagitRepository) {
+    /// Saves a created repository.
+    pub fn save_repository(&self, new_repository: &mut BagitRepository, profile_mode: ProfileMode) {
         self.add_list_row_to_all_repositories(&new_repository);
-        let profile_id: Option<Uuid> = match self
-            .imp()
-            .clone_repository_page
-            .imp()
-            .profile_mode
-            .borrow()
-            .get_profile_mode()
-        {
+        let profile_id: Option<Uuid> = match profile_mode.get_profile_mode() {
             ProfileMode::SelectedProfile(profile) => Some(profile.profile_id),
             _ => None,
         };

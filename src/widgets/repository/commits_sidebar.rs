@@ -267,7 +267,7 @@ impl BagitCommitsSideBar {
 
             row.append(&text_box);
 
-            let local_image: gtk::Image = gtk::Image::from_icon_name("panel-modified-symbolic");
+            let local_image: gtk::Image = gtk::Image::from_icon_name("arrow3-up-symbolic");
             local_image.set_pixel_size(24);
             local_image.set_tooltip_text(Some(&gettext("_Commit not pushed")));
             local_image.add_css_class("warning");
@@ -346,54 +346,61 @@ impl BagitCommitsSideBar {
         nb_commits_to_load: i32,
         selected_repository_path: String,
     ) {
-        let repo: Repository = Repository::open(selected_repository_path).unwrap();
+        match Repository::open(selected_repository_path) {
+            Ok(repo) => {
+                match repo.head() {
+                    Ok(head) => {
+                        let checked_out_branch: &str = head
+                            .shorthand()
+                            .expect("Could not retrieve name of checked-out branch.");
 
-        let head = repo.head().expect("Could not retrieve HEAD.");
+                        let branch: git2::Branch<'_> = repo
+                            .find_branch(checked_out_branch, git2::BranchType::Local)
+                            .unwrap();
 
-        let checked_out_branch: &str = head
-            .shorthand()
-            .expect("Could not retrieve name of checked-out branch.");
+                        let starting_commit_id: String =
+                            self.imp().last_commit_oid_of_commit_list.take();
 
-        let branch: git2::Branch<'_> = repo
-            .find_branch(checked_out_branch, git2::BranchType::Local)
-            .unwrap();
+                        let newly_loaded_commits: Vec<CommitObject> = load_commit_history(
+                            &repo,
+                            branch,
+                            starting_commit_id.to_string(),
+                            nb_commits_to_load,
+                        );
 
-        let starting_commit_id: String = self.imp().last_commit_oid_of_commit_list.take();
+                        // We check if we have local commits to push. If so, we will activate the push button:
+                        self.emit_by_name::<()>(
+                            "set-push-button-sensitive",
+                            &[&newly_loaded_commits
+                                .iter()
+                                .any(|commit| !commit.is_pushed())],
+                        );
 
-        let newly_loaded_commits: Vec<CommitObject> = load_commit_history(
-            &repo,
-            branch,
-            starting_commit_id.to_string(),
-            nb_commits_to_load,
-        );
+                        // If there is no new commit, we don't go any further.
+                        if newly_loaded_commits.is_empty() {
+                            self.imp()
+                                .last_commit_oid_of_commit_list
+                                .replace(starting_commit_id);
 
-        // We check if we have local commits to push. If so, we will activate the push button:
-        self.emit_by_name::<()>(
-            "set-push-button-sensitive",
-            &[&newly_loaded_commits
-                .iter()
-                .any(|commit| !commit.is_pushed())],
-        );
+                            return;
+                        }
 
-        // If there is no new commit, we don't go any further.
-        if newly_loaded_commits.is_empty() {
-            self.imp()
-                .last_commit_oid_of_commit_list
-                .replace(starting_commit_id);
+                        let new_starting_commit_id: String = newly_loaded_commits
+                            .last()
+                            .expect("Could not get last commit.")
+                            .commit_id();
 
-            return;
-        }
+                        self.imp()
+                            .last_commit_oid_of_commit_list
+                            .replace(new_starting_commit_id);
 
-        let new_starting_commit_id: String = newly_loaded_commits
-            .last()
-            .expect("Could not get last commit.")
-            .commit_id();
-
-        self.imp()
-            .last_commit_oid_of_commit_list
-            .replace(new_starting_commit_id);
-
-        self.commits().extend(newly_loaded_commits);
+                        self.commits().extend(newly_loaded_commits);
+                    }
+                    Err(_) => {}
+                }
+            }
+            Err(_) => {}
+        };
     }
 
     /// Sets up the callback for the infinite scroll.
@@ -441,18 +448,15 @@ impl BagitCommitsSideBar {
     /// E.g. user changed branch from somewhere else.
     pub fn refresh_commit_list_if_needed(&self, selected_repository_path: String) {
         match Repository::open(&selected_repository_path) {
-            Ok(repo) => {
-                let head = repo.head().expect("Could not retrieve HEAD.");
-
-                let checked_out_branch: &str = head
-                    .shorthand()
-                    .expect("Could not retrieve name of checked-out branch.");
-
-                if checked_out_branch != self.imp().current_branch_name {
-                    self.init_commit_list(selected_repository_path);
+            Ok(repo) => match RepositoryUtils::get_current_branch_name(&repo) {
+                Ok(checked_out_branch) => {
+                    if checked_out_branch != self.imp().current_branch_name {
+                        self.init_commit_list(selected_repository_path);
+                    }
                 }
-            }
-            Err(_) => {}
+                Err(_) => return,
+            },
+            Err(_) => return,
         };
     }
 

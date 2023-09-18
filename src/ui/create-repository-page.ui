@@ -1,0 +1,495 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="Adw" version="1.0"/>
+  <template class="BagitCreateRepositoryPage" parent="GtkBox">
+    <property name="width-request">600</property>
+    <property name="orientation">vertical</property>
+    <child>
+      <object class="AdwHeaderBar" id="header_bar">
+        <property name="title-widget">
+          <object class="AdwWindowTitle">
+            <property name="title" translatable="yes">_Create a new repository</property>
+          </object>
+        </property>
+        <style>
+          <class name="flat"/>
+        </style>
+        <child type="start">
+          <object class="GtkButton" id="back_button">
+            <signal name="clicked" handler="go_back" swapped="true"/>
+            <property name="icon-name">go-previous-symbolic</property>
+          </object>
+        </child>
+        <child type="end">
+          <object class="GtkMenuButton">
+            <property name="icon-name">open-menu-symbolic</property>
+            <property name="menu-model">primary_menu</property>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <object class="GtkScrolledWindow">
+        <property name="vexpand">true</property>
+        <child>
+          <object class="GtkStack" id="main_stack">
+            <property name="transition-type">GTK_STACK_TRANSITION_TYPE_CROSSFADE</property>
+            <property name="vhomogeneous">false</property>
+            <child>
+              <object class="AdwClamp">
+                <property name="margin-start">12</property>
+                <property name="margin-end">12</property>
+                <property name="child">
+                  <object class="GtkBox">
+                    <property name="margin-top">64</property>
+                    <property name="margin-bottom">64</property>
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkBox">
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">32</property>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="spacing">12</property>
+                            <property name="orientation">vertical</property>
+                            <child>
+                              <object class="GtkListBox">
+                                <style>
+                                  <class name="boxed-list"/>
+                                </style>
+                                <child>
+                                  <object class="AdwEntryRow" id="repository_name_row">
+                                    <signal name="changed" handler="repository_name_row_changed" swapped="true"/>
+                                    <property name="title" translatable="yes">_Name of the repository</property>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="spacing">8</property>
+                            <property name="orientation">vertical</property>
+                            <child>
+                              <object class="GtkListBox">
+                                <style>
+                                  <class name="boxed-list"/>
+                                </style>
+                                <child>
+                                  <object class="AdwEntryRow" id="location_row">
+                                    <signal name="changed" handler="location_row_changed" swapped="true"/>
+                                    <property name="title" translatable="yes">_Location</property>
+                                    <child type="suffix">
+                                      <object class="GtkButton">
+                                        <signal name="clicked" handler="select_location" swapped="true"/>
+                                        <property name="margin-top">10</property>
+                                        <property name="margin-bottom">10</property>
+                                        <property name="icon-name">folder-symbolic</property>
+                                        <style>
+                                          <class name="flat"/>
+                                        </style>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="halign">GTK_ALIGN_START</property>
+                                <property name="label" translatable="yes">_Create repository location</property>
+                                <style>
+                                  <class name="dim-label"/>
+                                  <class name="caption"/>
+                                </style>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="spacing">8</property>
+                            <property name="orientation">vertical</property>
+                            <child>
+                              <object class="GtkListBox">
+                                <property name="selection-mode">none</property>
+                                <style>
+                                  <class name="boxed-list"/>
+                                </style>
+                                <child>
+                                  <object class="AdwExpanderRow" id="git_profiles">
+                                    <property name="title" translatable="yes">_No profile</property>
+                                    <child type="prefix">
+                                      <object class="GtkRevealer" id="selected_profile_revealer">
+                                        <property name="transition-type">crossfade</property>
+                                        <property name="child">
+                                          <object class="GtkButton">
+                                            <property name="icon-name">view-reveal-symbolic</property>
+                                            <property name="margin-top">10</property>
+                                            <property name="margin-bottom">10</property>
+                                            <style>
+                                              <class name="flat"/>
+                                            </style>
+                                            <signal name="clicked" handler="show_profile_information" swapped="true"/>
+                                          </object>
+                                        </property>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkListBox" id="profiles_list">
+                                        <signal name="row-selected" handler="row_clicked" swapped="true"/>
+                                        <style>
+                                          <class name="navigation-sidebar"/>
+                                        </style>
+                                        <child>
+                                          <object class="AdwActionRow">
+                                            <property name="child">
+                                              <object class="GtkLabel">
+                                                <property name="label" translatable="yes">_No profile</property>
+                                              </object>
+                                            </property>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="AdwActionRow">
+                                            <property name="child">
+                                              <object class="GtkLabel">
+                                                <property name="label" translatable="yes">_New profile</property>
+                                              </object>
+                                            </property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="halign">GTK_ALIGN_START</property>
+                                <property name="label" translatable="yes">_Selected profile</property>
+                                <style>
+                                  <class name="dim-label"/>
+                                  <class name="caption"/>
+                                </style>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkRevealer" id="passphrase_revealer">
+                            <property name="child">
+                              <object class="GtkBox">
+                                <property name="spacing">12</property>
+                                <property name="margin-top">1</property>
+                                <property name="margin-start">1</property>
+                                <property name="margin-end">1</property>
+                                <property name="orientation">vertical</property>
+                                <property name="margin-bottom">32</property>
+                                <child>
+                                  <object class="GtkListBox">
+                                    <style>
+                                      <class name="boxed-list"/>
+                                    </style>
+                                    <child>
+                                      <object class="AdwPasswordEntryRow" id="passphrase">
+                                        <property name="title" translatable="yes">_Passphrase</property>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="halign">GTK_ALIGN_START</property>
+                                    <property name="label" translatable="yes">_Passphrase information</property>
+                                    <style>
+                                      <class name="dim-label"/>
+                                      <class name="caption"/>
+                                    </style>
+                                  </object>
+                                </child>
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkSeparator">
+                        <property name="margin-bottom">12</property>
+                        <property name="orientation">horizontal</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkRevealer" id="new_profile_revealer">
+                        <property name="child">
+                          <object class="GtkBox" id="new_git_profile">
+                            <property name="margin-top">1</property>
+                            <property name="margin-start">1</property>
+                            <property name="margin-end">1</property>
+                            <property name="margin-bottom">1</property>
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">18</property>
+                            <child>
+                              <object class="GtkBox">
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">12</property>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="halign">GTK_ALIGN_START</property>
+                                    <property name="label" translatable="yes">_New profile</property>
+                                    <style>
+                                      <class name="title-2"/>
+                                    </style>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkListBox">
+                                    <property name="selection-mode">none</property>
+                                    <style>
+                                      <class name="boxed-list"/>
+                                    </style>
+                                    <child>
+                                      <object class="AdwEntryRow" id="profile_name">
+                                        <signal name="changed" handler="profile_name_changed" swapped="true"/>
+                                        <property name="title" translatable="yes">_Profile name</property>
+                                        <child type="suffix">
+                                          <object class="GtkImage" id="profile_name_warning">
+                                            <property name="visible" translatable="yes">false</property>
+                                            <property name="icon-name">emblem-important-symbolic</property>
+                                            <property name="tooltip-text" translatable="yes">_Name already used</property>
+                                            <style>
+                                              <class name="warning"/>
+                                            </style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="AdwEntryRow" id="https_username">
+                                        <property name="title" translatable="yes">_Username</property>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="AdwEntryRow" id="email">
+                                        <signal name="changed" handler="email_changed" swapped="true"/>
+                                        <property name="title" translatable="yes">_Email address</property>
+                                        <child type="suffix">
+                                          <object class="GtkImage" id="email_error">
+                                            <property name="icon-name">emblem-important-symbolic</property>
+                                            <property name="tooltip-text" translatable="yes">_Wrong email</property>
+                                            <property name="visible">false</property>
+                                            <style>
+                                              <class name="error"/>
+                                            </style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkBox">
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">18</property>
+                                <child>
+                                  <object class="GtkBox">
+                                    <property name="orientation">vertical</property>
+                                    <property name="spacing">4</property>
+                                    <child>
+                                      <object class="GtkLabel">
+                                        <property name="halign">GTK_ALIGN_START</property>
+                                        <property name="label" translatable="yes">_HTTPS information</property>
+                                        <style>
+                                          <class name="title-2"/>
+                                        </style>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkLabel">
+                                        <property name="halign">GTK_ALIGN_START</property>
+                                        <property name="label" translatable="yes">_Complementary information</property>
+                                        <style>
+                                          <class name="dim-label"/>
+                                        </style>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkListBox">
+                                    <property name="selection-mode">none</property>
+                                    <style>
+                                      <class name="boxed-list"/>
+                                    </style>
+                                    <child>
+                                      <object class="AdwPasswordEntryRow" id="https_pwd">
+                                        <property name="title" translatable="yes">_Token or password</property>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkBox">
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">12</property>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="halign">GTK_ALIGN_START</property>
+                                    <property name="label" translatable="yes">_SSH information</property>
+                                    <style>
+                                      <class name="title-2"/>
+                                    </style>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkListBox">
+                                    <property name="selection-mode">none</property>
+                                    <style>
+                                      <class name="boxed-list"/>
+                                    </style>
+                                    <child>
+                                      <object class="AdwEntryRow" id="private_key_path">
+                                        <property name="title" translatable="yes">_Private key path</property>
+                                        <child type="suffix">
+                                          <object class="GtkButton">
+                                            <signal name="clicked" handler="select_private_key_path" swapped="true"/>
+                                            <property name="margin-top">10</property>
+                                            <property name="margin-bottom">10</property>
+                                            <property name="icon-name">folder-symbolic</property>
+                                            <style>
+                                              <class name="flat"/>
+                                            </style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkBox">
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">12</property>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="halign">GTK_ALIGN_START</property>
+                                    <property name="label" translatable="yes">_PGP information</property>
+                                    <style>
+                                      <class name="title-2"/>
+                                    </style>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkListBox">
+                                    <property name="selection-mode">none</property>
+                                    <style>
+                                      <class name="boxed-list"/>
+                                    </style>
+                                    <child>
+                                      <object class="AdwPasswordEntryRow" id="signing_key">
+                                        <property name="title" translatable="yes">_Signing key</property>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                        </property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkStack" id="button_stack">
+                        <property name="transition-type">GTK_STACK_TRANSITION_TYPE_CROSSFADE</property>
+                        <property name="vhomogeneous">false</property>
+                        <child>
+                          <object class="GtkStackPage">
+                            <property name="name">new profile</property>
+                            <property name="title">new profile</property>
+                            <property name="child">
+                              <object class="GtkBox">
+                                <property name="halign">GTK_ALIGN_CENTER</property>
+                                <child>
+                                  <object class="GtkButton" id="create_repository_button_and_profile">
+                                    <signal name="clicked" handler="create_repository_and_create_new_profile" swapped="true"/>
+                                    <property name="sensitive">false</property>
+                                    <property name="margin-top">48</property>
+                                    <property name="child">
+                                      <object class="GtkLabel">
+                                        <property name="halign">GTK_ALIGN_START</property>
+                                        <property name="label" translatable="yes">_Create a repository and save profile</property>
+                                      </object>
+                                    </property>
+                                    <style>
+                                      <class name="suggested-action"/>
+                                    </style>
+                                  </object>
+                                </child>
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkStackPage">
+                            <property name="name">simple create</property>
+                            <property name="title">simple create</property>
+                            <property name="child">
+                              <object class="GtkBox">
+                                <property name="halign">GTK_ALIGN_CENTER</property>
+                                <child>
+                                  <object class="GtkButton" id="create_repository_button">
+                                    <signal name="clicked" handler="create_repository" swapped="true"/>
+                                    <property name="sensitive">false</property>
+                                    <property name="margin-top">48</property>
+                                    <property name="child">
+                                      <object class="GtkLabel">
+                                        <property name="halign">GTK_ALIGN_START</property>
+                                        <property name="label" translatable="yes">_Create a new repository</property>
+                                      </object>
+                                    </property>
+                                    <style>
+                                      <class name="suggested-action"/>
+                                    </style>
+                                  </object>
+                                </child>
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+  <menu id="primary_menu">
+    <section>
+      <item>
+        <attribute name="label" translatable="yes">_Preferences</attribute>
+        <attribute name="action">app.preferences</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">_Keyboard Shortcuts</attribute>
+        <attribute name="action">win.show-help-overlay</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">_About Bagit-Desktop</attribute>
+        <attribute name="action">app.about</attribute>
+      </item>
+    </section>
+  </menu>
+</interface>

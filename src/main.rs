@@ -20,6 +20,7 @@
 mod application;
 mod clone_repository_page;
 mod config;
+mod create_repository_page;
 mod models;
 mod preferences;
 mod repository_page;

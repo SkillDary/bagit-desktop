@@ -1,5 +1,5 @@
 [Desktop Entry]
-Name=bagit-desktop
+Name=Bagit Desktop
 Exec=bagit-desktop
 Icon=com.skilldary.bagit.desktop
 Terminal=false

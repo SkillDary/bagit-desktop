@@ -104,7 +104,7 @@ impl BagitDesktopApplication {
         let about = adw::AboutWindow::builder()
             .transient_for(&window)
             .application_name("bagit-desktop")
-            .application_icon("com.skilldary.bagit.desktop")
+            .application_icon("logo-bagit")
             .developer_name("SkillDary")
             .version(VERSION)
             .developers(vec!["Tommy DI LUNA", "Noah PENIN"])

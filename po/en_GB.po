@@ -128,6 +128,17 @@ msgstr "You are about to undo the changes made to the following file:"
 msgid "_Discard folder message"
 msgstr "You are about to undo the changes made to all the files inside this folder:"
 
+############# create-repository-page.ui ############
+
+msgid "_Name of the repository"
+msgstr "Name of the repository"
+
+msgid "_Create repository location"
+msgstr "The location where the repository will be created."
+
+msgid "_Create a repository and save profile"
+msgstr "Create a repository and save the new profile"
+
 ########## clone-repositories.ui ###################
 
 msgid "_Repository URL"
@@ -348,6 +359,7 @@ msgstr "Please enter the passphrase for the signing key:"
 
 msgid "_Validate"
 msgstr "Validate"
+
 ############### repository-page.ui ################
 
 msgid "_Push"
@@ -364,6 +376,12 @@ msgstr "You have changed files, you cannot pulled the remote branch"
 
 msgid "_Remote branch pulled"
 msgstr "Remote branch pulled"
+
+msgid "_You are on"
+msgstr "You are on"
+
+msgid "_Status page text"
+msgstr "You can commit, push, pull..."
 
 ############### bagit-https-action-dialog.ui ######
 

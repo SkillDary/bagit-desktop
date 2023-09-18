@@ -55,6 +55,8 @@ mod imp {
         #[template_child]
         pub toggle_pane_button: TemplateChild<gtk::ToggleButton>,
         #[template_child]
+        pub status_page: TemplateChild<adw::StatusPage>,
+        #[template_child]
         pub flap: TemplateChild<adw::Flap>,
         #[template_child]
         pub sidebar: TemplateChild<BagitCommitsSideBar>,
@@ -63,7 +65,7 @@ mod imp {
         #[template_child]
         pub commit_view: TemplateChild<BagitCommitView>,
         #[template_child]
-        pub branch_button: TemplateChild<gtk::Button>,
+        pub branch_button_content: TemplateChild<adw::ButtonContent>,
         #[template_child]
         pub pull_button: TemplateChild<gtk::Button>,
         #[template_child]
@@ -228,7 +230,10 @@ impl BagitRepositoryPage {
                 | {
                     win.imp().main_view_stack.set_visible_child_name("commit view");
                     win.imp().commit_view.update_commit_view(win.imp().sidebar.imp().changed_files.borrow().get_number_of_selected_files());
-                    win.imp().flap.set_reveal_flap(false);
+
+                    if win.imp().flap.is_folded() {
+                        win.imp().flap.set_reveal_flap(false);
+                    }
                 }
             ),
         );
@@ -403,7 +408,15 @@ impl BagitRepositoryPage {
     pub fn init_repository_page(&self, repository: SelectedRepository) {
         self.imp()
             .main_view_stack
-            .set_visible_child_name("hello world");
+            .set_visible_child_name("hello page");
+
+        let status_page_title = format!(
+            "{} {}.",
+            gettext("_You are on"),
+            repository.user_repository.name
+        );
+
+        self.imp().status_page.set_title(&status_page_title);
 
         self.imp().sidebar.init_commits_sidebar();
         self.imp().commit_view.init_commit_view();
@@ -488,7 +501,7 @@ impl BagitRepositoryPage {
         let borrowed_repo = self.imp().selected_repository.borrow();
         match &borrowed_repo.git_repository {
             Some(repository) => match RepositoryUtils::get_current_branch_name(&repository) {
-                Ok(branch_name) => self.imp().branch_button.set_label(&branch_name),
+                Ok(branch_name) => self.imp().branch_button_content.set_label(&branch_name),
                 Err(_) => {}
             },
             None => {}
