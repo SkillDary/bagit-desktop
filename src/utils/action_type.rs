@@ -19,9 +19,11 @@
 
 use gtk::glib;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, glib::Enum)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, glib::Enum)]
 #[enum_type(name = "ActionType")]
 pub enum ActionType {
+    #[default]
+    FETCH,
     PUSH,
     PULL,
 }

@@ -19,9 +19,11 @@
 
 use chrono::NaiveDateTime;
 use gettextrs::gettext;
-use git2::{Branch, Oid, Repository};
+use git2::{Branch, Error, FetchOptions, Oid, Reference, Remote, RemoteCallbacks, Repository};
 
 use crate::widgets::repository::CommitObject;
+
+use super::{clone_mode::CloneMode, fetch_result::FetchResult, repository_utils::RepositoryUtils};
 
 fn commit_to_commit_object(commit: git2::Commit, is_pushed: bool) -> CommitObject {
     let commit_datetime: NaiveDateTime =
@@ -232,4 +234,209 @@ pub fn load_commit_history(
     }
 
     return commit_object_vector;
+}
+
+/// Gets repository checked out branch.
+pub fn get_repository_checked_out_branch(repository: &Repository) -> Reference<'_> {
+    let head = repository.head().expect("Could not retrieve HEAD.");
+
+    return head;
+}
+
+/// Gets repository checked out branch name.
+pub fn get_repository_checked_out_branch_name(repository: &Repository) -> String {
+    let head = repository.head().expect("Could not retrieve HEAD.");
+
+    let checked_out_branch: &str = head
+        .shorthand()
+        .expect("Could not retrieve name of checked-out branch.");
+
+    return checked_out_branch.to_string();
+}
+
+/// Fetches the checked out branch.
+pub fn fetch_checked_out_branch(
+    repository: &Repository,
+    username: String,
+    password: String,
+    private_key_path: String,
+    passphrase: String,
+) -> Result<FetchResult, git2::Error> {
+    let head = repository.head().expect("Could not retrieve HEAD.");
+
+    let checked_out_branch = head
+        .shorthand()
+        .expect("Could not retrieve name of checked-out branch.");
+
+    let branch = repository
+        .find_branch(checked_out_branch, git2::BranchType::Local)
+        .unwrap();
+
+    let callback: RemoteCallbacks<'_>;
+
+    match RepositoryUtils::get_clone_mode_of_repository(&repository) {
+        Ok(clone_mode) => {
+            callback = match clone_mode {
+                CloneMode::SSH => {
+                    RepositoryUtils::ssh_callback(username, passphrase, private_key_path)
+                }
+                CloneMode::HTTPS => RepositoryUtils::https_callback(username, password),
+            }
+        }
+        Err(error) => return Err(error),
+    };
+
+    let mut fetch_options = FetchOptions::new();
+
+    fetch_options.remote_callbacks(callback);
+
+    repository.find_remote("origin")?.fetch(
+        &[branch.name().as_mut().unwrap().unwrap()],
+        Some(&mut fetch_options),
+        None,
+    )?;
+
+    let upstream_branch = branch.upstream()?;
+    let upstream_commit = upstream_branch.into_reference().peel_to_commit()?;
+    let commit_local = branch.into_reference().peel_to_commit()?;
+
+    let diff = repository.graph_ahead_behind(commit_local.id(), upstream_commit.id())?;
+
+    return Ok(FetchResult {
+        total_commits_to_push: diff.0 as i64,
+        total_commits_to_pull: diff.1 as i64,
+    });
+}
+
+/// Gets first commit of checked out branch.
+pub fn get_first_commit_id_of_checked_out_branch(repository: &Repository) -> Option<git2::Oid> {
+    let checked_out_branch = get_repository_checked_out_branch(&repository);
+
+    let branch_commit: git2::AnnotatedCommit<'_> = repository
+        .reference_to_annotated_commit(&checked_out_branch)
+        .unwrap();
+
+    let branch_commit_id = branch_commit.id();
+
+    let first_commit = repository.find_commit(branch_commit_id);
+
+    match first_commit {
+        Ok(commit) => return Some(commit.id()),
+        Err(_) => {
+            return None;
+        }
+    }
+}
+
+/// Checks if a commit of the checked out branch is pushed.
+pub fn check_if_commit_of_checked_out_branch_is_pushed(
+    repository: &Repository,
+) -> Result<bool, Error> {
+    // TODO: The remote is not always named "origin".
+    let remote_name = "origin";
+    let remote_result = repository.find_remote(remote_name);
+
+    let mut remote: Remote<'_>;
+
+    match remote_result {
+        Ok(result) => remote = result,
+        Err(error) => return Err(error),
+    }
+
+    // Get the branch name of the current HEAD
+    let binding = repository.head().expect("msg");
+    let head_branch_name = binding.shorthand().unwrap_or_default();
+
+    // Fetch the remote repository's references
+    let fetch_result = remote.fetch(&[head_branch_name], None, None);
+
+    match fetch_result {
+        Ok(_) => {}
+        Err(error) => return Err(error),
+    }
+
+    // Get the local HEAD commit and the remote branch's commit
+    let local_head_commit = repository.revparse_single("HEAD")?;
+    let remote_branch_commit =
+        repository.revparse_single(&format!("{}/{}", remote_name, head_branch_name))?;
+
+    // Compare the commit IDs
+    let local_commit_id = local_head_commit.id();
+    let remote_commit_id = remote_branch_commit.id();
+
+    return Ok(local_commit_id == remote_commit_id);
+}
+
+/// Gets the error code text.
+pub fn get_error_code_text(error_code: git2::ErrorCode) -> String {
+    return match error_code {
+        git2::ErrorCode::GenericError => gettext("_ErrorCode_GenericError"),
+        git2::ErrorCode::NotFound => gettext("_ErrorCode_NotFound"),
+        git2::ErrorCode::Exists => gettext("_ErrorCode_Exists"),
+        git2::ErrorCode::Ambiguous => gettext("_ErrorCode_Ambiguous"),
+        git2::ErrorCode::BufSize => gettext("_ErrorCode_BufSize"),
+        git2::ErrorCode::User => gettext("_ErrorCode_User"),
+        git2::ErrorCode::BareRepo => gettext("_ErrorCode_BareRepo"),
+        git2::ErrorCode::UnbornBranch => gettext("_ErrorCode_UnbornBranch"),
+        git2::ErrorCode::Unmerged => gettext("_ErrorCode_Unmerged"),
+        git2::ErrorCode::NotFastForward => gettext("_ErrorCode_NotFastForward"),
+        git2::ErrorCode::InvalidSpec => gettext("_ErrorCode_InvalidSpec"),
+        git2::ErrorCode::Conflict => gettext("_ErrorCode_Conflict"),
+        git2::ErrorCode::Locked => gettext("_ErrorCode_Locked"),
+        git2::ErrorCode::Modified => gettext("_ErrorCode_Modified"),
+        git2::ErrorCode::Auth => gettext("_ErrorCode_Auth"),
+        git2::ErrorCode::Certificate => gettext("_ErrorCode_Certificate"),
+        git2::ErrorCode::Applied => gettext("_ErrorCode_Applied"),
+        git2::ErrorCode::Peel => gettext("_ErrorCode_Peel"),
+        git2::ErrorCode::Eof => gettext("_ErrorCode_Eof"),
+        git2::ErrorCode::Invalid => gettext("_ErrorCode_Invalid"),
+        git2::ErrorCode::Uncommitted => gettext("_ErrorCode_Uncommitted"),
+        git2::ErrorCode::Directory => gettext("_ErrorCode_Directory"),
+        git2::ErrorCode::MergeConflict => gettext("_ErrorCode_MergeConflict"),
+        git2::ErrorCode::HashsumMismatch => gettext("_ErrorCode_HashsumMismatch"),
+        git2::ErrorCode::IndexDirty => gettext("_ErrorCode_IndexDirty"),
+        git2::ErrorCode::ApplyFail => gettext("_ErrorCode_ApplyFail"),
+        git2::ErrorCode::Owner => todo!(),
+    };
+}
+
+/// Gets the error class text.
+pub fn get_error_class_text(error_class: git2::ErrorClass) -> String {
+    return match error_class {
+        git2::ErrorClass::None => gettext("_ErrorClass_None"),
+        git2::ErrorClass::NoMemory => gettext("_ErrorClass_NoMemory"),
+        git2::ErrorClass::Os => gettext("_ErrorClass_Os"),
+        git2::ErrorClass::Invalid => gettext("_ErrorClass_Invalid"),
+        git2::ErrorClass::Reference => gettext("_ErrorClass_Reference"),
+        git2::ErrorClass::Zlib => gettext("_ErrorClass_Zlib"),
+        git2::ErrorClass::Repository => gettext("_ErrorClass_Repository"),
+        git2::ErrorClass::Config => gettext("_ErrorClass_Config"),
+        git2::ErrorClass::Regex => gettext("_ErrorClass_Regex"),
+        git2::ErrorClass::Odb => gettext("_ErrorClass_Odb"),
+        git2::ErrorClass::Index => gettext("_ErrorClass_Index"),
+        git2::ErrorClass::Object => gettext("_ErrorClass_Object"),
+        git2::ErrorClass::Net => gettext("_ErrorClass_Net"),
+        git2::ErrorClass::Tag => gettext("_ErrorClass_Tag"),
+        git2::ErrorClass::Tree => gettext("_ErrorClass_Tree"),
+        git2::ErrorClass::Indexer => gettext("_ErrorClass_Indexer"),
+        git2::ErrorClass::Ssl => gettext("_ErrorClass_Ssl"),
+        git2::ErrorClass::Submodule => gettext("_ErrorClass_Submodule"),
+        git2::ErrorClass::Thread => gettext("_ErrorClass_Thread"),
+        git2::ErrorClass::Stash => gettext("_ErrorClass_Stash"),
+        git2::ErrorClass::Checkout => gettext("_ErrorClass_Checkout"),
+        git2::ErrorClass::FetchHead => gettext("_ErrorClass_FetchHead"),
+        git2::ErrorClass::Merge => gettext("_ErrorClass_Merge"),
+        git2::ErrorClass::Ssh => gettext("_ErrorClass_Ssh"),
+        git2::ErrorClass::Filter => gettext("_ErrorClass_Filter"),
+        git2::ErrorClass::Revert => gettext("_ErrorClass_Revert"),
+        git2::ErrorClass::Callback => gettext("_ErrorClass_Callback"),
+        git2::ErrorClass::CherryPick => gettext("_ErrorClass_CherryPick"),
+        git2::ErrorClass::Describe => gettext("_ErrorClass_Describe"),
+        git2::ErrorClass::Rebase => gettext("_ErrorClass_Rebase"),
+        git2::ErrorClass::Filesystem => gettext("_ErrorClass_Filesystem"),
+        git2::ErrorClass::Patch => gettext("_ErrorClass_Patch"),
+        git2::ErrorClass::Worktree => gettext("_ErrorClass_Worktree"),
+        git2::ErrorClass::Sha1 => gettext("_ErrorClass_Sha1"),
+        git2::ErrorClass::Http => gettext("_ErrorClass_Http"),
+    };
 }

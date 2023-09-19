@@ -25,6 +25,7 @@ pub mod clone_page_profile_mode_type;
 pub mod commit_view_profile_mode_type;
 pub mod create_page_profile_mode_type;
 pub mod db;
+pub mod fetch_result;
 pub mod file_tree;
 pub mod git;
 pub mod git_profile_utils;

@@ -1117,6 +1117,17 @@ impl BagitDesktopWindow {
                                 );
                             }
                         ));
+
+                        dialog.connect_closure("cancel", false, closure_local!(
+                            @watch repository_page =>
+                            move |
+                            dialog: BagitSshActionDialog,
+                            | {
+                                dialog.close();
+                                repository_page.try_to_find_correct_git_button_action();
+                                repository_page.toggle_git_action_button(true);
+                            }
+                        ));
                     }
                 ));
             }),
@@ -1159,6 +1170,17 @@ impl BagitDesktopWindow {
                                 );
                             }
                         ));
+
+                        dialog.connect_closure("cancel", false, closure_local!(
+                            @watch repository_page =>
+                            move |
+                            dialog: BagitSshPassphraseDialog,
+                            | {
+                                dialog.close();
+                                repository_page.try_to_find_correct_git_button_action();
+                                repository_page.toggle_git_action_button(true);
+                            }
+                        ));
                     }
                 ));
             }),
@@ -1196,6 +1218,17 @@ impl BagitDesktopWindow {
                                     String::new(),
                                     action_type
                                 );
+                            }
+                        ));
+
+                        dialog.connect_closure("cancel", false, closure_local!(
+                            @watch repository_page =>
+                            move |
+                            dialog: BagitHttpsActionDialog,
+                            | {
+                                dialog.close();
+                                repository_page.try_to_find_correct_git_button_action();
+                                repository_page.toggle_git_action_button(true);
                             }
                         ));
                     }

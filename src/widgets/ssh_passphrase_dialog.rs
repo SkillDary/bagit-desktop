@@ -61,7 +61,7 @@ mod imp {
                             ],
                         );
                     }
-                    _ => {}
+                    _ => self.obj().emit_by_name::<()>("cancel", &[]),
                 },
                 None => {}
             };
@@ -87,9 +87,12 @@ mod imp {
     impl ObjectImpl for BagitSshPassphraseDialog {
         fn signals() -> &'static [Signal] {
             static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
-                vec![Signal::builder("push-with-passphrase")
-                    .param_types([str::static_type(), str::static_type(), str::static_type()])
-                    .build()]
+                vec![
+                    Signal::builder("push-with-passphrase")
+                        .param_types([str::static_type(), str::static_type(), str::static_type()])
+                        .build(),
+                    Signal::builder("cancel").build(),
+                ]
             });
             SIGNALS.as_ref()
         }

@@ -60,7 +60,7 @@ mod imp {
                             ],
                         );
                     }
-                    _ => {}
+                    _ => self.obj().emit_by_name::<()>("cancel", &[]),
                 },
                 None => {}
             };
@@ -95,6 +95,7 @@ mod imp {
                         .param_types([str::static_type(), str::static_type(), str::static_type()])
                         .build(),
                     Signal::builder("select-location").build(),
+                    Signal::builder("cancel").build(),
                 ]
             });
             SIGNALS.as_ref()

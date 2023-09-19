@@ -19,6 +19,7 @@
                 <property name="homogeneous">true</property>
                 <property name="margin-top">5</property>
                 <property name="margin-bottom">5</property>
+                <!--
                 <child>
                   <object class="GtkButton" id="create_repository_button">
                     <signal name="clicked" handler="create_repository_button_clicked" swapped="true"/>
@@ -32,6 +33,7 @@
                     </style>
                   </object>
                 </child>
+                -->
                 <child>
                   <object class="GtkButton" id="add_existing_repository_button">
                     <signal name="clicked" handler="add_existing_repository_button_clicked" swapped="true"/>

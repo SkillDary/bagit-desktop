@@ -298,6 +298,11 @@ msgstr "File's type has been changed"
 msgid "_Commit changes"
 msgstr "Commit changes"
 
+############# bagit-reposirory-page.ui #############
+
+msgid "_Fetch"
+msgstr "Fetch"
+
 ############# bagit-commit-view.ui ##############
 
 msgid "_No committed file"
@@ -421,3 +426,194 @@ msgstr "Changes will be brought to"
 
 msgid "_Remote branch not found"
 msgstr "Branche distante non trouvée"
+############# git2 errors #############
+
+# Errors codes:
+
+msgid "_ErrorCode_GenericError"
+msgstr "Generic error."
+
+msgid "_ErrorCode_NotFound"
+msgstr "Requested object could not be found."
+
+msgid "_ErrorCode_Exists"
+msgstr "Object exists preventing operation."
+
+msgid "_ErrorCode_Ambiguous"
+msgstr "More than one object matches."
+
+msgid "_ErrorCode_BufSize"
+msgstr "Output buffer too short to hold data."
+
+msgid "_ErrorCode_User"
+msgstr "User-generated error."
+
+msgid "_ErrorCode_BareRepo"
+msgstr "Operation not allowed on bare repository."
+
+msgid "_ErrorCode_UnbornBranch"
+msgstr "HEAD refers to branch with no commits."
+
+msgid "_ErrorCode_Unmerged"
+msgstr "Merge in progress prevented operation."
+
+msgid "_ErrorCode_NotFastForward"
+msgstr "Reference was not fast-forwardable."
+
+msgid "_ErrorCode_InvalidSpec"
+msgstr "Name/ref spec was not in a valid format."
+
+msgid "_ErrorCode_Conflict"
+msgstr "Checkout conflicts prevented operation."
+
+msgid "_ErrorCode_Locked"
+msgstr "Lock file prevented operation."
+
+msgid "_ErrorCode_Modified"
+msgstr "Reference value does not match expected."
+
+msgid "_ErrorCode_Auth"
+msgstr "Authentication error."
+
+msgid "_ErrorCode_Certificate"
+msgstr "Server certificate is invalid."
+
+msgid "_ErrorCode_Applied"
+msgstr "Patch/merge has already been applied."
+
+msgid "_ErrorCode_Peel"
+msgstr "The requested peel operation is not possible."
+
+msgid "_ErrorCode_Eof"
+msgstr "Unexpected end of file."
+
+msgid "_ErrorCode_Invalid"
+msgstr "Invalid operation or input."
+
+msgid "_ErrorCode_Uncommitted"
+msgstr "Uncommitted changes in index prevented operation."
+
+msgid "_ErrorCode_Directory"
+msgstr "Operation was not valid for a directory."
+
+msgid "_ErrorCode_MergeConflict"
+msgstr "A merge conflict exists and cannot continue."
+
+msgid "_ErrorCode_HashsumMismatch"
+msgstr "Hashsum mismatch in object."
+
+msgid "_ErrorCode_IndexDirty"
+msgstr "Unsaved changes in the index would be overwritten."
+
+msgid "_ErrorCode_ApplyFail"
+msgstr "Patch application failed."
+
+msgid "_ErrorCode_Owner"
+msgstr "The object is not owned by the current user."
+
+# Errors class:
+
+msgid "_ErrorClass_None"
+msgstr "Uncategorized."
+
+msgid "_ErrorClass_NoMemory"
+msgstr "Out of memory or insufficient allocated space."
+
+msgid "_ErrorClass_Os"
+msgstr "Syscall or standard system library error."
+
+msgid "_ErrorClass_Invalid"
+msgstr "Invalid input."
+
+msgid "_ErrorClass_Reference"
+msgstr "Error resolving or manipulating a reference."
+
+msgid "_ErrorClass_Zlib"
+msgstr "ZLib failure."
+
+msgid "_ErrorClass_Repository"
+msgstr "Bad repository state."
+
+msgid "_ErrorClass_Config"
+msgstr "Bad configuration."
+
+msgid "_ErrorClass_Regex"
+msgstr "Regex failure."
+
+msgid "_ErrorClass_Odb"
+msgstr "Bad object."
+
+msgid "_ErrorClass_Index"
+msgstr "Invalid index data."
+
+msgid "_ErrorClass_Object"
+msgstr "Error creating or obtaining an object."
+
+msgid "_ErrorClass_Net"
+msgstr "Network error."
+
+msgid "_ErrorClass_Tag"
+msgstr "Error manipulating a tag."
+
+msgid "_ErrorClass_Tree"
+msgstr "Invalid value in tree."
+
+msgid "_ErrorClass_Indexer"
+msgstr "Hashing or packing error."
+
+msgid "_ErrorClass_Ssl"
+msgstr "Error from SSL."
+
+msgid "_ErrorClass_Submodule"
+msgstr "Error involving submodules."
+
+msgid "_ErrorClass_Thread"
+msgstr "Threading error."
+
+msgid "_ErrorClass_Stash"
+msgstr "Error manipulating a stash."
+
+msgid "_ErrorClass_Checkout"
+msgstr "Failed to change branch."
+
+msgid "_ErrorClass_FetchHead"
+msgstr "Invalid FETCH_HEAD."
+
+msgid "_ErrorClass_Merge"
+msgstr "Merge failure."
+
+msgid "_ErrorClass_Ssh"
+msgstr "SSH failure."
+
+msgid "_ErrorClass_Filter"
+msgstr "Error manipulating filters."
+
+msgid "_ErrorClass_Revert"
+msgstr "Error reverting commit."
+
+msgid "_ErrorClass_Callback"
+msgstr "Error from a user callback."
+
+msgid "_ErrorClass_CherryPick"
+msgstr "Error cherry-picking commit."
+
+msgid "_ErrorClass_Describe"
+msgstr "Can't describe object."
+
+msgid "_ErrorClass_Rebase"
+msgstr "Error during rebase."
+
+msgid "_ErrorClass_Filesystem"
+msgstr "Filesystem-related error."
+
+msgid "_ErrorClass_Patch"
+msgstr "Invalid patch data."
+
+msgid "_ErrorClass_Worktree"
+msgstr "Error involving worktrees."
+
+msgid "_ErrorClass_Sha1"
+msgstr "Hash library error or SHA-1 collision."
+
+msgid "_ErrorClass_Http"
+msgstr "HTTP error."

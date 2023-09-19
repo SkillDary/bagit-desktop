@@ -26,5 +26,3 @@ walkdir = "2.3.3"
 package = "libadwaita"
 version = "0.3"
 features = ["v1_3"]
-
-once_cell = "1.18.0"

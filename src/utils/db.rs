@@ -42,10 +42,8 @@ impl Default for AppDatabase {
 }
 
 impl AppDatabase {
-    /**
-     * Used to init the app database.
-     * return a new AppDatabase.
-     */
+    /// Initializes the app database.
+    /// Returns a new AppDatabase.
     pub fn init_database() -> AppDatabase {
         // Location of the project folder depending on the OS.
         let project_dir: ProjectDirs =
@@ -64,7 +62,9 @@ impl AppDatabase {
                 name TEXT, 
                 path TEXT,
                 lastOpening TEXT,
-                gitProfileId TEXT
+                gitProfileId TEXT,
+                last_fetch_commits_to_pull INTEGER,
+                last_fetch_commits_to_push INTEGER
             );
             CREATE TABLE IF NOT EXISTS gitProfile (
                 profileId TEXT PRIMARY KEY,
@@ -78,9 +78,7 @@ impl AppDatabase {
 
         connection.execute(query).unwrap();
 
-        return AppDatabase {
-            connection: connection,
-        };
+        return AppDatabase { connection };
     }
 
     /**

@@ -298,6 +298,11 @@ msgstr "Le type du fichier a été changé"
 msgid "_Commit changes"
 msgstr "Commettre les changements"
 
+############# bagit-reposirory-page.ui #############
+
+msgid "_Fetch"
+msgstr "Récupérer"
+
 ############# bagit-commit-view.ui ##############
 
 msgid "_No committed file"
@@ -421,3 +426,194 @@ msgstr "Les changements seront apportés sur"
 
 msgid "_Remote branch not found"
 msgstr "Branche distante non trouvée"
+############# git2 errors #############
+
+# Errors codes:
+
+msgid "_ErrorCode_GenericError"
+msgstr "Erreur générique."
+
+msgid "_ErrorCode_NotFound"
+msgstr "L'objet demandé n'a pas pu être trouvé."
+
+msgid "_ErrorCode_Exists"
+msgstr "L'objet existe et empêche l'opération."
+
+msgid "_ErrorCode_Ambiguous"
+msgstr "Plusieurs objets correspondent."
+
+msgid "_ErrorCode_BufSize"
+msgstr "Le tampon de sortie est trop court pour contenir les données."
+
+msgid "_ErrorCode_User"
+msgstr "Erreur générée par l'utilisateur."
+
+msgid "_ErrorCode_BareRepo"
+msgstr "Opération non autorisée sur un dépôt vide."
+
+msgid "_ErrorCode_UnbornBranch"
+msgstr "HEAD fait référence à une branche sans commissions."
+
+msgid "_ErrorCode_Unmerged"
+msgstr "L'opération a été empêchée en raison d'une fusion en cours."
+
+msgid "_ErrorCode_NotFastForward"
+msgstr "La référence ne pouvait pas être faite vers l'avant."
+
+msgid "_ErrorCode_InvalidSpec"
+msgstr "Le format du nom/référence n'était pas valide."
+
+msgid "_ErrorCode_Conflict"
+msgstr "Des conflits lors du changement de branche ont empêché l'opération."
+
+msgid "_ErrorCode_Locked"
+msgstr "Le fichier verrou a empêché l'opération."
+
+msgid "_ErrorCode_Modified"
+msgstr "La valeur de référence ne correspond pas à celle attendue."
+
+msgid "_ErrorCode_Auth"
+msgstr "Erreur d'authentification."
+
+msgid "_ErrorCode_Certificate"
+msgstr "Le certificat du serveur n'est pas valide."
+
+msgid "_ErrorCode_Applied"
+msgstr "Le correctif/la fusion a déjà été appliqué."
+
+msgid "_ErrorCode_Peel"
+msgstr "L'opération d'épluchage (peel) demandée n'est pas possible."
+
+msgid "_ErrorCode_Eof"
+msgstr "Fin de fichier inattendue."
+
+msgid "_ErrorCode_Invalid"
+msgstr "Opération ou entrée invalide."
+
+msgid "_ErrorCode_Uncommitted"
+msgstr "Des modifications non commises dans l'index ont empêché l'opération."
+
+msgid "_ErrorCode_Directory"
+msgstr "L'opération n'était pas valide pour un répertoire."
+
+msgid "_ErrorCode_MergeConflict"
+msgstr "Un conflit de fusion existe et ne peut se poursuivre."
+
+msgid "_ErrorCode_HashsumMismatch"
+msgstr "Inadéquation de la somme de hachage dans l'objet"
+
+msgid "_ErrorCode_IndexDirty"
+msgstr "Les modifications non enregistrées dans l'index seraient écrasées."
+
+msgid "_ErrorCode_ApplyFail"
+msgstr "L'application du correctif a échoué."
+
+msgid "_ErrorCode_Owner"
+msgstr "L'objet n'appartient pas à l'utilisateur actuel."
+
+# Errors class:
+
+msgid "_ErrorClass_None"
+msgstr "Non catégorisé."
+
+msgid "_ErrorClass_NoMemory"
+msgstr "La mémoire est saturée ou l'espace alloué est insuffisant."
+
+msgid "_ErrorClass_Os"
+msgstr "Erreur d'appel système ou de bibliothèque système standard."
+
+msgid "_ErrorClass_Invalid"
+msgstr "Entrée non valide."
+
+msgid "_ErrorClass_Reference"
+msgstr "Erreur de résolution ou de manipulation d'une référence."
+
+msgid "_ErrorClass_Zlib"
+msgstr "Échec de ZLib."
+
+msgid "_ErrorClass_Repository"
+msgstr "État du dépôt incorrect."
+
+msgid "_ErrorClass_Config"
+msgstr "Configuration incorrecte."
+
+msgid "_ErrorClass_Regex"
+msgstr "Échec au niveau des expressions régulières."
+
+msgid "_ErrorClass_Odb"
+msgstr "Objet corrompu."
+
+msgid "_ErrorClass_Index"
+msgstr "Données d'index invalides."
+
+msgid "_ErrorClass_Object"
+msgstr "Erreur lors de la création ou de l'obtention d'un objet."
+
+msgid "_ErrorClass_Net"
+msgstr "Erreur réseau."
+
+msgid "_ErrorClass_Tag"
+msgstr "Erreur de manipulation d'un tag."
+
+msgid "_ErrorClass_Tree"
+msgstr "Valeur invalide dans l'arbre."
+
+msgid "_ErrorClass_Indexer"
+msgstr "Erreur de hachage ou d'empaquetage."
+
+msgid "_ErrorClass_Ssl"
+msgstr "Erreur SSL."
+
+msgid "_ErrorClass_Submodule"
+msgstr "Erreur impliquant des sous-modules."
+
+msgid "_ErrorClass_Thread"
+msgstr "Erreur de threading."
+
+msgid "_ErrorClass_Stash"
+msgstr "Erreur lors de la manipulation d'une mise en réserve."
+
+msgid "_ErrorClass_Checkout"
+msgstr "Échec du changement de branche."
+
+msgid "_ErrorClass_FetchHead"
+msgstr "FETCH_HEAD invalide."
+
+msgid "_ErrorClass_Merge"
+msgstr "Échec de fusion."
+
+msgid "_ErrorClass_Ssh"
+msgstr "Échec de SSH."
+
+msgid "_ErrorClass_Filter"
+msgstr "Erreur lors de la manipulation des filtres."
+
+msgid "_ErrorClass_Revert"
+msgstr "Erreur lors de l'annulation d'un commit."
+
+msgid "_ErrorClass_Callback"
+msgstr "Erreur d'un callback utilisateur."
+
+msgid "_ErrorClass_CherryPick"
+msgstr "Erreur lors de la récupération sélective (cherry-pick) d'une commission."
+
+msgid "_ErrorClass_Describe"
+msgstr "Impossible de décrire l'objet."
+
+msgid "_ErrorClass_Rebase"
+msgstr "Erreur lors de la réorganisation (rebase)."
+
+msgid "_ErrorClass_Filesystem"
+msgstr "Erreur liée au système de fichiers."
+
+msgid "_ErrorClass_Patch"
+msgstr "Données de correctif non valides."
+
+msgid "_ErrorClass_Worktree"
+msgstr "Erreur impliquant les espaces de travail (worktrees)."
+
+msgid "_ErrorClass_Sha1"
+msgstr "Erreur de bibliothèque de hachage ou collision SHA-1."
+
+msgid "_ErrorClass_Http"
+msgstr "Erreur HTTP."

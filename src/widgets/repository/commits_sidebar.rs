@@ -36,7 +36,10 @@ use once_cell::sync::Lazy;
 
 extern crate chrono;
 
-use crate::utils::git::load_commit_history;
+use crate::utils::git::{
+    get_first_commit_id_of_checked_out_branch, get_repository_checked_out_branch_name,
+    load_commit_history,
+};
 
 use super::CommitObject;
 use std::collections::HashMap;
@@ -76,7 +79,8 @@ mod imp {
         pub scroll_handler_id: RefCell<Option<SignalHandlerId>>,
 
         pub commit_list: RefCell<Option<gio::ListStore>>,
-        pub current_branch_name: String,
+        pub checked_out_branch_name: RefCell<String>,
+        pub first_commit_oid_of_commit_list: RefCell<String>,
         pub last_commit_oid_of_commit_list: RefCell<String>,
 
         pub changed_files: RefCell<FileTree>,
@@ -166,14 +170,14 @@ mod imp {
                     Signal::builder("row-selected")
                         .param_types([i32::static_type()])
                         .build(),
+                    Signal::builder("update-git-action-button")
+                        .param_types([i32::static_type()])
+                        .build(),
                     Signal::builder("update-changed-files").build(),
                     Signal::builder("see-history").build(),
                     Signal::builder("show-commit-view").build(),
                     Signal::builder("update-file-information-label")
                         .param_types([i32::static_type()])
-                        .build(),
-                    Signal::builder("set-push-button-sensitive")
-                        .param_types([bool::static_type()])
                         .build(),
                     Signal::builder("discard-file")
                         .param_types([str::static_type()])
@@ -346,61 +350,53 @@ impl BagitCommitsSideBar {
         nb_commits_to_load: i32,
         selected_repository_path: String,
     ) {
-        match Repository::open(selected_repository_path) {
-            Ok(repo) => {
-                match repo.head() {
-                    Ok(head) => {
-                        let checked_out_branch: &str = head
-                            .shorthand()
-                            .expect("Could not retrieve name of checked-out branch.");
+        let repository: Repository = Repository::open(selected_repository_path).unwrap();
 
-                        let branch: git2::Branch<'_> = repo
-                            .find_branch(checked_out_branch, git2::BranchType::Local)
-                            .unwrap();
+        let checked_out_branch_name = get_repository_checked_out_branch_name(&repository);
 
-                        let starting_commit_id: String =
-                            self.imp().last_commit_oid_of_commit_list.take();
+        let branch: git2::Branch<'_> = repository
+            .find_branch(&checked_out_branch_name, git2::BranchType::Local)
+            .unwrap();
 
-                        let newly_loaded_commits: Vec<CommitObject> = load_commit_history(
-                            &repo,
-                            branch,
-                            starting_commit_id.to_string(),
-                            nb_commits_to_load,
-                        );
+        let starting_commit_id: String = self.imp().last_commit_oid_of_commit_list.take();
 
-                        // We check if we have local commits to push. If so, we will activate the push button:
-                        self.emit_by_name::<()>(
-                            "set-push-button-sensitive",
-                            &[&newly_loaded_commits
-                                .iter()
-                                .any(|commit| !commit.is_pushed())],
-                        );
+        let newly_loaded_commits: Vec<CommitObject> = load_commit_history(
+            &repository,
+            branch,
+            starting_commit_id.to_string(),
+            nb_commits_to_load,
+        );
 
-                        // If there is no new commit, we don't go any further.
-                        if newly_loaded_commits.is_empty() {
-                            self.imp()
-                                .last_commit_oid_of_commit_list
-                                .replace(starting_commit_id);
+        if self.commits().n_items() == 0 {
+            let commits_to_push: i32 = newly_loaded_commits
+                .iter()
+                .filter(|&commit| !commit.is_pushed())
+                .count()
+                .try_into()
+                .unwrap();
 
-                            return;
-                        }
+            self.emit_by_name::<()>("update-git-action-button", &[&commits_to_push]);
+        }
 
-                        let new_starting_commit_id: String = newly_loaded_commits
-                            .last()
-                            .expect("Could not get last commit.")
-                            .commit_id();
+        // If there is no new commit, we don't go any further.
+        if newly_loaded_commits.is_empty() {
+            self.imp()
+                .last_commit_oid_of_commit_list
+                .replace(starting_commit_id);
 
-                        self.imp()
-                            .last_commit_oid_of_commit_list
-                            .replace(new_starting_commit_id);
+            return;
+        }
 
-                        self.commits().extend(newly_loaded_commits);
-                    }
-                    Err(_) => {}
-                }
-            }
-            Err(_) => {}
-        };
+        let new_starting_commit_id: String = newly_loaded_commits
+            .last()
+            .expect("Could not get last commit.")
+            .commit_id();
+
+        self.imp()
+            .last_commit_oid_of_commit_list
+            .replace(new_starting_commit_id);
+
+        self.commits().extend(newly_loaded_commits);
     }
 
     /// Sets up the callback for the infinite scroll.
@@ -428,11 +424,36 @@ impl BagitCommitsSideBar {
         self.imp().scroll_handler_id.replace(Some(new_handler_id));
     }
 
-    /// Initialize the commit list.
-    pub fn init_commit_list(&self, selected_repository_path: String) {
+    /// Sets up the first and last commit, used for keeping track of the commit list and to
+    /// update it.
+    fn setup_first_and_last_commit(&self, selected_repository_path: String) {
         self.imp()
             .last_commit_oid_of_commit_list
             .replace("".to_string());
+
+        let repository: Repository = Repository::open(&selected_repository_path).unwrap();
+
+        let checked_out_branch_name = get_repository_checked_out_branch_name(&repository);
+
+        self.imp()
+            .checked_out_branch_name
+            .replace(checked_out_branch_name);
+
+        let first_commit_id = get_first_commit_id_of_checked_out_branch(&repository);
+
+        match first_commit_id {
+            Some(id) => {
+                self.imp()
+                    .first_commit_oid_of_commit_list
+                    .replace(id.to_string());
+            }
+            None => {}
+        }
+    }
+
+    /// Initialize the commit list.
+    pub fn init_commit_list(&self, selected_repository_path: String) {
+        self.setup_first_and_last_commit(selected_repository_path.clone());
 
         self.setup_commit_list();
 
@@ -443,19 +464,66 @@ impl BagitCommitsSideBar {
         self.setup_infinite_scroll(selected_repository_path);
     }
 
+    /// Checks whether the internal checked out branch matches the actual
+    /// checked out branch.
+    ///
+    /// This is necessary in case the user changes branch elsewhere (e.g. in the shell).
+    fn is_checked_out_branch_right(&self, repository: &Repository) -> bool {
+        let checked_out_branch = get_repository_checked_out_branch_name(repository);
+
+        let checked_out_branch_name = self.imp().checked_out_branch_name.take();
+
+        self.imp()
+            .checked_out_branch_name
+            .replace(checked_out_branch_name.clone());
+
+        if checked_out_branch != checked_out_branch_name {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// Checks whether the commit list is up-to-date.
+    ///
+    /// This is necessary in case the user commits from elsewhere (e.g. in the shell).
+    fn is_commit_list_up_to_date(&self, repository: &Repository) -> bool {
+        let first_commit_oid_of_commit_list = self.imp().first_commit_oid_of_commit_list.take();
+
+        self.imp()
+            .first_commit_oid_of_commit_list
+            .replace(first_commit_oid_of_commit_list.clone());
+
+        let first_commit_id = get_first_commit_id_of_checked_out_branch(repository);
+
+        match first_commit_id {
+            Some(id) => {
+                if id.to_string() != first_commit_oid_of_commit_list {
+                    return false;
+                }
+            }
+            None => {}
+        }
+
+        return true;
+    }
+
     /// Refreshes the commit list if needed.
     ///
-    /// E.g. user changed branch from somewhere else.
+    /// E.g. user changed branch or committed from somewhere else.
     pub fn refresh_commit_list_if_needed(&self, selected_repository_path: String) {
         match Repository::open(&selected_repository_path) {
-            Ok(repo) => match RepositoryUtils::get_current_branch_name(&repo) {
-                Ok(checked_out_branch) => {
-                    if checked_out_branch != self.imp().current_branch_name {
-                        self.init_commit_list(selected_repository_path);
-                    }
+            Ok(repository) => {
+                if !self.is_checked_out_branch_right(&repository) {
+                    self.init_commit_list(selected_repository_path.clone());
+                    return;
                 }
-                Err(_) => return,
-            },
+
+                if !self.is_commit_list_up_to_date(&repository) {
+                    self.init_commit_list(selected_repository_path.clone());
+                    return;
+                }
+            }
             Err(_) => return,
         };
     }
