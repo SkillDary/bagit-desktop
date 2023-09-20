@@ -289,7 +289,12 @@ impl BagitBranchesDialog {
 
         match Repository::open(string_path) {
             Ok(repo) => {
-                if let Ok(statuses) = repo.statuses(None) {
+                let mut binding = git2::StatusOptions::new();
+                let statuses_options = binding.include_ignored(false);
+                if let Ok(statuses) = repo.statuses(Some(statuses_options)) {
+                    for i in 0..statuses.len() {
+                        println!("Statuses : {}", statuses.get(i).unwrap().path().unwrap());
+                    }
                     return !statuses.is_empty();
                 }
             }
