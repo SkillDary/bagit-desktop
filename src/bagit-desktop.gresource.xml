@@ -7,6 +7,8 @@
     <file alias="branch-symbolic.svg">assets/icons/branch-symbolic.svg</file>
     <file alias="arrow3-up-symbolic.svg">assets/icons/arrow3-up-symbolic.svg</file>
     <file alias="arrow3-down-symbolic.svg">assets/icons/arrow3-down-symbolic.svg</file>
+    <file alias="panel-left-symbolic.svg">assets/icons/panel-left-symbolic.svg</file>
+    <file alias="panel-modified-symbolic.svg">assets/icons/panel-modified-symbolic.svg</file>
   </gresource>
   <gresource prefix="/com/skilldary/bagit/desktop">
     <file preprocess="xml-stripblanks">ui/window.ui</file>
