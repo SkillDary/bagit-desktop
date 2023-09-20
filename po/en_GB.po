@@ -116,6 +116,7 @@ msgstr "automatically deleted repositories"
 
 msgid "_Repository doesn't exist anymore"
 msgstr "This repository doesn't exist anymore on your device"
+
 msgid "_Discard file dialog"
 msgstr "Discard file?"
 

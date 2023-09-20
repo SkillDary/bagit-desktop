@@ -116,6 +116,7 @@ msgstr "dépôts supprimés automatiquement"
 
 msgid "_Repository doesn't exist anymore"
 msgstr "Le dépôt n'existe plus sur votre machine"
+
 msgid "_Discard file dialog"
 msgstr "Annuler les changements du fichier ?"
 

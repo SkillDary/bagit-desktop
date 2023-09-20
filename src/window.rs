@@ -204,10 +204,16 @@ impl BagitDesktopWindow {
                                 Ok(selected_repository) => {
                                     win.imp().repository_page.init_repository_page(selected_repository);
                                     win.imp().stack.set_visible_child_name("repository page");
+                                    return;
                                 }
-                                Err(_) => {}
+                                Err(_) => {
+                                    let toast = adw::Toast::new(&gettext("_Repository doesn't exist anymore"));
+                                    win.imp().toast_overlay.add_toast(toast);
+                                }
                             }
                         }
+                        win.imp().repositories_window.imp().recent_repositories.unselect_all();
+                        win.imp().repositories_window.imp().all_repositories.unselect_all();
                     }
                 }
             ),
@@ -315,6 +321,11 @@ impl BagitDesktopWindow {
     /// Used to initialize the repositories.
     fn init_all_repositories(&self) {
         let all_repositories: Vec<BagitRepository> = self.imp().app_database.get_all_repositories();
+
+        if all_repositories.is_empty() {
+            self.imp().repositories_window.set_visible(false);
+            self.imp().status_page.set_visible(true);
+        }
 
         for repository in all_repositories {
             self.add_list_row_to_all_repositories(&repository);
