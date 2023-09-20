@@ -237,21 +237,26 @@ pub fn load_commit_history(
 }
 
 /// Gets repository checked out branch.
-pub fn get_repository_checked_out_branch(repository: &Repository) -> Reference<'_> {
-    let head = repository.head().expect("Could not retrieve HEAD.");
-
-    return head;
+pub fn get_repository_checked_out_branch(repository: &Repository) -> Result<Reference<'_>, Error> {
+    repository.head()
 }
 
 /// Gets repository checked out branch name.
-pub fn get_repository_checked_out_branch_name(repository: &Repository) -> String {
-    let head = repository.head().expect("Could not retrieve HEAD.");
+pub fn get_repository_checked_out_branch_name(repository: &Repository) -> Result<String, Error> {
+    let head = repository.head()?;
 
-    let checked_out_branch: &str = head
-        .shorthand()
-        .expect("Could not retrieve name of checked-out branch.");
+    let checked_out_branch: &str = match head.shorthand() {
+        Some(it) => it,
+        None => {
+            return Err(git2::Error::new(
+                git2::ErrorCode::GenericError,
+                git2::ErrorClass::Reference,
+                "Could not get the full shorthand of reference.",
+            ))
+        }
+    };
 
-    return checked_out_branch.to_string();
+    return Ok(checked_out_branch.to_string());
 }
 
 /// Fetches the checked out branch.
@@ -262,15 +267,20 @@ pub fn fetch_checked_out_branch(
     private_key_path: String,
     passphrase: String,
 ) -> Result<FetchResult, git2::Error> {
-    let head = repository.head().expect("Could not retrieve HEAD.");
+    let head = repository.head()?;
 
-    let checked_out_branch = head
-        .shorthand()
-        .expect("Could not retrieve name of checked-out branch.");
+    let checked_out_branch: &str = match head.shorthand() {
+        Some(it) => it,
+        None => {
+            return Err(git2::Error::new(
+                git2::ErrorCode::GenericError,
+                git2::ErrorClass::Reference,
+                "Could not get the full shorthand of reference.",
+            ))
+        }
+    };
 
-    let branch = repository
-        .find_branch(checked_out_branch, git2::BranchType::Local)
-        .unwrap();
+    let branch = repository.find_branch(checked_out_branch, git2::BranchType::Local)?;
 
     let callback: RemoteCallbacks<'_>;
 
@@ -310,7 +320,12 @@ pub fn fetch_checked_out_branch(
 
 /// Gets first commit of checked out branch.
 pub fn get_first_commit_id_of_checked_out_branch(repository: &Repository) -> Option<git2::Oid> {
-    let checked_out_branch = get_repository_checked_out_branch(&repository);
+    let checked_out_branch;
+
+    match get_repository_checked_out_branch(&repository) {
+        Ok(repository_checked_out_branch) => checked_out_branch = repository_checked_out_branch,
+        Err(_) => return None,
+    }
 
     let branch_commit: git2::AnnotatedCommit<'_> = repository
         .reference_to_annotated_commit(&checked_out_branch)

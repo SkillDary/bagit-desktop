@@ -352,7 +352,21 @@ impl BagitCommitsSideBar {
     ) {
         let repository: Repository = Repository::open(selected_repository_path).unwrap();
 
-        let checked_out_branch_name = get_repository_checked_out_branch_name(&repository);
+        let checked_out_branch_name;
+
+        match get_repository_checked_out_branch_name(&repository) {
+            Ok(repository_checked_out_branch_name) => {
+                checked_out_branch_name = repository_checked_out_branch_name
+            }
+            Err(error) => {
+                tracing::warn!(
+                    "Could not get the name of the checked out branch: {}",
+                    error
+                );
+
+                return;
+            }
+        }
 
         let branch: git2::Branch<'_> = repository
             .find_branch(&checked_out_branch_name, git2::BranchType::Local)
@@ -433,7 +447,21 @@ impl BagitCommitsSideBar {
 
         let repository: Repository = Repository::open(&selected_repository_path).unwrap();
 
-        let checked_out_branch_name = get_repository_checked_out_branch_name(&repository);
+        let checked_out_branch_name;
+
+        match get_repository_checked_out_branch_name(&repository) {
+            Ok(repository_checked_out_branch_name) => {
+                checked_out_branch_name = repository_checked_out_branch_name
+            }
+            Err(error) => {
+                tracing::warn!(
+                    "Could not get the name of the checked out branch: {}",
+                    error
+                );
+
+                return;
+            }
+        }
 
         self.imp()
             .checked_out_branch_name
@@ -469,7 +497,21 @@ impl BagitCommitsSideBar {
     ///
     /// This is necessary in case the user changes branch elsewhere (e.g. in the shell).
     fn is_checked_out_branch_right(&self, repository: &Repository) -> bool {
-        let checked_out_branch = get_repository_checked_out_branch_name(repository);
+        let checked_out_branch;
+
+        match get_repository_checked_out_branch_name(&repository) {
+            Ok(repository_checked_out_branch_name) => {
+                checked_out_branch = repository_checked_out_branch_name
+            }
+            Err(error) => {
+                tracing::warn!(
+                    "Could not get the name of the checked out branch: {}",
+                    error
+                );
+
+                return false;
+            }
+        }
 
         let checked_out_branch_name = self.imp().checked_out_branch_name.take();
 
