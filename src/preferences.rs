@@ -146,7 +146,19 @@ impl BagitPreferences {
                 _identities: BagitPreferencesGitProfiles
                 | {
                     // We verify if the user has not already a profile in creation :
-                    let all_profiles = win.imp().app_database.get_all_git_profiles();
+                    let all_profiles;
+
+                    match win.imp().app_database.get_all_git_profiles() {
+                        Ok(profiles) => all_profiles = profiles,
+                        Err(error) => {
+                            // TODO: Show error (maybe with a toast).
+
+                            tracing::warn!("Could not get all Git profiles: {}", error);
+
+                            return;
+                        },
+                    }
+
                     if win.imp().identities.imp().git_profiles.row_at_index(all_profiles.len().try_into().unwrap()) == None {
                         if win.imp().identities.imp().status_page.is_visible() {
                             win.imp().identities.imp().status_page.set_visible(false);
@@ -177,11 +189,20 @@ impl BagitPreferences {
                 profile_title: &gtk::Label,
                 profile_row: &adw::EntryRow
                 | {
-                    // We make sure that the profile name is unique :
-                    let same_profile_name_number = win.imp().app_database.get_number_of_git_profiles_with_name(
-                        &profile_name,
-                        &profile_id
-                    );
+                    // We make sure that the profile name is unique:
+                    let same_profile_name_number;
+
+                    match win.imp().app_database.get_number_of_git_profiles_with_name(&profile_name, &profile_id.to_string()) {
+                        Ok(number) => same_profile_name_number = number,
+                        Err(error) => {
+                            // TODO: Show error (maybe with a toast).
+
+                            tracing::warn!("Could not get number of git profiles with name: {}", error);
+
+                            return;
+                        },
+                    }
+
                     let final_profil_name : String =  if same_profile_name_number != 0 {
                         let new_name = format!("{} ({})", profile_name, same_profile_name_number);
                         profile_title.set_text(&new_name);
@@ -191,7 +212,21 @@ impl BagitPreferences {
                         profile_name.to_string()
                     };
 
-                    if win.imp().app_database.does_git_profile_exist(profile_id) {
+                    let does_git_profile_exist;
+
+                    match win.imp().app_database.does_git_profile_exist(profile_id) {
+                        Ok(boolean) => does_git_profile_exist = boolean,
+                        Err(error) => {
+                            // TODO: Show error (maybe with a toast).
+                            tracing::warn!("Could not checks if Git profile already exist: {}", error);
+
+                            return;
+                        },
+                    }
+
+                    if does_git_profile_exist {
+                        // TODO: Manage error.
+
                         win.imp().app_database.update_git_profile(
                             &BagitGitProfile::new(
                                 Uuid::parse_str(profile_id).unwrap(),
@@ -202,8 +237,12 @@ impl BagitPreferences {
                                 private_key_path.to_string(),
                                 signing_key.to_string()
                             )
-                        )
+                        );
+
+                        ()
                     } else {
+                        // TODO: Manage error.
+
                         win.imp().app_database.add_git_profile(
                             &BagitGitProfile::new(
                                 Uuid::parse_str(profile_id).unwrap(),
@@ -214,7 +253,9 @@ impl BagitPreferences {
                                 private_key_path.to_string(),
                                 signing_key.to_string()
                             )
-                        )
+                        );
+
+                        ()
                     }
                 }
             ),
@@ -234,7 +275,9 @@ impl BagitPreferences {
                 signing_key: &str,
                 revealer: &gtk::Revealer
                 | {
-                    revealer.set_reveal_child(!win.imp().app_database.does_git_profile_exist_from_information(
+                    let does_git_profile_exist;
+
+                    match win.imp().app_database.does_git_profile_exist_from_information(
                         profile_id,
                         profile_name,
                         email,
@@ -242,7 +285,17 @@ impl BagitPreferences {
                         password,
                         private_key_path,
                         signing_key
-                    ) && profile_name != "" && username != "" && email != "");
+                    ) {
+                        Ok(boolean) => does_git_profile_exist = boolean,
+                        Err(error) => {
+                            // TODO: Show error (maybe with a toast).
+                            tracing::warn!("Could not checks if Git profile already exist with information: {}", error);
+
+                            return;
+                        },
+                    }
+
+                    revealer.set_reveal_child(!does_git_profile_exist && profile_name != "" && username != "" && email != "");
                 }
             ),
         );
@@ -267,6 +320,8 @@ impl BagitPreferences {
                         delete_dialog.connect_response(None, move |_dialog, response| {
                             if response == &gettext("_Delete") {
                                 win2.imp().identities.delete_git_profile(&expander_row);
+
+                                // TODO: Manage error.
                                 win2.imp().app_database.delete_git_profile(&profile_id_clone);
                             }
                         });
@@ -308,10 +363,19 @@ impl BagitPreferences {
                 profile_name: &str,
                 profile_id: &str
                 | {
-                    let same_profile_name_number = win.imp().app_database.get_number_of_git_profiles_with_name(
-                        &profile_name,
-                        &profile_id
-                    );
+                    let same_profile_name_number;
+
+                    match win.imp().app_database.get_number_of_git_profiles_with_name(&profile_name, &profile_id.to_string()) {
+                        Ok(number) => same_profile_name_number = number,
+                        Err(error) => {
+                            // TODO: Show error (maybe with a toast).
+
+                            tracing::warn!("Could not get number of git profiles with name: {}", error);
+
+                            return;
+                        },
+                    }
+
                     image.set_visible(same_profile_name_number != 0);
             }),
         );
@@ -321,7 +385,18 @@ impl BagitPreferences {
      * Used for fetching all git profiles and update view.
      */
     pub fn fetch_git_profiles(&self) {
-        let git_profiles = self.imp().app_database.get_all_git_profiles();
+        let git_profiles;
+
+        match self.imp().app_database.get_all_git_profiles() {
+            Ok(profiles) => git_profiles = profiles,
+            Err(error) => {
+                // TODO: Show error (maybe with a toast).
+
+                tracing::warn!("Could not get all Git profiles: {}", error);
+
+                return;
+            }
+        }
 
         for profile in git_profiles {
             self.imp().identities.imp().status_page.set_visible(false);

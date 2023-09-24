@@ -254,7 +254,19 @@ impl BagitCommitView {
         self.clear_profiles_list(false);
         self.update_commit_view(0);
 
-        let all_profiles = self.imp().app_database.get_all_git_profiles();
+        let all_profiles;
+
+        match self.imp().app_database.get_all_git_profiles() {
+            Ok(profiles) => all_profiles = profiles,
+            Err(error) => {
+                // TODO: Show error (maybe with a toast).
+
+                tracing::warn!("Could not get all Git profiles: {}", error);
+
+                return;
+            }
+        }
+
         for profile in all_profiles {
             self.add_git_profile_row(&profile);
         }
@@ -365,7 +377,19 @@ impl BagitCommitView {
      */
     pub fn update_git_profiles_list(&self) {
         let profile_mode = self.imp().profile_mode.take();
-        let new_list = self.imp().app_database.get_all_git_profiles();
+
+        let new_list;
+
+        match self.imp().app_database.get_all_git_profiles() {
+            Ok(profiles) => new_list = profiles,
+            Err(error) => {
+                // TODO: Show error (maybe with a toast).
+
+                tracing::warn!("Could not get all Git profiles: {}", error);
+
+                return;
+            }
+        }
 
         self.clear_profiles_list(false);
 

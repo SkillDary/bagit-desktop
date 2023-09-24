@@ -350,7 +350,19 @@ impl BagitRepositoryPage {
                 commit_view: BagitCommitView,
                 profile_name: &str
                 | {
-                    let selected_profile = win.imp().app_database.get_git_profile_from_name(profile_name);
+                    let selected_profile;
+
+                    match win.imp().app_database.get_git_profile_from_name(profile_name) {
+                        Ok(profile) => selected_profile = profile,
+                        Err(error) => {
+                            // TODO: Show error (maybe with a toast).
+
+                            tracing::warn!("Could not get Git profile from name: {}", error);
+
+                            return;
+                        },
+                    }
+
                     if selected_profile.is_some() {
                         let profile = selected_profile.unwrap();
                         let _ = match &win.imp().selected_repository.borrow().git_repository {
@@ -358,7 +370,9 @@ impl BagitRepositoryPage {
                             None => Ok({}),
                         };
                         commit_view.set_and_show_selected_profile(profile.clone());
+
                         //...and we specify the new default profile used with the openned repository:
+                        // TODO: Manage error.
                         win.imp().app_database.change_git_profile_of_repository(
                             win.imp().selected_repository.borrow().user_repository.repository_id,
                             Some(profile.profile_id)
@@ -376,6 +390,7 @@ impl BagitRepositoryPage {
             closure_local!(@watch self as win => move |
                 commit_view: BagitCommitView
                 | {
+                    // TODO: Manage error.
                     win.imp().app_database.change_git_profile_of_repository(
                         win.imp().selected_repository.borrow().user_repository.repository_id,
                         None
@@ -487,10 +502,23 @@ impl BagitRepositoryPage {
             .set_label(&repository.user_repository.name);
 
         if repository.user_repository.git_profile_id.is_some() {
-            let selected_profile = self
+            let selected_profile;
+
+            match self
                 .imp()
                 .app_database
-                .get_git_profile_from_id(repository.user_repository.git_profile_id.unwrap());
+                .get_git_profile_from_id(repository.user_repository.git_profile_id.unwrap())
+            {
+                Ok(profile) => selected_profile = profile,
+                Err(error) => {
+                    // TODO: Show error (maybe with a toast).
+
+                    tracing::warn!("Could not get Git profile from ID: {}", error);
+
+                    return;
+                }
+            }
+
             match selected_profile {
                 Some(profile) => {
                     self.imp()
@@ -712,11 +740,24 @@ impl BagitRepositoryPage {
             if need_to_save_profile {
                 let new_profile_id = Uuid::new_v4();
 
-                // We make sure that the profile name is unique :
-                let same_profile_name_number = self
+                // We make sure that the profile name is unique:
+                let same_profile_name_number;
+
+                match self
                     .imp()
                     .app_database
-                    .get_number_of_git_profiles_with_name(&author, &new_profile_id.to_string());
+                    .get_number_of_git_profiles_with_name(&author, &new_profile_id.to_string())
+                {
+                    Ok(number) => same_profile_name_number = number,
+                    Err(error) => {
+                        // TODO: Show error (maybe with a toast).
+
+                        tracing::warn!("Could not get number of git profiles with name: {}", error);
+
+                        return;
+                    }
+                }
+
                 let final_profil_name: String = if same_profile_name_number != 0 {
                     let new_name = format!("{} ({})", author, same_profile_name_number);
                     new_name
@@ -736,6 +777,7 @@ impl BagitRepositoryPage {
                 self.imp().app_database.add_git_profile(&new_profile);
 
                 // We set the new profile to the repository:
+                // TODO: Manage error.
                 self.imp().app_database.change_git_profile_of_repository(
                     borrowed_repo.user_repository.repository_id,
                     Some(new_profile_id),

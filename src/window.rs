@@ -141,12 +141,42 @@ mod imp {
                             win.repository_page.imp().commit_view.update_git_profiles_list();
                             win.repository_page.update_branch_name();
                         },
-                        "create repository page" => win.create_repository_page.update_git_profiles_list(
-                            &win.app_database.get_all_git_profiles()
-                        ),
-                        "clone page" => win.clone_repository_page.update_git_profiles_list(
-                            &win.app_database.get_all_git_profiles()
-                        ),
+                        "create repository page" => {
+                            let git_profiles;
+
+                            match win.app_database.get_all_git_profiles() {
+                                Ok(profiles) => git_profiles = profiles,
+                                Err(error) => {
+                                    // TODO: Show error (maybe with a toast).
+
+                                    tracing::warn!("Could not get all Git profiles: {}", error);
+
+                                    return;
+                                },
+                            }
+
+                            win.create_repository_page.update_git_profiles_list(
+                                &git_profiles
+                            )
+                        },
+                        "clone page" => {
+                            let git_profiles;
+
+                            match win.app_database.get_all_git_profiles() {
+                                Ok(profiles) => git_profiles = profiles,
+                                Err(error) => {
+                                    // TODO: Show error (maybe with a toast).
+
+                                    tracing::warn!("Could not get all Git profiles: {}", error);
+
+                                    return;
+                                },
+                            }
+
+                            win.clone_repository_page.update_git_profiles_list(
+                                &git_profiles
+                            )
+                        },
                         _ => {}
                     }
             }));
@@ -195,7 +225,17 @@ impl BagitDesktopWindow {
                     // If we aren't in the selection mode, we go to the selected repository:
                     if !win.imp().selection_button.is_active() {
                         // We update the selected repository:
-                        let found_repository = win.imp().app_database.get_repository_from_path(&path);
+                        let found_repository;
+
+                        match win.imp().app_database.get_repository_from_path(&path) {
+                            Ok(repo) => found_repository = repo,
+                            Err(error) => {
+                                // TODO: Show error (maybe with a toast).
+                                tracing::warn!("Could not get repository from path: {}", error);
+
+                                return;
+                            }
+                        }
 
                         if found_repository.is_some() {
                             let repo = found_repository.unwrap();
@@ -320,7 +360,18 @@ impl BagitDesktopWindow {
 
     /// Used to initialize the repositories.
     fn init_all_repositories(&self) {
-        let all_repositories: Vec<BagitRepository> = self.imp().app_database.get_all_repositories();
+        let all_repositories;
+
+        match self.imp().app_database.get_all_repositories() {
+            Ok(repositories) => all_repositories = repositories,
+            Err(error) => {
+                // TODO: Show error (maybe with a toast).
+
+                tracing::warn!("Could not get all repositories: {}", error);
+
+                return;
+            }
+        }
 
         if all_repositories.is_empty() {
             self.imp().repositories_window.set_visible(false);
@@ -334,8 +385,18 @@ impl BagitDesktopWindow {
 
     /// Used to initialize the repositories.
     fn update_recent_repositories(&self) {
-        let recent_repositories: Vec<BagitRepository> =
-            self.imp().app_database.get_recent_repositories();
+        let recent_repositories;
+
+        match self.imp().app_database.get_recent_repositories() {
+            Ok(repositories) => recent_repositories = repositories,
+            Err(error) => {
+                // TODO: Show error (maybe with a toast).
+
+                tracing::warn!("Could not get recent repositories: {}", error);
+
+                return;
+            }
+        }
 
         self.imp()
             .repositories_window
@@ -348,10 +409,22 @@ impl BagitDesktopWindow {
 
     /// Used to initialize the repositories.
     fn find_repositories_with_search(&self, search: &str) {
-        let found_repositories: Vec<BagitRepository> = self
+        let found_repositories;
+
+        match self
             .imp()
             .app_database
-            .get_all_repositories_with_search(search);
+            .get_all_repositories_with_search(search)
+        {
+            Ok(repositories) => found_repositories = repositories,
+            Err(error) => {
+                // TODO: Show error (maybe with a toast).
+
+                tracing::warn!("Could not get repositories with search: {}", error);
+
+                return;
+            }
+        }
 
         for repository in found_repositories {
             self.add_list_row_to_all_repositories(&repository);
@@ -378,8 +451,20 @@ impl BagitDesktopWindow {
                         let folder_path = folder.path().unwrap_or(PathBuf::new());
                         let folder_path_str = folder_path.to_str().unwrap();
 
-                        // We must check if the selected repository isn't already in the application:
+                        let repository;
+
                         match win2.imp().app_database.get_repository_from_path(&folder_path_str) {
+                            Ok(repo) => repository = repo,
+                            Err(error) => {
+                                // TODO: Show error (maybe with a toast).
+                                tracing::warn!("Could not get repository from path: {}", error);
+
+                                return;
+                            }
+                        }
+
+                        // We must check if the selected repository isn't already in the application:
+                        match repository {
                             Some(_) => {
                                 let toast = adw::Toast::new(&gettext("_Repo already present"));
                                 win2.imp().toast_overlay.add_toast(toast);
@@ -400,9 +485,12 @@ impl BagitDesktopWindow {
                                 win2.add_list_row_to_all_repositories(
                                     &new_bagit_repository
                                 );
+
+                                // TODO: Manage error.
                                 win2.imp().app_database.add_repository(
                                     &new_bagit_repository
                                 );
+
                                 win2.update_recent_repositories();
                             }
                             Err(_) => {
@@ -427,7 +515,19 @@ impl BagitDesktopWindow {
             closure_local!(@watch self as win => move |_action_bar_content: BagitActionBar| {
                 win.imp().create_repository_page.clear_page();
 
-                let git_profiles: Vec<BagitGitProfile> = win.imp().app_database.get_all_git_profiles();
+                let git_profiles;
+
+                match win.imp().app_database.get_all_git_profiles() {
+                    Ok(profiles) => git_profiles = profiles,
+                    Err(error) => {
+                        // TODO: Show error (maybe with a toast).
+
+                        tracing::warn!("Could not get all Git profiles: {}", error);
+
+                        return;
+                    },
+                }
+
                 for profile in git_profiles {
                     win.imp().create_repository_page.add_git_profile_row(&profile);
                 }
@@ -570,10 +670,18 @@ impl BagitDesktopWindow {
                     let profile_id = Uuid::new_v4();
 
                     // We make sure that the profile name is unique:
-                    let same_profile_name_number = win.imp().app_database.get_number_of_git_profiles_with_name(
-                        &profile_name,
-                        &profile_id.to_string()
-                    );
+                    let same_profile_name_number;
+
+                    match win.imp().app_database.get_number_of_git_profiles_with_name(&profile_name, &profile_id.to_string()) {
+                        Ok(number) => same_profile_name_number = number,
+                        Err(error) => {
+                            // TODO: Show error (maybe with a toast).
+
+                            tracing::warn!("Could not get number of git profiles with name: {}", error);
+
+                            return;
+                        },
+                    }
 
                     let final_profil_name : String =  if same_profile_name_number != 0 {
                         let new_name = format!("{} ({})", profile_name, same_profile_name_number);
@@ -610,8 +718,21 @@ impl BagitDesktopWindow {
             closure_local!(@watch self as win => move |_action_bar_content: BagitActionBar| {
                 // We must make sure entry fields are blank when going to the clone page :
                 win.imp().clone_repository_page.clear_page();
+
                 // We update the list of git profiles in the page :
-                let git_profiles: Vec<BagitGitProfile> = win.imp().app_database.get_all_git_profiles();
+                let git_profiles;
+
+                match win.imp().app_database.get_all_git_profiles() {
+                    Ok(profiles) => git_profiles = profiles,
+                    Err(error) => {
+                        // TODO: Show error (maybe with a toast).
+
+                        tracing::warn!("Could not get all Git profiles: {}", error);
+
+                        return;
+                    },
+                }
+
                 for profile in git_profiles {
                     win.imp().clone_repository_page.add_git_profile_row(&profile);
                 }
@@ -626,6 +747,7 @@ impl BagitDesktopWindow {
                 let total_deleted = selected_repositories.len();
 
                 for repository_id in selected_repositories {
+                    // TODO: Manage error.
                     win.imp().app_database.delete_repository(&repository_id.to_string());
                 }
 
@@ -856,10 +978,19 @@ impl BagitDesktopWindow {
                     let profile_id = Uuid::new_v4();
 
                     // We make sure that the profile name is unique :
-                    let same_profile_name_number = win.imp().app_database.get_number_of_git_profiles_with_name(
-                        &profile_name,
-                        &profile_id.to_string()
-                    );
+                    let same_profile_name_number;
+
+                    match win.imp().app_database.get_number_of_git_profiles_with_name(&profile_name, &profile_id.to_string()) {
+                        Ok(number) => same_profile_name_number = number,
+                        Err(error) => {
+                            // TODO: Show error (maybe with a toast).
+
+                            tracing::warn!("Could not get number of git profiles with name: {}", error);
+
+                            return;
+                        },
+                    }
+
                     let final_profil_name : String =  if same_profile_name_number != 0 {
                         let new_name = format!("{} ({})", profile_name, same_profile_name_number);
                         new_name
@@ -1359,6 +1490,7 @@ impl BagitDesktopWindow {
 
         new_repository.git_profile_id = profile_id;
 
+        // TODO: Manage error.
         self.imp().app_database.add_repository(&new_repository);
         self.update_recent_repositories();
         self.imp().stack.set_visible_child_name("main page");

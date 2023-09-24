@@ -141,11 +141,22 @@ mod imp {
             self.clone_button_and_profile
                 .set_sensitive(self.obj().can_clone_button_with_new_profile_be_sensitive());
 
-            // We check if the name of the profile is unique :
-            let same_profile_name_number = self.app_database.get_number_of_git_profiles_with_name(
+            // We check if the name of the profile is unique:
+            let same_profile_name_number;
+
+            match self.app_database.get_number_of_git_profiles_with_name(
                 &profile_name_row.text().trim(),
                 &Uuid::new_v4().to_string(),
-            );
+            ) {
+                Ok(number) => same_profile_name_number = number,
+                Err(error) => {
+                    // TODO: Show error (maybe with a toast).
+
+                    tracing::warn!("Could not get number of git profiles with name: {}", error);
+
+                    return;
+                }
+            }
 
             self.profile_name_warning
                 .clone()
@@ -397,10 +408,24 @@ impl BagitCloneRepositoryPage {
                 self.imp()
                     .button_stack
                     .set_visible_child_name("simple clone");
-                let found_profile = self
+
+                let found_profile;
+
+                match self
                     .imp()
                     .app_database
-                    .get_git_profile_from_name(&profile_title);
+                    .get_git_profile_from_name(&profile_title)
+                {
+                    Ok(profile) => found_profile = profile,
+                    Err(error) => {
+                        // TODO: Show error (maybe with a toast).
+
+                        tracing::warn!("Could not get Git profile from name: {}", error);
+
+                        return;
+                    }
+                }
+
                 match found_profile {
                     Some(profile) => {
                         self.show_selected_profile(&profile.profile_name);
