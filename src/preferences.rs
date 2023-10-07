@@ -225,9 +225,7 @@ impl BagitPreferences {
                     }
 
                     if does_git_profile_exist {
-                        // TODO: Manage error.
-
-                        win.imp().app_database.update_git_profile(
+                        if let Err(error) = win.imp().app_database.update_git_profile(
                             &BagitGitProfile::new(
                                 Uuid::parse_str(profile_id).unwrap(),
                                 final_profil_name,
@@ -237,13 +235,14 @@ impl BagitPreferences {
                                 private_key_path.to_string(),
                                 signing_key.to_string()
                             )
-                        );
+                        ) {
+                            tracing::warn!("Could not update Git profile: {}", error);
 
-                        ()
+                            let toast = adw::Toast::new(&gettext("_Could not update Git profile"));
+                            win.imp().toast_overlay.add_toast(toast);
+                        }
                     } else {
-                        // TODO: Manage error.
-
-                        win.imp().app_database.add_git_profile(
+                        if let Err(error) = win.imp().app_database.add_git_profile(
                             &BagitGitProfile::new(
                                 Uuid::parse_str(profile_id).unwrap(),
                                 final_profil_name,
@@ -253,7 +252,12 @@ impl BagitPreferences {
                                 private_key_path.to_string(),
                                 signing_key.to_string()
                             )
-                        );
+                        ) {
+                            tracing::warn!("Could not add Git profile: {}", error);
+
+                            let toast = adw::Toast::new(&gettext("_Could not add Git profile"));
+                            win.imp().toast_overlay.add_toast(toast);
+                        }
 
                         ()
                     }
@@ -319,10 +323,15 @@ impl BagitPreferences {
                         delete_dialog.present();
                         delete_dialog.connect_response(None, move |_dialog, response| {
                             if response == &gettext("_Delete") {
-                                win2.imp().identities.delete_git_profile(&expander_row);
+                                match win2.imp().app_database.delete_git_profile(&profile_id_clone) {
+                                    Ok(_) => win2.imp().identities.delete_git_profile(&expander_row),
+                                    Err(error) => {
+                                        tracing::warn!("Could not delete Git profile: {}", error);
 
-                                // TODO: Manage error.
-                                win2.imp().app_database.delete_git_profile(&profile_id_clone);
+                                        let toast = adw::Toast::new(&gettext("_Could not delete Git profile"));
+                                        win2.imp().toast_overlay.add_toast(toast);
+                                    },
+                                }
                             }
                         });
                     }));

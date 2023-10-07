@@ -372,11 +372,16 @@ impl BagitRepositoryPage {
                         commit_view.set_and_show_selected_profile(profile.clone());
 
                         //...and we specify the new default profile used with the openned repository:
-                        // TODO: Manage error.
-                        win.imp().app_database.change_git_profile_of_repository(
+                        if let Err(error) = win.imp().app_database.change_git_profile_of_repository(
                             win.imp().selected_repository.borrow().user_repository.repository_id,
                             Some(profile.profile_id)
-                        );
+                        ) {
+                            tracing::warn!("Could not change Git profile of repository: {}", error);
+
+                            let toast = adw::Toast::new(&gettext("_Could not change Git profile"));
+                            win.imp().toast_overlay.add_toast(toast);
+                        }
+
                         commit_view.update_commit_view(
                             win.imp().sidebar.imp().changed_files.borrow().get_number_of_selected_files()
                         );
@@ -390,15 +395,21 @@ impl BagitRepositoryPage {
             closure_local!(@watch self as win => move |
                 commit_view: BagitCommitView
                 | {
-                    // TODO: Manage error.
-                    win.imp().app_database.change_git_profile_of_repository(
+                    if let Err(error) = win.imp().app_database.change_git_profile_of_repository(
                         win.imp().selected_repository.borrow().user_repository.repository_id,
                         None
-                    );
+                    ) {
+                        tracing::warn!("Could not change Git profile of repository: {}", error);
+
+                        let toast = adw::Toast::new(&gettext("_Could not change Git profile"));
+                        win.imp().toast_overlay.add_toast(toast);
+                    }
+
                     let _ = match &win.imp().selected_repository.borrow().git_repository {
                         Some(repo) => RepositoryUtils::reset_git_config(&repo),
                         None => Ok({}),
                     };
+
                     commit_view.update_commit_view(
                         win.imp().sidebar.imp().changed_files.borrow().get_number_of_selected_files()
                     );
@@ -774,14 +785,25 @@ impl BagitRepositoryPage {
                     String::from(""),
                     signing_key.to_string(),
                 );
-                self.imp().app_database.add_git_profile(&new_profile);
+
+                if let Err(error) = self.imp().app_database.add_git_profile(&new_profile) {
+                    tracing::warn!("Could not add Git profile: {}", error);
+
+                    let toast = adw::Toast::new(&gettext("_Could not add Git profile"));
+                    self.imp().toast_overlay.add_toast(toast);
+                }
 
                 // We set the new profile to the repository:
-                // TODO: Manage error.
-                self.imp().app_database.change_git_profile_of_repository(
+                if let Err(error) = self.imp().app_database.change_git_profile_of_repository(
                     borrowed_repo.user_repository.repository_id,
                     Some(new_profile_id),
-                );
+                ) {
+                    tracing::warn!("Could not change Git profile of repository: {}", error);
+
+                    let toast = adw::Toast::new(&gettext("_Could not change Git profile"));
+                    self.imp().toast_overlay.add_toast(toast);
+                }
+
                 self.imp()
                     .commit_view
                     .imp()

@@ -486,10 +486,14 @@ impl BagitDesktopWindow {
                                     &new_bagit_repository
                                 );
 
-                                // TODO: Manage error.
-                                win2.imp().app_database.add_repository(
+                                if let Err(error) = win2.imp().app_database.add_repository(
                                     &new_bagit_repository
-                                );
+                                ) {
+                                    tracing::warn!("Could not add repository: {}", error);
+
+                                    let toast = adw::Toast::new(&gettext("_Could not add repository"));
+                                    win2.imp().toast_overlay.add_toast(toast);
+                                }
 
                                 win2.update_recent_repositories();
                             }
@@ -700,7 +704,12 @@ impl BagitDesktopWindow {
                         signing_key.to_string()
                     );
 
-                    win.imp().app_database.add_git_profile(&new_profile);
+                    if let Err(error) = win.imp().app_database.add_git_profile(&new_profile) {
+                        tracing::warn!("Could not add Git profile: {}", error);
+
+                        let toast = adw::Toast::new(&gettext("_Could not add Git profile"));
+                        win.imp().toast_overlay.add_toast(toast);
+                    }
 
                     create_repository_page.emit_by_name::<()>("create-repository", &[&repository_name, &location]);
                 }
@@ -747,8 +756,12 @@ impl BagitDesktopWindow {
                 let total_deleted = selected_repositories.len();
 
                 for repository_id in selected_repositories {
-                    // TODO: Manage error.
-                    win.imp().app_database.delete_repository(&repository_id.to_string());
+                    if let Err(error) = win.imp().app_database.delete_repository(&repository_id.to_string()) {
+                        tracing::warn!("Could not delete repository: {}", error);
+
+                        let toast = adw::Toast::new(&gettext("_Could not delete repository"));
+                        win.imp().toast_overlay.add_toast(toast);
+                    }
                 }
 
                 let toast_text = if total_deleted == 0 {
@@ -1008,7 +1021,13 @@ impl BagitDesktopWindow {
                         private_key_path.to_string(),
                         signing_key.to_string()
                     );
-                    win.imp().app_database.add_git_profile(&new_profile);
+
+                    if let Err(error) = win.imp().app_database.add_git_profile(&new_profile) {
+                        tracing::warn!("Could not add Git profile: {}", error);
+
+                        let toast = adw::Toast::new(&gettext("_Could not add Git profile"));
+                        win.imp().toast_overlay.add_toast(toast);
+                    }
 
                     thread::spawn(move || {
                         let error_sender = error_sender.clone();
@@ -1490,8 +1509,13 @@ impl BagitDesktopWindow {
 
         new_repository.git_profile_id = profile_id;
 
-        // TODO: Manage error.
-        self.imp().app_database.add_repository(&new_repository);
+        if let Err(error) = self.imp().app_database.add_repository(&new_repository) {
+            tracing::warn!("Could not add repository: {}", error);
+
+            let toast = adw::Toast::new(&gettext("_Could not add repository"));
+            self.imp().toast_overlay.add_toast(toast);
+        }
+
         self.update_recent_repositories();
         self.imp().stack.set_visible_child_name("main page");
     }

@@ -129,6 +129,12 @@ msgstr "Vous vous apprêtez à annuler les changements effectués sur le fichier
 msgid "_Discard folder message"
 msgstr "Vous vous apprêtez à annuler les changements effectués sur tous les fichiers du dossier suivant :"
 
+msgid "_Could not add repository"
+msgstr "Impossible d'ajouter le dépôt."
+
+msgid "_Could not delete repository"
+msgstr "Impossible de supprimer le dépôt."
+
 ############# create-repository-page.ui ############
 
 msgid "_Name of the repository"
@@ -204,6 +210,15 @@ msgstr "Clonage du dépôt..."
 msgid "_New profile awaiting"
 msgstr "Vous avez déjà un nouveau profil en attente de complétion."
 
+msgid "_Could not update Git profile"
+msgstr "Impossible de mettre à jour le profil Git."
+
+msgid "_Could not add Git profile"
+msgstr "Impossible d'ajouter le profil Git."
+
+msgid "_Could not delete Git profile"
+msgstr "Impossible de supprimer le profil Git."
+
 ####################### bagit-preferences-sidebar.ui ####################
 
 msgid "_Git profiles"
@@ -257,6 +272,9 @@ msgstr "L'adresse courriel entrée n'a pas le bon format."
 
 msgid "_Commit created successfully"
 msgstr "Fichiers commis"
+
+msgid "_Could not change Git profile"
+msgstr "Impossible de changer de profil Git."
 
 ############# bagit-commits-sidebar.ui #############
 

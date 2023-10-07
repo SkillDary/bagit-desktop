@@ -561,8 +561,7 @@ impl AppDatabase {
             match git2::Repository::open(&repo.path) {
                 Ok(_) => {}
                 Err(_) => {
-                    // TODO: Manage error.
-                    self.delete_repository(&repo.repository_id.to_string());
+                    self.delete_repository(&repo.repository_id.to_string())?;
                     deleted_ids.push(repo.repository_id)
                 }
             }

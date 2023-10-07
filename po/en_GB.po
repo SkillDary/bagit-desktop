@@ -129,6 +129,12 @@ msgstr "You are about to undo the changes made to the following file:"
 msgid "_Discard folder message"
 msgstr "You are about to undo the changes made to all the files inside this folder:"
 
+msgid "_Could not add repository"
+msgstr "Could not add repository."
+
+msgid "_Could not delete repository"
+msgstr "Could not delete repository."
+
 ############# create-repository-page.ui ############
 
 msgid "_Name of the repository"
@@ -204,6 +210,15 @@ msgstr "Cloning reposirory..."
 msgid "_New profile awaiting"
 msgstr "You already have a new profile awaiting completion."
 
+msgid "_Could not update Git profile"
+msgstr "Could not update Git profile."
+
+msgid "_Could not add Git profile"
+msgstr "Could not add Git profile."
+
+msgid "_Could not delete Git profile"
+msgstr "Could not delete Git profile."
+
 ####################### bagit-preferences-sidebar.ui ####################
 
 msgid "_Git profiles"
@@ -257,6 +272,9 @@ msgstr "E-mail has not the right format."
 
 msgid "_Commit created successfully"
 msgstr "Commit created successfully"
+
+msgid "_Could not change Git profile"
+msgstr "Could not change Git profile."
 
 ############# bagit-commits-sidebar.ui #############
 

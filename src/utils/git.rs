@@ -19,7 +19,7 @@
 
 use chrono::NaiveDateTime;
 use gettextrs::gettext;
-use git2::{Branch, Error, FetchOptions, Oid, Reference, Remote, RemoteCallbacks, Repository};
+use git2::{Branch, Error, FetchOptions, Oid, Reference, RemoteCallbacks, Repository};
 
 use crate::widgets::repository::CommitObject;
 
@@ -343,47 +343,8 @@ pub fn get_first_commit_id_of_checked_out_branch(repository: &Repository) -> Opt
     }
 }
 
-/// Checks if a commit of the checked out branch is pushed.
-pub fn check_if_commit_of_checked_out_branch_is_pushed(
-    repository: &Repository,
-) -> Result<bool, Error> {
-    // TODO: The remote is not always named "origin".
-    let remote_name = "origin";
-    let remote_result = repository.find_remote(remote_name);
-
-    let mut remote: Remote<'_>;
-
-    match remote_result {
-        Ok(result) => remote = result,
-        Err(error) => return Err(error),
-    }
-
-    // Get the branch name of the current HEAD
-    let binding = repository.head().expect("msg");
-    let head_branch_name = binding.shorthand().unwrap_or_default();
-
-    // Fetch the remote repository's references
-    let fetch_result = remote.fetch(&[head_branch_name], None, None);
-
-    match fetch_result {
-        Ok(_) => {}
-        Err(error) => return Err(error),
-    }
-
-    // Get the local HEAD commit and the remote branch's commit
-    let local_head_commit = repository.revparse_single("HEAD")?;
-    let remote_branch_commit =
-        repository.revparse_single(&format!("{}/{}", remote_name, head_branch_name))?;
-
-    // Compare the commit IDs
-    let local_commit_id = local_head_commit.id();
-    let remote_commit_id = remote_branch_commit.id();
-
-    return Ok(local_commit_id == remote_commit_id);
-}
-
 /// Gets the error code text.
-pub fn get_error_code_text(error_code: git2::ErrorCode) -> String {
+pub fn _get_error_code_text(error_code: git2::ErrorCode) -> String {
     return match error_code {
         git2::ErrorCode::GenericError => gettext("_ErrorCode_GenericError"),
         git2::ErrorCode::NotFound => gettext("_ErrorCode_NotFound"),
@@ -416,7 +377,7 @@ pub fn get_error_code_text(error_code: git2::ErrorCode) -> String {
 }
 
 /// Gets the error class text.
-pub fn get_error_class_text(error_class: git2::ErrorClass) -> String {
+pub fn _get_error_class_text(error_class: git2::ErrorClass) -> String {
     return match error_class {
         git2::ErrorClass::None => gettext("_ErrorClass_None"),
         git2::ErrorClass::NoMemory => gettext("_ErrorClass_NoMemory"),
