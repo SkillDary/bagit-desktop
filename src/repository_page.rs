@@ -17,6 +17,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+use std::path::Path;
+use std::sync::mpsc::{self, TryRecvError};
 use std::thread;
 
 use crate::models::bagit_git_profile::BagitGitProfile;
@@ -37,6 +39,7 @@ use gtk::glib::subclass::Signal;
 use gtk::glib::{clone, closure_local, MainContext, Priority};
 use gtk::{glib, prelude::*, CompositeTemplate};
 use itertools::Itertools;
+use notify::{RecursiveMode, Watcher};
 use uuid::Uuid;
 
 mod imp {
@@ -44,6 +47,7 @@ mod imp {
     use std::{
         cell::{Cell, RefCell},
         collections::HashMap,
+        sync::mpsc,
     };
 
     use adw::SplitButton;
@@ -108,12 +112,16 @@ mod imp {
         pub is_doing_git_action: Cell<bool>,
 
         pub ssh_passphrases: RefCell<HashMap<String, String>>,
+
+        pub directory_watcher_thread_mpsc_sender: RefCell<Option<mpsc::Sender<()>>>,
     }
 
     #[template_callbacks]
     impl BagitRepositoryPage {
         #[template_callback]
         fn go_home(&self, _button: gtk::Button) {
+            self.obj().kill_existing_file_watcher();
+
             self.obj().emit_by_name::<()>("go-home", &[]);
         }
 
@@ -507,8 +515,81 @@ impl BagitRepositoryPage {
         );
     }
 
+    /// Kills the existing file watcher if there is one.
+    fn kill_existing_file_watcher(&self) {
+        let sender = self.imp().directory_watcher_thread_mpsc_sender.take();
+
+        // If there is a sender, then it means a thread already exist.
+        if let Some(sender) = sender {
+            // Kill the previous thread.
+            if let Err(error) = sender.send(()) {
+                tracing::error!("Could not kill existing file watcher: {}", error);
+            }
+        }
+
+        self.imp()
+            .directory_watcher_thread_mpsc_sender
+            .replace(None);
+    }
+
+    /// Creates a file watcher on a separate thread.
+    /// When a file change is detected, the UI is updated.
+    /// Before creating another thread, the previous one, if it exists, is killed.
+    fn create_file_watcher(&self, path: &Path) {
+        let path = path.to_owned();
+
+        self.kill_existing_file_watcher();
+
+        let (mpsc_sender, mpsc_receiver) = mpsc::channel::<()>();
+
+        let (glib_sender, glib_receiver) = MainContext::channel::<()>(Priority::default());
+
+        thread::spawn(move || {
+            let mut watcher = notify::recommended_watcher(move |res| match res {
+                Ok(_event) => {
+                    glib_sender
+                        .send(())
+                        .expect("Could not send through channel");
+                }
+                Err(error) => tracing::error!("Error on file watcher: {}", error),
+            })
+            .unwrap();
+
+            // All files and directories at that path and below will be monitored for changes.
+            // TODO: On some platforms, if the path is renamed or removed while being watched,
+            // behaviour may be unexpected. If less surprising behaviour is wanted one may
+            // non-recursively watch the parent directory as well and manage related events.
+            watcher.watch(&path, RecursiveMode::Recursive).unwrap();
+
+            loop {
+                match mpsc_receiver.try_recv() {
+                    Ok(_) | Err(TryRecvError::Disconnected) => {
+                        break;
+                    }
+                    Err(TryRecvError::Empty) => {}
+                }
+            }
+        });
+
+        self.imp()
+            .directory_watcher_thread_mpsc_sender
+            .replace(Some(mpsc_sender));
+
+        glib_receiver.attach(
+            None,
+            clone!(@weak self as win => @default-return Continue(false),
+                        move |_event| {
+                            win.update_changed_files();
+                            Continue(true)
+                        }
+            ),
+        );
+    }
+
     /// Used to initialize the repository page with a selected repository.
     pub fn init_repository_page(&self, repository: SelectedRepository) {
+        self.create_file_watcher(Path::new(&repository.user_repository.path));
+
         self.imp()
             .main_view_stack
             .set_visible_child_name("hello page");
