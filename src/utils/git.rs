@@ -301,7 +301,7 @@ pub fn fetch_checked_out_branch(
     fetch_options.remote_callbacks(callback);
 
     repository.find_remote("origin")?.fetch(
-        &[branch.name().as_mut().unwrap().unwrap()],
+        &["refs/heads/*:refs/remotes/origin/*"],
         Some(&mut fetch_options),
         None,
     )?;
