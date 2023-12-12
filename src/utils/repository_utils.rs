@@ -21,8 +21,8 @@ use std::{env, path::Path};
 
 use gettextrs::gettext;
 use git2::{
-    build::CheckoutBuilder, BranchType, Commit, Cred, Delta, DiffOptions, ErrorClass, ErrorCode,
-    FetchOptions, Index, ObjectType, Oid, PushOptions, RemoteCallbacks, Repository, Signature,
+    build::CheckoutBuilder, BranchType, Commit, Cred, ErrorClass, ErrorCode, FetchOptions, Index,
+    ObjectType, Oid, PushOptions, RemoteCallbacks, Repository, Signature, Status,
 };
 use regex::Regex;
 
@@ -257,89 +257,41 @@ impl RepositoryUtils {
             .map_err(|_| git2::Error::from_str("Couldn't find commit"))
     }
 
-    /// Used to update a repository's index by adding new selected files to it.
+    /// Used to update a repository's index with the selected files.
     pub fn update_repository_index(
         repository: &Repository,
         selected_files: Vec<ChangedFile>,
     ) -> Result<Index, String> {
-        let head_commit = match repository.head() {
-            Ok(head) => head.peel_to_commit().ok(),
-            Err(_) => return Err(gettext("_An error has occured")),
-        };
-
-        let head_tree = match head_commit {
-            Some(ref commit) => commit.tree().ok(),
-            None => return Err(gettext("_An error has occured")),
-        };
-
-        let mut diff_options = DiffOptions::new();
-        diff_options
-            .include_untracked(true)
-            .recurse_ignored_dirs(true);
-
-        let diff_result =
-            repository.diff_tree_to_workdir_with_index(head_tree.as_ref(), Some(&mut diff_options));
-
-        let diff_deltas: Vec<_> = match diff_result {
-            Ok(ref diff) => diff.deltas().collect(),
-            Err(_) => Vec::new(),
-        };
-
-        if diff_deltas.is_empty() {
-            return Err(gettext("_An error has occured"));
-        }
-
         let mut index = repository.index().ok().unwrap();
 
-        for diff_delta in diff_deltas {
-            let delta = diff_delta.status();
+        for selected_file in &selected_files {
+            let selected_file_path_string =
+                RepositoryUtils::build_path_of_file(&selected_file.parent, &selected_file.name);
 
-            match delta {
-                Delta::Deleted => {
-                    let path = diff_delta.old_file().path().unwrap();
+            let selected_file_path = Path::new(&selected_file_path_string);
 
-                    // We check if the path correspond to a selected path :
-                    if selected_files.iter().any(|file| {
-                        let file_path = if file.parent.is_empty() {
-                            file.name.clone()
-                        } else {
-                            RepositoryUtils::build_path_of_file(&file.parent, &file.name)
-                        };
+            match selected_file.status {
+                Status::WT_DELETED | Status::INDEX_DELETED => {
+                    if let Err(error) = index.remove_path(selected_file_path) {
+                        tracing::warn!(
+                            "Could not remove file from index while committing: {}",
+                            error
+                        );
 
-                        let delta_path = path.to_str().unwrap().to_string();
-
-                        file_path == delta_path
-                    }) {
-                        match index.remove_path(path) {
-                            Ok(_) => {}
-                            Err(_) => return Err(gettext("_An error has occured")),
-                        }
+                        return Err(gettext("_An error has occured"));
                     }
                 }
 
                 _ => {
-                    let path = diff_delta.new_file().path().unwrap();
+                    if let Err(error) = index.add_path(selected_file_path) {
+                        tracing::warn!("Could not add file in index while committing: {}", error);
 
-                    // We check if the path correspond to a selected path :
-                    if selected_files.iter().any(|file| {
-                        let file_path = if file.parent.is_empty() {
-                            file.name.clone()
-                        } else {
-                            RepositoryUtils::build_path_of_file(&file.parent, &file.name)
-                        };
-
-                        let delta_path = path.to_str().unwrap().to_string();
-
-                        file_path == delta_path
-                    }) {
-                        match index.add_path(path) {
-                            Ok(_) => {}
-                            Err(_) => return Err(gettext("_An error has occured")),
-                        }
+                        return Err(gettext("_An error has occured"));
                     }
                 }
             }
         }
+
         match index.write() {
             Ok(_) => Ok(index),
             Err(_) => Err(gettext("_An error has occured")),
@@ -357,6 +309,11 @@ impl RepositoryUtils {
         signing_key: &str,
         passphrase: &str,
     ) -> Result<Oid, git2::Error> {
+        // TODO: REMOVE THIS.
+        for file in &selected_files {
+            println!("{:?}", file.name)
+        }
+
         let mut index = match RepositoryUtils::update_repository_index(repository, selected_files) {
             Ok(idx) => idx,
             Err(error_message) => {
