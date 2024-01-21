@@ -24,7 +24,7 @@ use crate::{
     glib::clone,
     models::{bagit_git_profile::BagitGitProfile, bagit_repository::BagitRepository},
     utils::{
-        self, action_type::ActionType, profile_mode::ProfileMode,
+        action_type::ActionType, db::AppDatabase, profile_mode::ProfileMode,
         repository_utils::RepositoryUtils, selected_repository::SelectedRepository,
     },
     widgets::branches_dialog::BagitBranchesDialog,
@@ -84,7 +84,7 @@ mod imp {
         #[template_child]
         pub repository_page: TemplateChild<BagitRepositoryPage>,
 
-        pub app_database: utils::db::AppDatabase,
+        pub app_database: RefCell<AppDatabase>,
 
         pub selected_repositories_ids_for_deletion: RefCell<Vec<Uuid>>,
     }
@@ -135,6 +135,8 @@ mod imp {
             self.obj().connect_is_active_notify(clone!(
                 @weak self as win
                 => move |_| {
+                    let app_database = win.app_database.take();
+
                     match win.stack.visible_child_name().unwrap().as_str() {
                         "repository page" => {
                             win.repository_page.update_commits_sidebar();
@@ -144,7 +146,7 @@ mod imp {
                         "create repository page" => {
                             let git_profiles;
 
-                            match win.app_database.get_all_git_profiles() {
+                            match app_database.get_all_git_profiles() {
                                 Ok(profiles) => git_profiles = profiles,
                                 Err(error) => {
                                     // TODO: Show error (maybe with a toast).
@@ -162,7 +164,7 @@ mod imp {
                         "clone page" => {
                             let git_profiles;
 
-                            match win.app_database.get_all_git_profiles() {
+                            match app_database.get_all_git_profiles() {
                                 Ok(profiles) => git_profiles = profiles,
                                 Err(error) => {
                                     // TODO: Show error (maybe with a toast).
@@ -179,6 +181,8 @@ mod imp {
                         },
                         _ => {}
                     }
+
+                    win.app_database.replace(app_database);
             }));
         }
     }
@@ -198,6 +202,12 @@ impl BagitDesktopWindow {
         let win: BagitDesktopWindow = glib::Object::builder::<BagitDesktopWindow>()
             .property("application", application)
             .build();
+
+        let mut app_database = win.imp().app_database.take();
+
+        app_database.init_database();
+
+        win.imp().app_database.replace(app_database);
 
         win.repositories_page_signals();
         win.repository_page_signals();
@@ -227,7 +237,9 @@ impl BagitDesktopWindow {
                         // We update the selected repository:
                         let found_repository;
 
-                        match win.imp().app_database.get_repository_from_path(&path) {
+                        let app_database = win.imp().app_database.take();
+
+                        match app_database.get_repository_from_path(&path) {
                             Ok(repo) => found_repository = repo,
                             Err(error) => {
                                 // TODO: Show error (maybe with a toast).
@@ -236,6 +248,8 @@ impl BagitDesktopWindow {
                                 return;
                             }
                         }
+
+                        win.imp().app_database.replace(app_database);
 
                         if found_repository.is_some() {
                             let repo = found_repository.unwrap();
@@ -362,7 +376,9 @@ impl BagitDesktopWindow {
     fn init_all_repositories(&self) {
         let all_repositories;
 
-        match self.imp().app_database.get_all_repositories() {
+        let app_database = self.imp().app_database.take();
+
+        match app_database.get_all_repositories() {
             Ok(repositories) => all_repositories = repositories,
             Err(error) => {
                 // TODO: Show error (maybe with a toast).
@@ -372,6 +388,8 @@ impl BagitDesktopWindow {
                 return;
             }
         }
+
+        self.imp().app_database.replace(app_database);
 
         if all_repositories.is_empty() {
             self.imp().repositories_window.set_visible(false);
@@ -387,7 +405,9 @@ impl BagitDesktopWindow {
     fn update_recent_repositories(&self) {
         let recent_repositories;
 
-        match self.imp().app_database.get_recent_repositories() {
+        let app_database = self.imp().app_database.take();
+
+        match app_database.get_recent_repositories() {
             Ok(repositories) => recent_repositories = repositories,
             Err(error) => {
                 // TODO: Show error (maybe with a toast).
@@ -397,6 +417,8 @@ impl BagitDesktopWindow {
                 return;
             }
         }
+
+        self.imp().app_database.replace(app_database);
 
         self.imp()
             .repositories_window
@@ -411,11 +433,9 @@ impl BagitDesktopWindow {
     fn find_repositories_with_search(&self, search: &str) {
         let found_repositories;
 
-        match self
-            .imp()
-            .app_database
-            .get_all_repositories_with_search(search)
-        {
+        let app_database = self.imp().app_database.take();
+
+        match app_database.get_all_repositories_with_search(search) {
             Ok(repositories) => found_repositories = repositories,
             Err(error) => {
                 // TODO: Show error (maybe with a toast).
@@ -425,6 +445,8 @@ impl BagitDesktopWindow {
                 return;
             }
         }
+
+        self.imp().app_database.replace(app_database);
 
         for repository in found_repositories {
             self.add_list_row_to_all_repositories(&repository);
@@ -453,7 +475,9 @@ impl BagitDesktopWindow {
 
                         let repository;
 
-                        match win2.imp().app_database.get_repository_from_path(&folder_path_str) {
+                        let app_database = win2.imp().app_database.take();
+
+                        match app_database.get_repository_from_path(&folder_path_str) {
                             Ok(repo) => repository = repo,
                             Err(error) => {
                                 // TODO: Show error (maybe with a toast).
@@ -462,6 +486,8 @@ impl BagitDesktopWindow {
                                 return;
                             }
                         }
+
+                        win2.imp().app_database.replace(app_database);
 
                         // We must check if the selected repository isn't already in the application:
                         match repository {
@@ -486,7 +512,9 @@ impl BagitDesktopWindow {
                                     &new_bagit_repository
                                 );
 
-                                if let Err(error) = win2.imp().app_database.add_repository(
+                                let app_database = win2.imp().app_database.take();
+
+                                if let Err(error) = app_database.add_repository(
                                     &new_bagit_repository
                                 ) {
                                     tracing::warn!("Could not add repository: {}", error);
@@ -494,6 +522,8 @@ impl BagitDesktopWindow {
                                     let toast = adw::Toast::new(&gettext("_Could not add repository"));
                                     win2.imp().toast_overlay.add_toast(toast);
                                 }
+
+                                win2.imp().app_database.replace(app_database);
 
                                 win2.update_recent_repositories();
                             }
@@ -521,7 +551,9 @@ impl BagitDesktopWindow {
 
                 let git_profiles;
 
-                match win.imp().app_database.get_all_git_profiles() {
+                let app_database = win.imp().app_database.take();
+
+                match app_database.get_all_git_profiles() {
                     Ok(profiles) => git_profiles = profiles,
                     Err(error) => {
                         // TODO: Show error (maybe with a toast).
@@ -531,6 +563,8 @@ impl BagitDesktopWindow {
                         return;
                     },
                 }
+
+                win.imp().app_database.replace(app_database);
 
                 for profile in git_profiles {
                     win.imp().create_repository_page.add_git_profile_row(&profile);
@@ -676,7 +710,9 @@ impl BagitDesktopWindow {
                     // We make sure that the profile name is unique:
                     let same_profile_name_number;
 
-                    match win.imp().app_database.get_number_of_git_profiles_with_name(&profile_name, &profile_id.to_string()) {
+                    let app_database = win.imp().app_database.take();
+
+                    match app_database.get_number_of_git_profiles_with_name(&profile_name, &profile_id.to_string()) {
                         Ok(number) => same_profile_name_number = number,
                         Err(error) => {
                             // TODO: Show error (maybe with a toast).
@@ -704,12 +740,14 @@ impl BagitDesktopWindow {
                         signing_key.to_string()
                     );
 
-                    if let Err(error) = win.imp().app_database.add_git_profile(&new_profile) {
+                    if let Err(error) = app_database.add_git_profile(&new_profile) {
                         tracing::warn!("Could not add Git profile: {}", error);
 
                         let toast = adw::Toast::new(&gettext("_Could not add Git profile"));
                         win.imp().toast_overlay.add_toast(toast);
                     }
+
+                    win.imp().app_database.replace(app_database);
 
                     create_repository_page.emit_by_name::<()>("create-repository", &[&repository_name, &location]);
                 }
@@ -731,7 +769,9 @@ impl BagitDesktopWindow {
                 // We update the list of git profiles in the page :
                 let git_profiles;
 
-                match win.imp().app_database.get_all_git_profiles() {
+                let app_database = win.imp().app_database.take();
+
+                match app_database.get_all_git_profiles() {
                     Ok(profiles) => git_profiles = profiles,
                     Err(error) => {
                         // TODO: Show error (maybe with a toast).
@@ -741,6 +781,8 @@ impl BagitDesktopWindow {
                         return;
                     },
                 }
+
+                win.imp().app_database.replace(app_database);
 
                 for profile in git_profiles {
                     win.imp().clone_repository_page.add_git_profile_row(&profile);
@@ -755,14 +797,18 @@ impl BagitDesktopWindow {
                 let selected_repositories = win.imp().selected_repositories_ids_for_deletion.take();
                 let total_deleted = selected_repositories.len();
 
+                let app_database = win.imp().app_database.take();
+
                 for repository_id in selected_repositories {
-                    if let Err(error) = win.imp().app_database.delete_repository(&repository_id.to_string()) {
+                    if let Err(error) = app_database.delete_repository(&repository_id.to_string()) {
                         tracing::warn!("Could not delete repository: {}", error);
 
                         let toast = adw::Toast::new(&gettext("_Could not delete repository"));
                         win.imp().toast_overlay.add_toast(toast);
                     }
                 }
+
+                win.imp().app_database.replace(app_database);
 
                 let toast_text = if total_deleted == 0 {
                     gettext("_No deleted repositories")
@@ -993,7 +1039,9 @@ impl BagitDesktopWindow {
                     // We make sure that the profile name is unique :
                     let same_profile_name_number;
 
-                    match win.imp().app_database.get_number_of_git_profiles_with_name(&profile_name, &profile_id.to_string()) {
+                    let app_database = win.imp().app_database.take();
+
+                    match app_database.get_number_of_git_profiles_with_name(&profile_name, &profile_id.to_string()) {
                         Ok(number) => same_profile_name_number = number,
                         Err(error) => {
                             // TODO: Show error (maybe with a toast).
@@ -1003,6 +1051,8 @@ impl BagitDesktopWindow {
                             return;
                         },
                     }
+
+                    win.imp().app_database.replace(app_database);
 
                     let final_profil_name : String =  if same_profile_name_number != 0 {
                         let new_name = format!("{} ({})", profile_name, same_profile_name_number);
@@ -1022,12 +1072,16 @@ impl BagitDesktopWindow {
                         signing_key.to_string()
                     );
 
-                    if let Err(error) = win.imp().app_database.add_git_profile(&new_profile) {
+                    let app_database = win.imp().app_database.take();
+
+                    if let Err(error) = app_database.add_git_profile(&new_profile) {
                         tracing::warn!("Could not add Git profile: {}", error);
 
                         let toast = adw::Toast::new(&gettext("_Could not add Git profile"));
                         win.imp().toast_overlay.add_toast(toast);
                     }
+
+                    win.imp().app_database.replace(app_database);
 
                     thread::spawn(move || {
                         let error_sender = error_sender.clone();
@@ -1509,12 +1563,16 @@ impl BagitDesktopWindow {
 
         new_repository.git_profile_id = profile_id;
 
-        if let Err(error) = self.imp().app_database.add_repository(&new_repository) {
+        let app_database = self.imp().app_database.take();
+
+        if let Err(error) = app_database.add_repository(&new_repository) {
             tracing::warn!("Could not add repository: {}", error);
 
             let toast = adw::Toast::new(&gettext("_Could not add repository"));
             self.imp().toast_overlay.add_toast(toast);
         }
+
+        self.imp().app_database.replace(app_database);
 
         self.update_recent_repositories();
         self.imp().stack.set_visible_child_name("main page");

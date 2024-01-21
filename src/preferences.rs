@@ -41,6 +41,8 @@ use uuid::Uuid;
 
 mod imp {
 
+    use std::cell::RefCell;
+
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
@@ -57,7 +59,7 @@ mod imp {
         #[template_child]
         pub toast_overlay: TemplateChild<adw::ToastOverlay>,
 
-        pub app_database: AppDatabase,
+        pub app_database: RefCell<AppDatabase>,
     }
 
     #[template_callbacks]
@@ -86,7 +88,17 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for BagitPreferences {}
+    impl ObjectImpl for BagitPreferences {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            let mut app_database = self.app_database.take();
+
+            app_database.create_connection();
+
+            self.app_database.replace(app_database);
+        }
+    }
     impl WidgetImpl for BagitPreferences {}
     impl WindowImpl for BagitPreferences {}
     impl ApplicationWindowImpl for BagitPreferences {}
@@ -148,7 +160,9 @@ impl BagitPreferences {
                     // We verify if the user has not already a profile in creation :
                     let all_profiles;
 
-                    match win.imp().app_database.get_all_git_profiles() {
+                    let app_database = win.imp().app_database.take();
+
+                    match app_database.get_all_git_profiles() {
                         Ok(profiles) => all_profiles = profiles,
                         Err(error) => {
                             // TODO: Show error (maybe with a toast).
@@ -158,6 +172,8 @@ impl BagitPreferences {
                             return;
                         },
                     }
+
+                    win.imp().app_database.replace(app_database);
 
                     if win.imp().identities.imp().git_profiles.row_at_index(all_profiles.len().try_into().unwrap()) == None {
                         if win.imp().identities.imp().status_page.is_visible() {
@@ -192,7 +208,9 @@ impl BagitPreferences {
                     // We make sure that the profile name is unique:
                     let same_profile_name_number;
 
-                    match win.imp().app_database.get_number_of_git_profiles_with_name(&profile_name, &profile_id.to_string()) {
+                    let app_database = win.imp().app_database.take();
+
+                    match app_database.get_number_of_git_profiles_with_name(&profile_name, &profile_id.to_string()) {
                         Ok(number) => same_profile_name_number = number,
                         Err(error) => {
                             // TODO: Show error (maybe with a toast).
@@ -214,7 +232,7 @@ impl BagitPreferences {
 
                     let does_git_profile_exist;
 
-                    match win.imp().app_database.does_git_profile_exist(profile_id) {
+                    match app_database.does_git_profile_exist(profile_id) {
                         Ok(boolean) => does_git_profile_exist = boolean,
                         Err(error) => {
                             // TODO: Show error (maybe with a toast).
@@ -225,7 +243,7 @@ impl BagitPreferences {
                     }
 
                     if does_git_profile_exist {
-                        if let Err(error) = win.imp().app_database.update_git_profile(
+                        if let Err(error) = app_database.update_git_profile(
                             &BagitGitProfile::new(
                                 Uuid::parse_str(profile_id).unwrap(),
                                 final_profil_name,
@@ -242,7 +260,7 @@ impl BagitPreferences {
                             win.imp().toast_overlay.add_toast(toast);
                         }
                     } else {
-                        if let Err(error) = win.imp().app_database.add_git_profile(
+                        if let Err(error) = app_database.add_git_profile(
                             &BagitGitProfile::new(
                                 Uuid::parse_str(profile_id).unwrap(),
                                 final_profil_name,
@@ -261,6 +279,8 @@ impl BagitPreferences {
 
                         ()
                     }
+
+                    win.imp().app_database.replace(app_database);
                 }
             ),
         );
@@ -281,7 +301,9 @@ impl BagitPreferences {
                 | {
                     let does_git_profile_exist;
 
-                    match win.imp().app_database.does_git_profile_exist_from_information(
+                    let app_database = win.imp().app_database.take();
+
+                    match app_database.does_git_profile_exist_from_information(
                         profile_id,
                         profile_name,
                         email,
@@ -298,6 +320,8 @@ impl BagitPreferences {
                             return;
                         },
                     }
+
+                    win.imp().app_database.replace(app_database);
 
                     revealer.set_reveal_child(!does_git_profile_exist && profile_name != "" && username != "" && email != "");
                 }
@@ -323,7 +347,9 @@ impl BagitPreferences {
                         delete_dialog.present();
                         delete_dialog.connect_response(None, move |_dialog, response| {
                             if response == &gettext("_Delete") {
-                                match win2.imp().app_database.delete_git_profile(&profile_id_clone) {
+                                let app_database = win2.imp().app_database.take();
+
+                                match app_database.delete_git_profile(&profile_id_clone) {
                                     Ok(_) => win2.imp().identities.delete_git_profile(&expander_row),
                                     Err(error) => {
                                         tracing::warn!("Could not delete Git profile: {}", error);
@@ -332,6 +358,8 @@ impl BagitPreferences {
                                         win2.imp().toast_overlay.add_toast(toast);
                                     },
                                 }
+
+                                win2.imp().app_database.replace(app_database);
                             }
                         });
                     }));
@@ -374,7 +402,9 @@ impl BagitPreferences {
                 | {
                     let same_profile_name_number;
 
-                    match win.imp().app_database.get_number_of_git_profiles_with_name(&profile_name, &profile_id.to_string()) {
+                    let app_database = win.imp().app_database.take();
+
+                    match app_database.get_number_of_git_profiles_with_name(&profile_name, &profile_id.to_string()) {
                         Ok(number) => same_profile_name_number = number,
                         Err(error) => {
                             // TODO: Show error (maybe with a toast).
@@ -384,6 +414,8 @@ impl BagitPreferences {
                             return;
                         },
                     }
+
+                    win.imp().app_database.replace(app_database);
 
                     image.set_visible(same_profile_name_number != 0);
             }),
@@ -396,7 +428,9 @@ impl BagitPreferences {
     pub fn fetch_git_profiles(&self) {
         let git_profiles;
 
-        match self.imp().app_database.get_all_git_profiles() {
+        let app_database = self.imp().app_database.take();
+
+        match app_database.get_all_git_profiles() {
             Ok(profiles) => git_profiles = profiles,
             Err(error) => {
                 // TODO: Show error (maybe with a toast).
@@ -406,6 +440,8 @@ impl BagitPreferences {
                 return;
             }
         }
+
+        self.imp().app_database.replace(app_database);
 
         for profile in git_profiles {
             self.imp().identities.imp().status_page.set_visible(false);

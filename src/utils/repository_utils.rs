@@ -166,6 +166,10 @@ impl RepositoryUtils {
     pub fn build_path_of_file(parent: &str, file_name: &str) -> String {
         let os = env::consts::OS;
 
+        if parent.is_empty() {
+            return String::from(file_name);
+        }
+
         match os {
             "linux" | "macOS" | "freebsd" | "dragonfly" | "netbsd" | "openbsd" | "solaris" => {
                 format!("{}/{}", &parent, file_name)

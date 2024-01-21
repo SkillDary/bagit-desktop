@@ -85,7 +85,7 @@ impl GpgUtils {
 
                 let mut output = Vec::new();
 
-                match ctx.sign_detached(commit_string.clone(), &mut output) {
+                match ctx.sign_detached(commit_string, &mut output) {
                     Ok(_) => match String::from_utf8(output) {
                         Ok(string) => return Ok(string),
                         Err(error) => return Err(error.to_string()),

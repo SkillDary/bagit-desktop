@@ -81,7 +81,7 @@ mod imp {
 
         pub profile_mode: RefCell<ProfileMode>,
 
-        pub app_database: AppDatabase,
+        pub app_database: RefCell<AppDatabase>,
     }
 
     #[template_callbacks]
@@ -190,6 +190,21 @@ mod imp {
         }
     }
     impl ObjectImpl for BagitCommitView {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            let mut app_database = self.app_database.take();
+
+            app_database.create_connection();
+
+            self.app_database.replace(app_database);
+
+            let settings = Settings::new("com.skilldary.bagit.desktop");
+
+            self.save_profile_button
+                .set_active(settings.boolean("is-saving-commit-profile-enabled"));
+        }
+
         fn signals() -> &'static [Signal] {
             static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
                 vec![
@@ -212,14 +227,6 @@ mod imp {
                 ]
             });
             SIGNALS.as_ref()
-        }
-        fn constructed(&self) {
-            self.parent_constructed();
-
-            let settings = Settings::new("com.skilldary.bagit.desktop");
-
-            self.save_profile_button
-                .set_active(settings.boolean("is-saving-commit-profile-enabled"));
         }
     }
     impl WidgetImpl for BagitCommitView {}
@@ -256,7 +263,9 @@ impl BagitCommitView {
 
         let all_profiles;
 
-        match self.imp().app_database.get_all_git_profiles() {
+        let app_database = self.imp().app_database.take();
+
+        match app_database.get_all_git_profiles() {
             Ok(profiles) => all_profiles = profiles,
             Err(error) => {
                 // TODO: Show error (maybe with a toast).
@@ -266,6 +275,8 @@ impl BagitCommitView {
                 return;
             }
         }
+
+        self.imp().app_database.replace(app_database);
 
         for profile in all_profiles {
             self.add_git_profile_row(&profile);
@@ -380,7 +391,9 @@ impl BagitCommitView {
 
         let new_list;
 
-        match self.imp().app_database.get_all_git_profiles() {
+        let app_database = self.imp().app_database.take();
+
+        match app_database.get_all_git_profiles() {
             Ok(profiles) => new_list = profiles,
             Err(error) => {
                 // TODO: Show error (maybe with a toast).
@@ -390,6 +403,8 @@ impl BagitCommitView {
                 return;
             }
         }
+
+        self.imp().app_database.replace(app_database);
 
         self.clear_profiles_list(false);
 

@@ -97,7 +97,7 @@ mod imp {
         #[template_child]
         pub git_action_pull_number: TemplateChild<Label>,
 
-        pub app_database: AppDatabase,
+        pub app_database: RefCell<AppDatabase>,
 
         pub selected_repository: RefCell<SelectedRepository>,
 
@@ -173,6 +173,20 @@ mod imp {
     }
 
     impl ObjectImpl for BagitRepositoryPage {
+        fn constructed(&self) {
+            self.parent_constructed();
+            self.obj().connect_sidebar_signals();
+            self.obj().connect_commit_view_signals();
+
+            let mut app_database = self.app_database.take();
+
+            app_database.create_connection();
+
+            self.app_database.replace(app_database);
+
+            self.is_doing_git_action.set(false);
+        }
+
         fn signals() -> &'static [Signal] {
             static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
                 vec![
@@ -220,13 +234,6 @@ mod imp {
                 ]
             });
             SIGNALS.as_ref()
-        }
-        fn constructed(&self) {
-            self.parent_constructed();
-            self.obj().connect_sidebar_signals();
-            self.obj().connect_commit_view_signals();
-
-            self.is_doing_git_action.set(false);
         }
     }
     impl WidgetImpl for BagitRepositoryPage {}
@@ -352,7 +359,9 @@ impl BagitRepositoryPage {
                 | {
                     let selected_profile;
 
-                    match win.imp().app_database.get_git_profile_from_name(profile_name) {
+                    let app_database = win.imp().app_database.take();
+
+                    match app_database.get_git_profile_from_name(profile_name) {
                         Ok(profile) => selected_profile = profile,
                         Err(error) => {
                             // TODO: Show error (maybe with a toast).
@@ -372,7 +381,7 @@ impl BagitRepositoryPage {
                         commit_view.set_and_show_selected_profile(profile.clone());
 
                         //...and we specify the new default profile used with the openned repository:
-                        if let Err(error) = win.imp().app_database.change_git_profile_of_repository(
+                        if let Err(error) = app_database.change_git_profile_of_repository(
                             win.imp().selected_repository.borrow().user_repository.repository_id,
                             Some(profile.profile_id)
                         ) {
@@ -386,6 +395,8 @@ impl BagitRepositoryPage {
                             win.imp().sidebar.imp().changed_files.borrow().get_number_of_selected_files()
                         );
                     }
+
+                    win.imp().app_database.replace(app_database);
                 }
             ),
         );
@@ -395,7 +406,9 @@ impl BagitRepositoryPage {
             closure_local!(@watch self as win => move |
                 commit_view: BagitCommitView
                 | {
-                    if let Err(error) = win.imp().app_database.change_git_profile_of_repository(
+                    let app_database = win.imp().app_database.take();
+
+                    if let Err(error) = app_database.change_git_profile_of_repository(
                         win.imp().selected_repository.borrow().user_repository.repository_id,
                         None
                     ) {
@@ -404,6 +417,8 @@ impl BagitRepositoryPage {
                         let toast = adw::Toast::new(&gettext("_Could not change Git profile"));
                         win.imp().toast_overlay.add_toast(toast);
                     }
+
+                    win.imp().app_database.replace(app_database);
 
                     let _ = match &win.imp().selected_repository.borrow().git_repository {
                         Some(repo) => RepositoryUtils::reset_git_config(&repo),
@@ -515,9 +530,9 @@ impl BagitRepositoryPage {
         if repository.user_repository.git_profile_id.is_some() {
             let selected_profile;
 
-            match self
-                .imp()
-                .app_database
+            let app_database = self.imp().app_database.take();
+
+            match app_database
                 .get_git_profile_from_id(repository.user_repository.git_profile_id.unwrap())
             {
                 Ok(profile) => selected_profile = profile,
@@ -529,6 +544,8 @@ impl BagitRepositoryPage {
                     return;
                 }
             }
+
+            self.imp().app_database.replace(app_database);
 
             match selected_profile {
                 Some(profile) => {
@@ -754,9 +771,9 @@ impl BagitRepositoryPage {
                 // We make sure that the profile name is unique:
                 let same_profile_name_number;
 
-                match self
-                    .imp()
-                    .app_database
+                let app_database = self.imp().app_database.take();
+
+                match app_database
                     .get_number_of_git_profiles_with_name(&author, &new_profile_id.to_string())
                 {
                     Ok(number) => same_profile_name_number = number,
@@ -786,7 +803,7 @@ impl BagitRepositoryPage {
                     signing_key.to_string(),
                 );
 
-                if let Err(error) = self.imp().app_database.add_git_profile(&new_profile) {
+                if let Err(error) = app_database.add_git_profile(&new_profile) {
                     tracing::warn!("Could not add Git profile: {}", error);
 
                     let toast = adw::Toast::new(&gettext("_Could not add Git profile"));
@@ -794,7 +811,7 @@ impl BagitRepositoryPage {
                 }
 
                 // We set the new profile to the repository:
-                if let Err(error) = self.imp().app_database.change_git_profile_of_repository(
+                if let Err(error) = app_database.change_git_profile_of_repository(
                     borrowed_repo.user_repository.repository_id,
                     Some(new_profile_id),
                 ) {
@@ -803,6 +820,8 @@ impl BagitRepositoryPage {
                     let toast = adw::Toast::new(&gettext("_Could not change Git profile"));
                     self.imp().toast_overlay.add_toast(toast);
                 }
+
+                self.imp().app_database.replace(app_database);
 
                 self.imp()
                     .commit_view

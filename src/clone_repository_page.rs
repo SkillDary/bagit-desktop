@@ -93,7 +93,7 @@ mod imp {
 
         pub profile_mode: RefCell<ProfileMode>,
 
-        pub app_database: AppDatabase,
+        pub app_database: RefCell<AppDatabase>,
     }
 
     #[template_callbacks]
@@ -144,7 +144,9 @@ mod imp {
             // We check if the name of the profile is unique:
             let same_profile_name_number;
 
-            match self.app_database.get_number_of_git_profiles_with_name(
+            let app_database = self.app_database.take();
+
+            match app_database.get_number_of_git_profiles_with_name(
                 &profile_name_row.text().trim(),
                 &Uuid::new_v4().to_string(),
             ) {
@@ -157,6 +159,8 @@ mod imp {
                     return;
                 }
             }
+
+            self.app_database.replace(app_database);
 
             self.profile_name_warning
                 .clone()
@@ -248,6 +252,16 @@ mod imp {
     }
 
     impl ObjectImpl for BagitCloneRepositoryPage {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            let mut app_database = self.app_database.take();
+
+            app_database.create_connection();
+
+            self.app_database.replace(app_database);
+        }
+
         fn signals() -> &'static [Signal] {
             static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
                 vec![
@@ -411,11 +425,9 @@ impl BagitCloneRepositoryPage {
 
                 let found_profile;
 
-                match self
-                    .imp()
-                    .app_database
-                    .get_git_profile_from_name(&profile_title)
-                {
+                let app_database = self.imp().app_database.take();
+
+                match app_database.get_git_profile_from_name(&profile_title) {
                     Ok(profile) => found_profile = profile,
                     Err(error) => {
                         // TODO: Show error (maybe with a toast).
@@ -425,6 +437,8 @@ impl BagitCloneRepositoryPage {
                         return;
                     }
                 }
+
+                self.imp().app_database.replace(app_database);
 
                 match found_profile {
                     Some(profile) => {

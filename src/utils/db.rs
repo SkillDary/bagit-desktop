@@ -17,76 +17,77 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+use std::path::PathBuf;
+
 use directories::ProjectDirs;
 use regex::Regex;
-// use sqlite::{Connection, State};
 use rusqlite::{Connection, OptionalExtension, Statement};
-use std::fmt;
 use uuid::Uuid;
 
 use crate::models::{bagit_git_profile::BagitGitProfile, bagit_repository::BagitRepository};
 
-pub struct AppDatabase {
-    connection: Connection,
-}
+use super::migrations::migrations;
 
-impl fmt::Debug for AppDatabase {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Hi")
-    }
+#[derive(Debug)]
+pub struct AppDatabase {
+    connection: Option<Connection>,
 }
 
 impl Default for AppDatabase {
     fn default() -> Self {
-        AppDatabase::init_database()
+        AppDatabase { connection: None }
     }
 }
 
 impl AppDatabase {
     /// Initializes the app database.
-    pub fn init_database() -> AppDatabase {
+    pub fn init_database(&mut self) {
         // Location of the project folder depending on the OS.
         let project_dir: ProjectDirs =
             ProjectDirs::from("com", "SkillDary", "Bagit Desktop").unwrap();
 
         // The path into which we will save the database.
-        let db_dir: std::path::PathBuf = project_dir.data_dir().join("db");
+        let db_dir = project_dir.data_dir().join("db");
 
         // Create the necessary folders if needed.
         std::fs::create_dir_all(&db_dir).unwrap();
 
+        let db_path = db_dir.join("bagit.db");
+
+        let mut connection: Connection = rusqlite::Connection::open(db_path).unwrap();
+
+        migrations().to_latest(&mut connection).unwrap();
+
+        self.connection = Some(connection);
+    }
+
+    pub fn create_connection(&mut self) {
+        // Location of the project folder depending on the OS.
+        let project_dir: ProjectDirs =
+            ProjectDirs::from("com", "SkillDary", "Bagit Desktop").unwrap();
+
+        // The path into which we will save the database.
+        let db_dir = project_dir.data_dir().join("db");
+
         let connection: Connection = rusqlite::Connection::open(db_dir.join("bagit.db")).unwrap();
-        let query: &str = "
-            CREATE TABLE IF NOT EXISTS repository (
-                repositoryId TEXT PRIMARY KEY,
-                name TEXT, 
-                path TEXT,
-                lastOpening TEXT,
-                gitProfileId TEXT,
-                last_fetch_commits_to_pull INTEGER,
-                last_fetch_commits_to_push INTEGER
-            );
-            CREATE TABLE IF NOT EXISTS gitProfile (
-                profileId TEXT PRIMARY KEY,
-                profileName TEXT,
-                email TEXT,
-                username TEXT,
-                password TEXT,
-                privateKeyPath TEXT,
-                signingKey TEXT
-            );";
 
-        connection.execute(query, []).unwrap();
-
-        return AppDatabase { connection };
+        self.connection = Some(connection);
     }
 
     /// Retrieves all repositories.
     pub fn get_all_repositories(&self) -> Result<Vec<BagitRepository>, rusqlite::Error> {
+        let connection;
+
+        if let Some(conn) = &self.connection {
+            connection = conn
+        } else {
+            return Err(rusqlite::Error::InvalidPath(PathBuf::from("")));
+        }
+
         let query: &str = "SELECT * FROM repository;";
         let mut repositories: Vec<BagitRepository> = Vec::new();
 
-        let mut statement: Statement = self.connection.prepare(query)?;
+        let mut statement: Statement = connection.prepare(query)?;
 
         let repository_iter = statement.query_map([], |row| {
             let id: String = row.get("repositoryId")?;
@@ -116,10 +117,18 @@ impl AppDatabase {
 
     /// Retrieves recent repositories (a maximum of 3 repositories, sorted by last opened date).
     pub fn get_recent_repositories(&self) -> Result<Vec<BagitRepository>, rusqlite::Error> {
+        let connection;
+
+        if let Some(conn) = &self.connection {
+            connection = conn
+        } else {
+            return Err(rusqlite::Error::InvalidPath(PathBuf::from("")));
+        }
+
         let query: &str = "SELECT * FROM repository ORDER BY lastOpening DESC LIMIT 3;";
         let mut repositories: Vec<BagitRepository> = Vec::new();
 
-        let mut statement: rusqlite::Statement = self.connection.prepare(query)?;
+        let mut statement: rusqlite::Statement = connection.prepare(query)?;
 
         let repository_iter = statement
             .query_map([], |row| {
@@ -154,13 +163,21 @@ impl AppDatabase {
         &self,
         search: &str,
     ) -> Result<Vec<BagitRepository>, rusqlite::Error> {
+        let connection;
+
+        if let Some(conn) = &self.connection {
+            connection = conn
+        } else {
+            return Err(rusqlite::Error::InvalidPath(PathBuf::from("")));
+        }
+
         let mut repositories: Vec<BagitRepository> = Vec::new();
 
         let query = "SELECT * FROM repository WHERE name LIKE '%' || ?1 || '%' OR path LIKE '%' || ?2 || '%';";
 
         let parameters = [search, search];
 
-        let mut statement: rusqlite::Statement = self.connection.prepare(query)?;
+        let mut statement: rusqlite::Statement = connection.prepare(query)?;
 
         let repository_iter = statement.query_map(parameters, |row| {
             let id: String = row.get("repositoryId")?;
@@ -190,11 +207,19 @@ impl AppDatabase {
 
     /// Retrieves all Git profiles.
     pub fn get_all_git_profiles(&self) -> Result<Vec<BagitGitProfile>, rusqlite::Error> {
+        let connection;
+
+        if let Some(conn) = &self.connection {
+            connection = conn
+        } else {
+            return Err(rusqlite::Error::InvalidPath(PathBuf::from("")));
+        }
+
         let mut profiles: Vec<BagitGitProfile> = Vec::new();
 
         let query: &str = "SELECT * FROM gitProfile;";
 
-        let mut statement: rusqlite::Statement = self.connection.prepare(query)?;
+        let mut statement: rusqlite::Statement = connection.prepare(query)?;
 
         let profile_iter = statement.query_map([], |row| {
             let profile_id: Option<String> = row.get("profileId")?;
@@ -225,6 +250,14 @@ impl AppDatabase {
 
     /// Adds a new repository.
     pub fn add_repository(&self, repository: &BagitRepository) -> Result<(), rusqlite::Error> {
+        let connection;
+
+        if let Some(conn) = &self.connection {
+            connection = conn
+        } else {
+            return Err(rusqlite::Error::InvalidPath(PathBuf::from("")));
+        }
+
         if repository.git_profile_id.is_some() {
             let query = "INSERT INTO repository VALUES (?1, ?2, ?3, datetime('now'), ?4);";
 
@@ -235,7 +268,7 @@ impl AppDatabase {
                 repository.git_profile_id.unwrap().to_string(),
             ];
 
-            self.connection.execute(query, parameters)?;
+            connection.execute(query, parameters)?;
         } else {
             let query = "INSERT INTO repository(repositoryId, name, path, lastOpening) VALUES (?1, ?2, ?3, datetime('now'));";
 
@@ -245,7 +278,7 @@ impl AppDatabase {
                 repository.path.to_owned(),
             ];
 
-            self.connection.execute(query, parameters)?;
+            connection.execute(query, parameters)?;
         }
 
         Ok(())
@@ -257,18 +290,26 @@ impl AppDatabase {
         repo_id: Uuid,
         profile_id: Option<Uuid>,
     ) -> Result<(), rusqlite::Error> {
+        let connection;
+
+        if let Some(conn) = &self.connection {
+            connection = conn
+        } else {
+            return Err(rusqlite::Error::InvalidPath(PathBuf::from("")));
+        }
+
         if profile_id.is_some() {
             let query = "UPDATE repository SET gitProfileId=?1 WHERE repositoryId=?2;";
 
             let parameters = [profile_id.unwrap().to_string(), repo_id.to_string()];
 
-            self.connection.execute(query, parameters)?;
+            connection.execute(query, parameters)?;
         } else {
             let query = "UPDATE repository SET gitProfileId=NULL WHERE repositoryId=?1;";
 
             let parameters = [repo_id.to_string()];
 
-            self.connection.execute(query, parameters)?;
+            connection.execute(query, parameters)?;
         }
 
         Ok(())
@@ -276,11 +317,19 @@ impl AppDatabase {
 
     /// Checks if a Git profile already exist.
     pub fn does_git_profile_exist(&self, profile_id: &str) -> Result<bool, rusqlite::Error> {
+        let connection;
+
+        if let Some(conn) = &self.connection {
+            connection = conn
+        } else {
+            return Err(rusqlite::Error::InvalidPath(PathBuf::from("")));
+        }
+
         let query = "SELECT profileId FROM gitProfile WHERE profileId=?1;";
 
         let parameters = [profile_id];
 
-        let mut statement: rusqlite::Statement<'_> = self.connection.prepare(query)?;
+        let mut statement: rusqlite::Statement<'_> = connection.prepare(query)?;
 
         return statement.exists(parameters);
     }
@@ -296,6 +345,14 @@ impl AppDatabase {
         private_key_path: &str,
         signing_key: &str,
     ) -> Result<bool, rusqlite::Error> {
+        let connection;
+
+        if let Some(conn) = &self.connection {
+            connection = conn
+        } else {
+            return Err(rusqlite::Error::InvalidPath(PathBuf::from("")));
+        }
+
         let query = "SELECT profileId FROM gitProfile WHERE profileId=?1
             AND profileName=?2
             AND email=?3
@@ -314,7 +371,7 @@ impl AppDatabase {
             signing_key,
         ];
 
-        let mut statement: rusqlite::Statement<'_> = self.connection.prepare(query)?;
+        let mut statement: rusqlite::Statement<'_> = connection.prepare(query)?;
 
         return statement.exists(parameters);
     }
@@ -324,11 +381,19 @@ impl AppDatabase {
         &self,
         path: &str,
     ) -> Result<Option<BagitRepository>, rusqlite::Error> {
+        let connection;
+
+        if let Some(conn) = &self.connection {
+            connection = conn
+        } else {
+            return Err(rusqlite::Error::InvalidPath(PathBuf::from("")));
+        }
+
         let query = "SELECT * FROM repository WHERE path=?";
 
         let parameters = [path];
 
-        let mut statement: rusqlite::Statement = self.connection.prepare(query)?;
+        let mut statement: rusqlite::Statement = connection.prepare(query)?;
 
         let bagit_repository = statement
             .query_row(parameters, |row| {
@@ -360,11 +425,19 @@ impl AppDatabase {
         &self,
         profile_id: Uuid,
     ) -> Result<Option<BagitGitProfile>, rusqlite::Error> {
+        let connection;
+
+        if let Some(conn) = &self.connection {
+            connection = conn
+        } else {
+            return Err(rusqlite::Error::InvalidPath(PathBuf::from("")));
+        }
+
         let query = "SELECT * FROM gitProfile WHERE profileId=?";
 
         let parameters = [profile_id.to_string()];
 
-        let mut statement: rusqlite::Statement = self.connection.prepare(query)?;
+        let mut statement: rusqlite::Statement = connection.prepare(query)?;
 
         let git_profile = statement
             .query_row(parameters, |row| {
@@ -388,11 +461,19 @@ impl AppDatabase {
         &self,
         profile_name: &str,
     ) -> Result<Option<BagitGitProfile>, rusqlite::Error> {
+        let connection;
+
+        if let Some(conn) = &self.connection {
+            connection = conn
+        } else {
+            return Err(rusqlite::Error::InvalidPath(PathBuf::from("")));
+        }
+
         let query = "SELECT * FROM gitProfile WHERE profileName=?";
 
         let parameters = [profile_name];
 
-        let mut statement: rusqlite::Statement = self.connection.prepare(query)?;
+        let mut statement: rusqlite::Statement = connection.prepare(query)?;
 
         let git_profile = statement
             .query_row(parameters, |row| {
@@ -416,6 +497,14 @@ impl AppDatabase {
 
     /// Adds a new Git profile.
     pub fn add_git_profile(&self, profile: &BagitGitProfile) -> Result<(), rusqlite::Error> {
+        let connection;
+
+        if let Some(conn) = &self.connection {
+            connection = conn
+        } else {
+            return Err(rusqlite::Error::InvalidPath(PathBuf::from("")));
+        }
+
         let query = "INSERT INTO gitProfile VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7);";
 
         let parameters = [
@@ -428,13 +517,21 @@ impl AppDatabase {
             profile.signing_key.to_owned(),
         ];
 
-        self.connection.execute(query, parameters)?;
+        connection.execute(query, parameters)?;
 
         Ok(())
     }
 
     /// Updates a Git profile.
     pub fn update_git_profile(&self, profile: &BagitGitProfile) -> Result<(), rusqlite::Error> {
+        let connection;
+
+        if let Some(conn) = &self.connection {
+            connection = conn
+        } else {
+            return Err(rusqlite::Error::InvalidPath(PathBuf::from("")));
+        }
+
         let query = "UPDATE gitProfile SET 
             profileName=?1,
             email=?2,
@@ -454,29 +551,45 @@ impl AppDatabase {
             profile.profile_id.to_string(),
         ];
 
-        self.connection.execute(query, parameters)?;
+        connection.execute(query, parameters)?;
 
         Ok(())
     }
 
     /// Deletes a Git profile.
     pub fn delete_git_profile(&self, profile_id: &str) -> Result<(), rusqlite::Error> {
+        let connection;
+
+        if let Some(conn) = &self.connection {
+            connection = conn
+        } else {
+            return Err(rusqlite::Error::InvalidPath(PathBuf::from("")));
+        }
+
         let query = "DELETE FROM gitProfile WHERE profileId=?1;";
 
         let parameters = [profile_id];
 
-        self.connection.execute(query, parameters)?;
+        connection.execute(query, parameters)?;
 
         Ok(())
     }
 
     /// Deletes a repository.
     pub fn delete_repository(&self, repository_id: &str) -> Result<(), rusqlite::Error> {
+        let connection;
+
+        if let Some(conn) = &self.connection {
+            connection = conn
+        } else {
+            return Err(rusqlite::Error::InvalidPath(PathBuf::from("")));
+        }
+
         let query = "DELETE FROM repository WHERE repositoryId=?1;";
 
         let parameters = [repository_id];
 
-        self.connection.execute(query, parameters)?;
+        connection.execute(query, parameters)?;
 
         Ok(())
     }
@@ -488,13 +601,21 @@ impl AppDatabase {
         profile_name: &str,
         profile_id: &str,
     ) -> Result<Vec<String>, rusqlite::Error> {
+        let connection;
+
+        if let Some(conn) = &self.connection {
+            connection = conn
+        } else {
+            return Err(rusqlite::Error::InvalidPath(PathBuf::from("")));
+        }
+
         let mut profiles_names: Vec<String> = Vec::new();
 
         let query = "SELECT profileName FROM gitProfile WHERE profileName LIKE '%' || ?1 || '%' AND profileId!=?2;";
 
         let parameters = [profile_name, profile_id];
 
-        let mut statement: rusqlite::Statement<'_> = self.connection.prepare(query)?;
+        let mut statement: rusqlite::Statement<'_> = connection.prepare(query)?;
 
         let profile_iter = statement
             .query_map(parameters, |row| Ok(row.get("profileName")?))
@@ -544,11 +665,19 @@ impl AppDatabase {
 
     /// Updates the last opening date of a repository.
     pub fn update_last_opening_of_repository(&self, repository_id: Uuid) {
+        let connection;
+
+        if let Some(conn) = &self.connection {
+            connection = conn
+        } else {
+            return;
+        }
+
         let query = "UPDATE repository SET lastOpening=datetime('now') WHERE repositoryId=?1;";
 
         let parameters = [repository_id.to_string()];
 
-        self.connection.execute(query, parameters).unwrap();
+        connection.execute(query, parameters).unwrap();
     }
 
     /// Checks for deleted repositories on the device.
