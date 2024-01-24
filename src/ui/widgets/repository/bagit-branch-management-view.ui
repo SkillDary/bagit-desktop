@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="Adw" version="1.0"/>
+  <template class="BagitBranchManagementView" parent="GtkBox">
+    <property name="width-request">400</property>
+    <property name="orientation">vertical</property>
+    <property name="vexpand">True</property>
+    <property name="hexpand">True</property>
+    <child>
+      <object class="GtkScrolledWindow">
+        <property name="vexpand">true</property>
+        <child>
+          <object class="AdwClamp">
+            <property name="child">
+              <object class="GtkBox">
+                <property name="orientation">vertical</property>
+                <property name="margin-top">24</property>
+                <property name="margin-bottom">24</property>
+                <property name="margin-start">8</property>
+                <property name="margin-end">8</property>
+                <property name="spacing">24</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">4</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <style>
+                          <class name="title-1"/>
+                        </style>
+                        <property name="label" translatable="yes">_Branch management</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="file_information_label"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">10</property>
+                    <style>
+                      <class name="card"/>
+                    </style>
+                    <child>
+                      <object class="GtkBox">
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">24</property>
+                        <property name="margin-top">10</property>
+                        <property name="margin-bottom">10</property>
+                        <property name="margin-start">10</property>
+                        <property name="margin-end">10</property>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="halign">start</property>
+                            <style>
+                              <class name="title-2"/>
+                            </style>
+                            <property name="label" translatable="yes">_Create a new branch</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkListBox">
+                            <style>
+                              <class name="boxed-list"/>
+                            </style>
+                            <child>
+                              <object class="AdwEntryRow" id="new_branch_row">
+                                <property name="title" translatable="yes">_Branch name</property>
+                                <signal name="changed" handler="new_branch_name_changed" swapped="true"/>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="hexpand">true</property>
+                            <child>
+                              <object class="GtkButton" id="create_branch_button">
+                                <property name="hexpand">true</property>
+                                <property name="sensitive">false</property>
+                                <property name="label" translatable="yes">_Create branch</property>
+                                <signal name="clicked" handler="create_branch" swapped="true"/>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">4</property>
+                     <child>
+                      <object class="GtkLabel">
+                        <property name="halign">start</property>
+                        <style>
+                          <class name="title-2"/>
+                        </style>
+                        <property name="label" translatable="yes">_All branches</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkSearchEntry" id="search_bar">
+                       <property name="margin-top">10</property>
+                       <property name="margin-start">80</property>
+                       <property name="margin-end">80</property>
+                       <property name="margin-bottom">20</property>
+                       <property name="placeholder-text" translatable="yes">_Search a branch</property>
+                       <signal name="search-changed" handler="search_changed" swapped="true"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkStack" id="branches_stack">
+                        <property name="transition-type">GTK_STACK_TRANSITION_TYPE_CROSSFADE</property>
+                        <property name="vexpand">false</property>
+                        <child>
+                          <object class="GtkStackPage">
+                            <property name="name">loading page</property>
+                            <property name="child">
+                              <object class="GtkBox">
+                                <property name="hexpand">true</property>
+                                <property name="halign">center</property>
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">12</property>
+                                <child>
+                                  <object class="GtkSpinner">
+                                    <property name="spinning">true</property>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="label" translatable="yes">_Loading branches</property>
+                                    <style>
+                                      <class name="title-3"/>
+                                    </style>
+                                  </object>
+                                </child>
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkStackPage">
+                            <property name="name">no branches page</property>
+                            <property name="child">
+                              <object class="GtkBox">
+                                <property name="vexpand">true</property>
+                                <property name="hexpand">true</property>
+                                <property name="valign">center</property>
+                                <property name="halign">center</property>
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">12</property>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="label" translatable="yes">_No branches</property>
+                                    <style>
+                                      <class name="title-3"/>
+                                    </style>
+                                  </object>
+                                </child>
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+                         <child>
+                          <object class="GtkStackPage">
+                            <property name="name">branches page</property>
+                            <property name="child">
+                              <object class="GtkListBox" id="all_branches">
+                                <property name="can-focus">false</property>
+                                <signal name="row-selected" handler="row_clicked" swapped="true"/>
+                                <style>
+                                  <class name="boxed-list"/>
+                                </style>
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>
+

@@ -135,6 +135,12 @@ msgstr "Impossible d'ajouter le dépôt."
 msgid "_Could not delete repository"
 msgstr "Impossible de supprimer le dépôt."
 
+msgid "_Delete branch"
+msgstr "Supprimer une branche"
+
+msgid "_Delete branch confirmation"
+msgstr "Vous allez supprimer la branche suivante :"
+
 ############# create-repository-page.ui ############
 
 msgid "_Name of the repository"
@@ -407,6 +413,9 @@ msgstr "Vous voici sur"
 msgid "_Status page text"
 msgstr "Vous pouvez commettre, pousser, tirer..."
 
+msgid "_Branch deleted"
+msgstr "Branche supprimée"
+
 ############### bagit-https-action-dialog.ui ######
 
 msgid "_Missing information"
@@ -433,7 +442,7 @@ msgid "_Loading branches"
 msgstr "Chargement des branches"
 
 msgid "_No branches"
-msgstr "Aucunes branches"
+msgstr "Aucune branches"
 
 msgid "_Change branch dialog title"
 msgstr "Changer de branche ?"
@@ -445,6 +454,33 @@ msgstr "Les changements seront apportés sur"
 
 msgid "_Remote branch not found"
 msgstr "Branche distante non trouvée"
+
+############### bagit-branch-management-view.ui ####
+
+msgid "_Branch management"
+msgstr "Gestion des branches"
+
+msgid "_Create a new branch"
+msgstr "Créer une nouvelle branche"
+
+msgid "_Create branch"
+msgstr "Créer la branche"
+
+msgid "_Branch name"
+msgstr "Nom de la branche"
+
+msgid "_All branches"
+msgstr "Toutes les branches"
+
+msgid "_Remote"
+msgstr "Distante"
+
+msgid "_Local"
+msgstr "Locale"
+
+msgid "_Search a branch"
+msgstr "Rechercher une branche"
+
 ############# git2 errors #############
 
 # Errors codes:

@@ -9,6 +9,7 @@
     <file alias="arrow3-down-symbolic.svg">assets/icons/arrow3-down-symbolic.svg</file>
     <file alias="panel-left-symbolic.svg">assets/icons/panel-left-symbolic.svg</file>
     <file alias="panel-modified-symbolic.svg">assets/icons/panel-modified-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">assets/icons/user-trash-symbolic.svg</file>
   </gresource>
   <gresource prefix="/com/skilldary/bagit/desktop">
     <file preprocess="xml-stripblanks">ui/window.ui</file>
@@ -25,6 +26,7 @@
     <file preprocess="xml-stripblanks">ui/widgets/preferences/bagit-preferences-git-profiles.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/repository/bagit-commits-sidebar.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/repository/bagit-commit-view.ui</file>
+    <file preprocess="xml-stripblanks">ui/widgets/repository/bagit-branch-management-view.ui</file>
     <file preprocess="xml-stripblanks">ui/create-repository-page.ui</file>
     <file preprocess="xml-stripblanks">ui/clone-repository-page.ui</file>
     <file preprocess="xml-stripblanks">ui/preferences.ui</file>

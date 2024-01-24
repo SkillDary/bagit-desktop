@@ -17,6 +17,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+pub mod branch_management_view;
 pub mod commit_view;
 pub mod commits_sidebar;
 

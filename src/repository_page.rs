@@ -42,6 +42,8 @@ use itertools::Itertools;
 use notify::{RecursiveMode, Watcher};
 use uuid::Uuid;
 
+use crate::widgets::repository::branch_management_view::BagitBranchManagementView;
+
 mod imp {
 
     use std::{
@@ -80,7 +82,9 @@ mod imp {
         #[template_child]
         pub commit_view: TemplateChild<BagitCommitView>,
         #[template_child]
-        pub branch_button_content: TemplateChild<adw::ButtonContent>,
+        pub branch_view: TemplateChild<BagitBranchManagementView>,
+        #[template_child]
+        pub branch_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub repository_name_label: TemplateChild<gtk::Label>,
         #[template_child]
@@ -132,7 +136,9 @@ mod imp {
             self.current_git_action.replace(current_git_action);
 
             match current_git_action {
-                ActionType::PUSH => self.obj().do_git_action_with_auth_check(ActionType::PUSH),
+                ActionType::Push => self
+                    .obj()
+                    .do_git_action_with_auth_check(ActionType::Push, &""),
                 _ => self
                     .obj()
                     .try_do_git_action_without_auth_check(current_git_action),
@@ -142,29 +148,35 @@ mod imp {
         #[template_callback]
         fn fetch(&self, _button: gtk::Button) {
             self.obj()
-                .update_git_action_button_action(ActionType::FETCH);
+                .update_git_action_button_action(ActionType::Fetch);
             self.obj()
-                .try_do_git_action_without_auth_check(ActionType::FETCH);
+                .try_do_git_action_without_auth_check(ActionType::Fetch);
         }
 
         #[template_callback]
         fn pull(&self, _button: gtk::Button) {
-            self.obj().update_git_action_button_action(ActionType::PULL);
+            self.obj().update_git_action_button_action(ActionType::Pull);
             self.obj()
-                .try_do_git_action_without_auth_check(ActionType::PULL);
+                .try_do_git_action_without_auth_check(ActionType::Pull);
         }
 
         #[template_callback]
         fn push(&self, _button: gtk::Button) {
-            self.obj().update_git_action_button_action(ActionType::PUSH);
-            self.obj().do_git_action_with_auth_check(ActionType::PUSH);
+            self.obj().update_git_action_button_action(ActionType::Push);
+            self.obj()
+                .do_git_action_with_auth_check(ActionType::Push, &"");
         }
 
         #[template_callback]
         fn branch_button_action(&self, _button: gtk::Button) {
-            let repository = self.selected_repository.borrow();
-            self.obj()
-                .emit_by_name::<()>("select-branch", &[&repository.user_repository.path]);
+            self.main_view_stack.set_visible_child_name("branch view");
+
+            let selected_repository = self.selected_repository.take();
+            let selected_repository_path = selected_repository.user_repository.path.clone();
+            self.selected_repository.replace(selected_repository);
+
+            self.branch_view
+                .fetch_all_branches(selected_repository_path);
         }
     }
 
@@ -190,6 +202,9 @@ mod imp {
             self.parent_constructed();
             self.obj().connect_sidebar_signals();
             self.obj().connect_commit_view_signals();
+            self.obj().connect_branch_management_view_signals();
+
+            self.is_doing_git_action.set(false);
 
             let mut app_database = self.app_database.take();
 
@@ -208,7 +223,7 @@ mod imp {
                         .param_types([str::static_type()])
                         .build(),
                     Signal::builder("select-branch")
-                        .param_types([str::static_type()])
+                        .param_types([str::static_type(), bool::static_type(), bool::static_type()])
                         .build(),
                     Signal::builder("discard-dialog")
                         .param_types([bool::static_type(), str::static_type()])
@@ -228,6 +243,7 @@ mod imp {
                             str::static_type(),
                             str::static_type(),
                             ActionType::static_type(),
+                            str::static_type(),
                         ])
                         .build(),
                     Signal::builder("missing-https-information")
@@ -235,6 +251,7 @@ mod imp {
                             str::static_type(),
                             str::static_type(),
                             ActionType::static_type(),
+                            str::static_type(),
                         ])
                         .build(),
                     Signal::builder("ssh-passphrase-dialog")
@@ -242,7 +259,11 @@ mod imp {
                             str::static_type(),
                             str::static_type(),
                             ActionType::static_type(),
+                            str::static_type(),
                         ])
+                        .build(),
+                    Signal::builder("delete-branch")
+                        .param_types([str::static_type(), str::static_type(), bool::static_type()])
                         .build(),
                 ]
             });
@@ -286,9 +307,9 @@ impl BagitRepositoryPage {
                 | {
                     win.update_push_indication_box(local_commits.into());
                     if local_commits != 0 {
-                        win.update_git_action_button_action(ActionType::PUSH);
+                        win.update_git_action_button_action(ActionType::Push);
                     } else {
-                        win.update_git_action_button_action(ActionType::FETCH);
+                        win.update_git_action_button_action(ActionType::Fetch);
                     }
                 }
             ),
@@ -361,7 +382,7 @@ impl BagitRepositoryPage {
         );
     }
 
-    /// Used to connect signals send by the commit view.
+    /// Used to connect signals sent by the commit view.
     pub fn connect_commit_view_signals(&self) {
         self.imp().commit_view.connect_closure(
             "select-profile",
@@ -586,6 +607,82 @@ impl BagitRepositoryPage {
         );
     }
 
+    /// Connects the signals sent by the branch management view.
+    pub fn connect_branch_management_view_signals(&self) {
+        self.imp().branch_view.connect_closure(
+            "change-branch",
+            false,
+            closure_local!(@watch self as win => move |
+            _branch_view: BagitBranchManagementView,
+            branch_name: &str,
+            is_remote: bool
+            | {
+                let has_changed_files = win.has_changed_files();
+                win.imp().obj()
+                    .emit_by_name::<()>("select-branch", &[
+                        &branch_name,
+                        &is_remote,
+                        &has_changed_files
+                    ]);
+            }),
+        );
+
+        self.imp().branch_view.connect_closure(
+            "create-branch",
+            false,
+            closure_local!(@watch self as win => move |
+            _branch_view: BagitBranchManagementView,
+            branch_name: &str,
+            | {
+                let selected_repository = win.imp().selected_repository.take();
+                win.imp().selected_repository.replace(
+                    SelectedRepository::try_fetching_selected_repository(
+                        &selected_repository.user_repository,
+                    )
+                    .unwrap(),
+                );
+
+                if selected_repository.git_repository.is_none() {
+                    return;
+                }
+
+                match RepositoryUtils::create_branch(&selected_repository.git_repository.as_ref().unwrap(), branch_name) {
+                    Ok(_) => {
+                        win.checkout_branch_and_update_ui(
+                            branch_name.to_string(),
+                            false
+                        );
+                        win.imp().branch_view.imp().new_branch_row.set_text("");
+                    },
+                    Err(error) => win.show_toast(&error.to_string())
+                }
+            }),
+        );
+        self.imp().branch_view.connect_closure(
+            "delete-branch",
+            false,
+            closure_local!(@watch self as win => move |
+            _branch_view: BagitBranchManagementView,
+            branch_name: &str,
+            is_remote: bool
+            | {
+                let selected_repository = win.imp().selected_repository.take();
+                win.imp().selected_repository.replace(
+                    SelectedRepository::try_fetching_selected_repository(
+                        &selected_repository.user_repository,
+                    )
+                    .unwrap(),
+                );
+
+                win.emit_by_name::<()>("delete-branch", &[
+                        &selected_repository.user_repository.path,
+                        &branch_name,
+                        &is_remote
+                    ]);
+            }),
+        );
+    }
+
     /// Used to initialize the repository page with a selected repository.
     pub fn init_repository_page(&self, repository: SelectedRepository) {
         self.create_file_watcher(Path::new(&repository.user_repository.path));
@@ -649,6 +746,23 @@ impl BagitRepositoryPage {
 
         self.update_commits_sidebar();
         self.update_branch_name();
+        self.imp().branch_view.init_branch_view();
+    }
+
+    /// Used to update the repository page information.
+    pub fn update_repository_page(&self) {
+        self.update_commits_sidebar();
+        self.imp().commit_view.update_git_profiles_list();
+        self.update_branch_name();
+
+        // Updating constantly all branches may not be user friendly.
+        let selected_repository = self.imp().selected_repository.take();
+        let selected_repository_path = selected_repository.user_repository.path.clone();
+        self.imp().selected_repository.replace(selected_repository);
+
+        self.imp()
+            .branch_view
+            .fetch_all_branches(selected_repository_path);
     }
 
     /// Updates the changed files and commit history.
@@ -708,7 +822,26 @@ impl BagitRepositoryPage {
         let borrowed_repo = self.imp().selected_repository.borrow();
         match &borrowed_repo.git_repository {
             Some(repository) => match RepositoryUtils::get_current_branch_name(&repository) {
-                Ok(branch_name) => self.imp().branch_button_content.set_label(&branch_name),
+                Ok(branch_name) => {
+                    let button_box = self
+                        .imp()
+                        .branch_button
+                        .first_child()
+                        .and_downcast::<gtk::Box>();
+
+                    if button_box.is_none() {
+                        return;
+                    }
+
+                    let button_label = button_box
+                        .unwrap()
+                        .last_child()
+                        .and_downcast::<gtk::Label>();
+
+                    if let Some(label) = button_label {
+                        label.set_text(&branch_name);
+                    }
+                }
                 Err(_) => {}
             },
             None => {}
@@ -719,62 +852,63 @@ impl BagitRepositoryPage {
     pub fn init_git_action_button(&self) {
         self.update_push_indication_box(0);
         self.update_pull_indication_box(0);
-        self.update_git_action_button_action(ActionType::FETCH);
+        self.update_git_action_button_action(ActionType::Fetch);
     }
 
     /// Used to try to find the correct git button action.
     /// The default action is fetch, and the preffered one is push.
     pub fn try_to_find_correct_git_button_action(&self) {
         if self.imp().push_indication_box.is_visible() {
-            self.update_git_action_button_action(ActionType::PUSH);
+            self.update_git_action_button_action(ActionType::Push);
             return;
         }
         if self.imp().pull_indication_box.is_visible() {
-            self.update_git_action_button_action(ActionType::PULL);
+            self.update_git_action_button_action(ActionType::Pull);
             return;
         }
-        self.update_git_action_button_action(ActionType::FETCH);
+        self.update_git_action_button_action(ActionType::Fetch);
     }
 
     /// Used to update the popover menu buttons visibility.
     fn update_popover_menu_buttons(&self, action_type: ActionType) {
         self.imp()
             .fetch_button
-            .set_visible(!(action_type == ActionType::FETCH));
+            .set_visible(!(action_type == ActionType::Fetch));
         self.imp()
             .pull_button
-            .set_visible(!(action_type == ActionType::PULL));
+            .set_visible(!(action_type == ActionType::Pull));
         self.imp()
             .push_button
-            .set_visible(!(action_type == ActionType::PUSH));
+            .set_visible(!(action_type == ActionType::Push));
     }
 
-    /// USed to update the git action button text and current action.
+    /// Used to update the git action button text and current action.
+    /// The default git action is the fetch;
     fn update_git_action_button_action(&self, action_type: ActionType) {
         match action_type {
-            ActionType::FETCH => {
-                self.imp().current_git_action.replace(ActionType::FETCH);
-
-                self.imp()
-                    .git_action_label
-                    .get()
-                    .set_label(&gettext("_Fetch"));
-            }
-            ActionType::PUSH => {
-                self.imp().current_git_action.replace(ActionType::PUSH);
+            ActionType::Push => {
+                self.imp().current_git_action.replace(ActionType::Push);
 
                 self.imp()
                     .git_action_label
                     .get()
                     .set_label(&gettext("_Push"));
             }
-            ActionType::PULL => {
-                self.imp().current_git_action.replace(ActionType::PULL);
+            ActionType::Pull => {
+                self.imp().current_git_action.replace(ActionType::Pull);
 
                 self.imp()
                     .git_action_label
                     .get()
                     .set_label(&gettext("_Pull"));
+            }
+            _ => {
+                self.imp().current_git_action.replace(ActionType::Fetch);
+
+                self.imp()
+                    .git_action_label
+                    .get()
+                    .set_label(&gettext("_Fetch"));
             }
         }
         self.update_popover_menu_buttons(action_type);
@@ -802,7 +936,7 @@ impl BagitRepositoryPage {
             .set_label(&total_commits_to_pull.to_string());
     }
 
-    /// Used to activate or desactivate the action button.
+    /// Activates or deactivates the action button.
     pub fn toggle_git_action_button(&self, is_active: bool) {
         self.imp().git_action_button.set_sensitive(is_active);
         self.imp().git_action_spinner.set_visible(!is_active);
@@ -814,15 +948,15 @@ impl BagitRepositoryPage {
         self.update_pull_indication_box(fetch_result.total_commits_to_pull);
 
         if fetch_result.total_commits_to_push == 0 && fetch_result.total_commits_to_pull == 0 {
-            self.update_git_action_button_action(ActionType::FETCH);
+            self.update_git_action_button_action(ActionType::Fetch);
             self.toggle_git_action_button(true);
             return;
         }
 
         if fetch_result.total_commits_to_push > 0 {
-            self.update_git_action_button_action(ActionType::PUSH);
+            self.update_git_action_button_action(ActionType::Push);
         } else {
-            self.update_git_action_button_action(ActionType::PULL);
+            self.update_git_action_button_action(ActionType::Pull);
         }
 
         self.toggle_git_action_button(true);
@@ -968,20 +1102,28 @@ impl BagitRepositoryPage {
         private_key_path: String,
         passphrase: String,
         action_type: ActionType,
+        branch_name: String,
     ) {
         match action_type {
-            ActionType::FETCH => self.fetch_repository_checked_out_branch_and_update_ui(
+            ActionType::Fetch => self.fetch_repository_checked_out_branch_and_update_ui(
                 username,
                 password,
                 private_key_path,
                 passphrase,
             ),
-            ActionType::PUSH => {
+            ActionType::Push => {
                 self.push_and_update_ui(username, password, private_key_path, passphrase)
             }
-            ActionType::PULL => {
+            ActionType::Pull => {
                 self.pull_and_update_ui(username, password, private_key_path, passphrase)
             }
+            ActionType::DeleteRemoteBranch => self.delete_branch_and_update_ui(
+                username,
+                password,
+                private_key_path,
+                passphrase,
+                branch_name,
+            ),
         };
     }
 
@@ -1003,7 +1145,7 @@ impl BagitRepositoryPage {
             .replace(profile_mode.clone());
 
         // If we want to pull, we need to check that we don't have changed files:
-        if action_type == ActionType::PULL && !self.check_if_can_pull() {
+        if action_type == ActionType::Pull && !self.check_if_can_pull() {
             let toast = adw::Toast::new(&gettext("_Changed files when pull"));
             self.imp().toast_overlay.add_toast(toast);
             self.toggle_git_action_button(true);
@@ -1012,8 +1154,8 @@ impl BagitRepositoryPage {
         }
 
         match action_type {
-            ActionType::FETCH => return self.try_fetch_without_auth_and_update_ui(),
-            ActionType::PULL => return self.try_pull_without_auth_and_update_ui(),
+            ActionType::Fetch => return self.try_fetch_without_auth_and_update_ui(),
+            ActionType::Pull => return self.try_pull_without_auth_and_update_ui(),
             _ => {}
         };
     }
@@ -1034,7 +1176,8 @@ impl BagitRepositoryPage {
     }
 
     /// Used to do a git action that need authentification.
-    fn do_git_action_with_auth_check(&self, action_type: ActionType) {
+    /// The branch name parameter is used when wanting to delete a remote branch.
+    pub fn do_git_action_with_auth_check(&self, action_type: ActionType, remote_branch_name: &str) {
         let selected_repository = self.imp().selected_repository.take();
         let profile_mode = self.imp().commit_view.imp().profile_mode.take();
 
@@ -1052,7 +1195,7 @@ impl BagitRepositoryPage {
             .replace(profile_mode.clone());
 
         // If we want to pull, we need to check that we don't have changed files:
-        if action_type == ActionType::PULL && !self.check_if_can_pull() {
+        if action_type == ActionType::Pull && !self.check_if_can_pull() {
             let toast = adw::Toast::new(&gettext("_Changed files when pull"));
             self.imp().toast_overlay.add_toast(toast);
             self.toggle_git_action_button(true);
@@ -1073,11 +1216,17 @@ impl BagitRepositoryPage {
                                             &profile.username,
                                             &profile.private_key_path,
                                             &action_type,
+                                            &remote_branch_name,
                                         ],
                                     ),
                                     CloneMode::HTTPS => self.emit_by_name::<()>(
                                         "missing-https-information",
-                                        &[&profile.username, &profile.password, &action_type],
+                                        &[
+                                            &profile.username,
+                                            &profile.password,
+                                            &action_type,
+                                            &remote_branch_name,
+                                        ],
                                     ),
                                 };
                             } else {
@@ -1094,6 +1243,7 @@ impl BagitRepositoryPage {
                                                     profile.private_key_path,
                                                     passphrase.to_owned(),
                                                     action_type,
+                                                    remote_branch_name.to_string(),
                                                 ),
                                             None => self.emit_by_name::<()>(
                                                 "ssh-passphrase-dialog",
@@ -1101,6 +1251,7 @@ impl BagitRepositoryPage {
                                                     &profile.username,
                                                     &profile.private_key_path,
                                                     &action_type,
+                                                    &remote_branch_name,
                                                 ],
                                             ),
                                         }
@@ -1111,6 +1262,7 @@ impl BagitRepositoryPage {
                                         profile.private_key_path,
                                         "".to_string(),
                                         action_type,
+                                        String::from(remote_branch_name),
                                     ),
                                 };
                             }
@@ -1123,6 +1275,7 @@ impl BagitRepositoryPage {
                                         &self.imp().commit_view.imp().author_row.text().trim(),
                                         &"",
                                         &action_type,
+                                        &remote_branch_name,
                                     ],
                                 ),
                                 CloneMode::HTTPS => self.emit_by_name::<()>(
@@ -1131,6 +1284,7 @@ impl BagitRepositoryPage {
                                         &self.imp().commit_view.imp().author_row.text().trim(),
                                         &"",
                                         &action_type,
+                                        &remote_branch_name,
                                     ],
                                 ),
                             };
@@ -1193,7 +1347,7 @@ impl BagitRepositoryPage {
                             win.try_to_find_correct_git_button_action();
                             win.toggle_git_action_button(true);
 
-                            win.update_commits_sidebar();
+                            win.update_repository_page();
                             Continue(true)
                         }
             ),
@@ -1212,7 +1366,7 @@ impl BagitRepositoryPage {
                             win.toggle_git_action_button(true);
 
                             win.imp().sidebar.imp().first_commit_oid_of_commit_list.take();
-                            win.update_commits_sidebar();
+                            win.update_repository_page();
                             Continue(true)
                         }
             ),
@@ -1294,6 +1448,72 @@ impl BagitRepositoryPage {
         );
     }
 
+    pub fn delete_branch_and_update_ui(
+        &self,
+        username: String,
+        password: String,
+        private_key_path: String,
+        passphrase: String,
+        branch_name: String,
+    ) {
+        let selected_repository = self.imp().selected_repository.take();
+        self.imp().selected_repository.replace(
+            SelectedRepository::try_fetching_selected_repository(
+                &selected_repository.user_repository,
+            )
+            .unwrap(),
+        );
+
+        let (result_sender, result_receiver) =
+            MainContext::channel::<Result<(), String>>(Priority::default());
+
+        self.toggle_git_action_button(false);
+
+        thread::spawn(move || {
+            let result_sender = result_sender.clone();
+
+            match RepositoryUtils::delete_remote_branch(
+                &selected_repository.git_repository.as_ref().unwrap(),
+                &branch_name,
+                username,
+                password,
+                private_key_path,
+                passphrase,
+            ) {
+                Ok(_) => result_sender
+                    .send(Ok(()))
+                    .expect("Could not send result through channel"),
+                Err(error) => result_sender
+                    .send(Err(error.to_string()))
+                    .expect("Could not send error through channel"),
+            };
+        });
+
+        result_receiver.attach(
+            None,
+            clone!(
+                @weak self as win => @default-return Continue(false),
+                        move |result| {
+                            match result {
+                                Ok(_) => {
+                                    win.imp()
+                                        .branch_view
+                                        .fetch_all_branches(selected_repository.user_repository.path.clone());
+                                    win.show_toast(&gettext("_Branch deleted"));
+                                    win.imp().sidebar.init_commit_list(selected_repository.user_repository.path.clone());
+                                    win.toggle_git_action_button(true);
+                                },
+                                Err(error) => {
+                                    win.emit_by_name::<()>("error", &[&error.to_string()]);
+                                    win.toggle_git_action_button(true);
+                                }
+                            }
+                            Continue(true)
+                        }
+            ),
+        );
+    }
+
     /// Used to push and update ui.
     pub fn try_pull_without_auth_and_update_ui(&self) {
         let selected_repository = self.imp().selected_repository.take();
@@ -1337,7 +1557,7 @@ impl BagitRepositoryPage {
                             if (error.class() == git2::ErrorClass::Http)
                                 || (error.class() == git2::ErrorClass::Ssh)
                             {
-                                win.do_git_action_with_auth_check(ActionType::PULL);
+                                win.do_git_action_with_auth_check(ActionType::Pull, &"");
                             } else {
                                 win.emit_by_name::<()>("error", &[&error.to_string()]);
 
@@ -1400,40 +1620,47 @@ impl BagitRepositoryPage {
             .unwrap(),
         );
 
-        let (result_sender, result_receiver) =
-            MainContext::channel::<Result<(), String>>(Priority::default());
+        let (sender, receiver) = MainContext::channel::<Result<(), String>>(Priority::default());
 
-        self.toggle_git_action_button(false);
+        self.imp().git_action_button.set_sensitive(false);
 
         thread::spawn(move || {
-            let result_sender = result_sender.clone();
+            let sender = sender.clone();
 
             match RepositoryUtils::checkout_branch(
                 &selected_repository.git_repository.as_ref().unwrap(),
                 &branch_to_checkout_to,
                 is_remote,
             ) {
-                Ok(_) => result_sender
+                Ok(_) => sender
                     .send(Ok(()))
                     .expect("Could not send result through channel"),
-                Err(error) => result_sender
+                Err(error) => sender
                     .send(Err(error.to_string()))
                     .expect("Could not send error through channel"),
             };
         });
 
-        result_receiver.attach(
+        let repo_path = selected_repository.user_repository.path;
+
+        receiver.attach(
             None,
             clone!(
                 @weak self as win => @default-return Continue(false),
                         move |result| {
-                            win.toggle_git_action_button(true);
+                            win.imp().git_action_button.set_sensitive(true);
 
                             match result {
                                 Ok(_) => win.update_pull_indication_box(0),
                                 Err(error) => win.emit_by_name::<()>("error", &[&error.to_string()])
                             }
+
                             win.update_commits_sidebar();
+                            win.update_branch_name();
+                            win.imp()
+                                .branch_view
+                                .fetch_all_branches(repo_path.clone());
+
                             Continue(true)
                         }
             ),
@@ -1454,7 +1681,7 @@ impl BagitRepositoryPage {
 
         self.imp().selected_repository.replace(selected_repository);
 
-        let repository = Repository::open(selected_repository_path).unwrap();
+        let repository = Repository::open(selected_repository_path.clone()).unwrap();
 
         let (sender, receiver) =
             MainContext::channel::<Result<FetchResult, git2::Error>>(Priority::default());
@@ -1480,7 +1707,10 @@ impl BagitRepositoryPage {
             clone!(@weak self as win => @default-return Continue(false),
                     move |fetch| {
                         match fetch {
-                            Ok(fetch_result) => win.update_git_action_button(fetch_result),
+                            Ok(fetch_result) => {
+                                win.update_git_action_button(fetch_result);
+                                win.imp().branch_view.fetch_all_branches(selected_repository_path.clone());
+                            },
                             Err(error) => {
                                 win.try_to_find_correct_git_button_action();
                                 win.toggle_git_action_button(true);
@@ -1528,7 +1758,7 @@ impl BagitRepositoryPage {
 
         self.imp().selected_repository.replace(selected_repository);
 
-        let repository = Repository::open(selected_repository_path).unwrap();
+        let repository = Repository::open(selected_repository_path.clone()).unwrap();
 
         let (sender, receiver) =
             MainContext::channel::<Result<FetchResult, git2::Error>>(Priority::default());
@@ -1556,13 +1786,14 @@ impl BagitRepositoryPage {
                             match fetch {
                                 Ok(fetch_result) => {
                                     win.update_git_action_button(fetch_result);
+                                    win.imp().branch_view.fetch_all_branches(selected_repository_path.clone());
                                 },
                                 Err(error) => {
                                     // TODO: Manage errors.
                                     if (error.class() == git2::ErrorClass::Http)
                                         || (error.class() == git2::ErrorClass::Ssh)
                                     {
-                                        win.do_git_action_with_auth_check(ActionType::FETCH);
+                                        win.do_git_action_with_auth_check(ActionType::Fetch, &"");
                                     } else {
                                         win.emit_by_name::<()>("error", &[&error.to_string()]);
                                         win.update_commits_sidebar();
@@ -1575,5 +1806,29 @@ impl BagitRepositoryPage {
                         }
             ),
         );
+    }
+
+    /// Show a toast with a given message.
+    pub fn show_toast(&self, toast_message: &str) {
+        let toast = adw::Toast::new(toast_message);
+        self.imp().toast_overlay.add_toast(toast);
+    }
+
+    /// Used to checked if there is changed files in the current branch.
+    /// If an error occurs, it will return true by default.
+    pub fn has_changed_files(&self) -> bool {
+        let selected_repository = self.imp().selected_repository.take();
+        let git_repo = selected_repository.git_repository;
+        self.imp().selected_repository.replace(
+            SelectedRepository::try_fetching_selected_repository(
+                &selected_repository.user_repository,
+            )
+            .unwrap(),
+        );
+
+        match git_repo {
+            Some(repo) => RepositoryUtils::has_changed_files(&repo),
+            None => false,
+        }
     }
 }

@@ -27,7 +27,6 @@ use crate::{
         action_type::ActionType, db::AppDatabase, profile_mode::ProfileMode,
         repository_utils::RepositoryUtils, selected_repository::SelectedRepository,
     },
-    widgets::branches_dialog::BagitBranchesDialog,
     widgets::gpg_passphrase_dialog::BagitGpgPassphraseDialog,
     widgets::https_action_dialog::BagitHttpsActionDialog,
     widgets::{
@@ -143,13 +142,10 @@ mod imp {
 
                     match win.stack.visible_child_name().unwrap().as_str() {
                         "repository page" => {
-                            win.repository_page.update_commits_sidebar();
-                            win.repository_page.imp().commit_view.update_git_profiles_list();
-                            win.repository_page.update_branch_name();
-
                             let ssh_passphrases = win.ssh_passphrases.take();
                             win.repository_page.imp().ssh_passphrases.replace(ssh_passphrases.clone()); //TODO: MARKER
                             win.ssh_passphrases.replace(ssh_passphrases);
+                            win.repository_page.update_repository_page();
                         },
                         "create repository page" => {
                             let git_profiles;
@@ -1247,36 +1243,17 @@ impl BagitDesktopWindow {
             false,
             closure_local!(@watch self as win => move |
                 _repository_page: BagitRepositoryPage,
-                repo_path: &str,
+                branch_name: &str,
+                is_remote: bool,
+                has_changed_files: bool
                 | {
-                    let ctx: MainContext = glib::MainContext::default();
-                    let repo_path_clone = String::from(repo_path);
-                    ctx.spawn_local(clone!(@weak win as win2 => async move {
-                        let branch_dialog = BagitBranchesDialog::new(repo_path_clone.to_string());
-                        branch_dialog.set_transient_for(Some(&win2));
-                        branch_dialog.set_modal(true);
-                        branch_dialog.present();
-                        branch_dialog.fetch_branches();
-
-                        branch_dialog.connect_closure("select-branch", false, closure_local!(
-                            @watch win2 as win3 =>
-                            move |
-                            branch_dialog: BagitBranchesDialog,
-                            branch_name: &str,
-                            is_remote: bool,
-                            has_changed_files
-                            | {
-                                branch_dialog.close();
-                                if has_changed_files {
-                                    win3.show_checkout_dialog(branch_name.to_string(), is_remote);
-                                } else {
-                                    win3.imp().repository_page.checkout_branch_and_update_ui(branch_name.to_owned(), is_remote);
-                                }
-                            }
-                        ));
+                    if has_changed_files {
+                        win.show_checkout_dialog(branch_name.to_string(), is_remote);
+                    } else {
+                        win.imp().repository_page.checkout_branch_and_update_ui(branch_name.to_owned(), is_remote);
                     }
-                ));
-            }),
+                }
+            ),
         );
 
         self.imp().repository_page.connect_closure(
@@ -1368,11 +1345,14 @@ impl BagitDesktopWindow {
                 repository_page: BagitRepositoryPage,
                 username: &str,
                 private_key_path: &str,
-                action_type: ActionType
+                action_type: ActionType,
+                remote_branch_name: &str
                 | {
                     let ctx: MainContext = glib::MainContext::default();
                     let cloned_username = String::from(username);
-                    let cloned_private_key_path= String::from(private_key_path);
+                    let cloned_private_key_path = String::from(private_key_path);
+                    let cloned_remote_branch_name = String::from(remote_branch_name);
+
                     ctx.spawn_local(clone!(@weak win as win2 => async move {
                         let dialog: BagitSshActionDialog = BagitSshActionDialog::new(&cloned_username, &cloned_private_key_path);
                         dialog.set_transient_for(Some(&win2));
@@ -1414,7 +1394,8 @@ impl BagitDesktopWindow {
                                     String::new(),
                                     String::from(private_key_path),
                                     String::from(passphrase),
-                                    action_type
+                                    action_type,
+                                    cloned_remote_branch_name.clone()
                                 );
                             }
                         ));
@@ -1441,12 +1422,14 @@ impl BagitDesktopWindow {
                 repository_page: BagitRepositoryPage,
                 username: &str,
                 private_key_path: &str,
-                action_type: ActionType
+                action_type: ActionType,
+                remote_branch_name: &str
                 | {
                     let ctx: MainContext = glib::MainContext::default();
 
                     let cloned_username = String::from(username);
                     let cloned_private_key_path= String::from(private_key_path);
+                    let cloned_remote_branch_name = String::from(remote_branch_name);
 
                     ctx.spawn_local(clone!(@weak win as win2, => async move {
                         let dialog: BagitSshPassphraseDialog = BagitSshPassphraseDialog::new(cloned_username, cloned_private_key_path);
@@ -1472,7 +1455,8 @@ impl BagitDesktopWindow {
                                     String::new(),
                                     String::from(private_key_path),
                                     String::from(passphrase),
-                                    action_type
+                                    action_type,
+                                    cloned_remote_branch_name.clone()
                                 );
                             }
                         ));
@@ -1499,12 +1483,16 @@ impl BagitDesktopWindow {
                 repository_page: BagitRepositoryPage,
                 username: &str,
                 password: &str,
-                action_type: ActionType
+                action_type: ActionType,
+                remote_branch_name: &str
                 | {
                     let ctx: MainContext = glib::MainContext::default();
                     let cloned_username = String::from(username);
                     let cloned_password = String::from(password);
-                    ctx.spawn_local(clone!(@weak win as win2 => async move {
+                    let cloned_remote_branch_name = String::from(remote_branch_name);
+
+                    ctx.spawn_local(clone!(
+                        @weak win as win2 => async move {
                         let dialog: BagitHttpsActionDialog = BagitHttpsActionDialog::new(&cloned_username, &cloned_password);
                         dialog.set_transient_for(Some(&win2));
                         dialog.set_modal(true);
@@ -1523,7 +1511,8 @@ impl BagitDesktopWindow {
                                     String::from(password),
                                     String::new(),
                                     String::new(),
-                                    action_type
+                                    action_type,
+                                    cloned_remote_branch_name.clone()
                                 );
                             }
                         ));
@@ -1540,6 +1529,52 @@ impl BagitDesktopWindow {
                         ));
                     }
                 ));
+            }),
+        );
+        self.imp().repository_page.connect_closure(
+            "delete-branch",
+            false,
+            closure_local!(@watch self as win => move |
+                _repository_page: BagitRepositoryPage,
+                repository_path: &str,
+                branch_name: &str,
+                is_remote: bool
+                | {
+                    let ctx: MainContext = glib::MainContext::default();
+                    let cloned_path = repository_path.to_string();
+                    let cloned_branch_name = branch_name.to_string();
+
+                    let body_text = format!("{} {}", gettext("_Delete branch confirmation"), branch_name);
+
+                    ctx.spawn_local(clone!(@weak win as win2 => async move {
+                        let delete_dialog = adw::MessageDialog::new(Some(&win2), Some(&gettext("_Delete branch")), Some(&body_text));
+                        delete_dialog.add_response(&gettext("_Cancel"), &gettext("_Cancel"));
+                        delete_dialog.add_response(&gettext("_Delete"), &gettext("_Delete"));
+                        delete_dialog.set_close_response(&gettext("_Cancel"));
+                        delete_dialog.set_response_appearance(&gettext("_Delete"), adw::ResponseAppearance::Destructive);
+                        delete_dialog.present();
+                        delete_dialog.connect_response(None, move |_dialog, response| {
+                            if response == &gettext("_Delete") {
+                                match Repository::open(&cloned_path) {
+                                    Ok(repo) => {
+                                        if is_remote {
+                                            // When deleting a remote branch, we need to authenticate:
+                                            win2.imp().repository_page.do_git_action_with_auth_check(ActionType::DeleteRemoteBranch, &cloned_branch_name);
+                                        } else {
+                                            match RepositoryUtils::delete_local_branch(&repo, &cloned_branch_name) {
+                                                Ok(_) => {
+                                                    win2.imp().repository_page.imp().branch_view.fetch_all_branches(cloned_path.clone());
+                                                    win2.imp().repository_page.show_toast(&gettext("_Branch deleted"));
+                                                },
+                                                Err(error) => win2.show_error_dialog(&error.to_string())
+                                            }
+                                        }
+                                    },
+                                    Err(error) => win2.show_error_dialog(&error.to_string())
+                                };
+                            }
+                        });
+                    }));
             }),
         );
     }

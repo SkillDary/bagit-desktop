@@ -4,9 +4,9 @@
  */
 
 .headerbar_bg_color {
-    background-color: @headerbar_bg_color;
+  background-color: @headerbar_bg_color;
 }
 
 .commits_siderbar_button_selected {
-    background-color: @shade_color;
+  background-color: @shade_color;
 }

@@ -313,11 +313,6 @@ impl RepositoryUtils {
         signing_key: &str,
         passphrase: &str,
     ) -> Result<Oid, git2::Error> {
-        // TODO: REMOVE THIS.
-        for file in &selected_files {
-            println!("{:?}", file.name)
-        }
-
         let mut index = match RepositoryUtils::update_repository_index(repository, selected_files) {
             Ok(idx) => idx,
             Err(error_message) => {
@@ -559,6 +554,28 @@ impl RepositoryUtils {
         }
     }
 
+    /// Retrieves all branches (name, type, head status) of a repository.
+    pub fn get_all_branches(
+        repository: &Repository,
+    ) -> Result<Vec<(String, BranchType, bool)>, git2::Error> {
+        let mut res: Vec<(String, BranchType, bool)> = vec![];
+
+        let branches = repository.branches(None)?;
+        for branch_result in branches {
+            if let Err(_) = branch_result {
+                continue;
+            }
+            let branch_info = branch_result.unwrap();
+            res.push((
+                branch_info.0.name().as_ref().unwrap().unwrap().to_string(),
+                branch_info.1,
+                branch_info.0.is_head(),
+            ))
+        }
+
+        Ok(res)
+    }
+
     /// Used to get branches (name and head status) of a repository.
     /// If we want to find the remotes ones, it will return only the untracked ones.
     pub fn get_branches(
@@ -665,6 +682,66 @@ impl RepositoryUtils {
         Ok(())
     }
 
+    /**
+     * Create a branch from a given name.
+     */
+    pub fn create_branch(repository: &Repository, branch_name: &str) -> Result<(), git2::Error> {
+        let last_commit = RepositoryUtils::find_last_commit(repository)?;
+        repository.branch(branch_name, &last_commit, true)?;
+        Ok(())
+    }
+
+    /// Delete a remote branch.
+    pub fn delete_remote_branch(
+        repository: &Repository,
+        remote_branch_name: &str,
+        username: String,
+        password: String,
+        private_key_path: String,
+        passphrase: String,
+    ) -> Result<(), git2::Error> {
+        let mut remote = match repository.find_remote("origin") {
+            Ok(remote) => remote,
+            Err(error) => return Err(error),
+        };
+
+        // The remote branch name should start with "origin/".
+        // We must remove this part when creating the delete ref:
+        let clean_branch_name = remote_branch_name.replacen("origin/", "", 1);
+        let remote_delete_ref = format!(":refs/heads/{}", clean_branch_name);
+
+        let callback: RemoteCallbacks<'_>;
+
+        match RepositoryUtils::get_clone_mode_of_repository(&repository) {
+            Ok(clone_mode) => {
+                callback = match clone_mode {
+                    CloneMode::SSH => {
+                        RepositoryUtils::ssh_callback(username, passphrase, private_key_path)
+                    }
+                    CloneMode::HTTPS => RepositoryUtils::https_callback(username, password),
+                }
+            }
+            Err(error) => return Err(error),
+        };
+
+        let mut push_options = PushOptions::new();
+        push_options.remote_callbacks(callback);
+
+        match remote.push(&[remote_delete_ref], Some(&mut push_options)) {
+            Ok(_) => {
+                return Ok(());
+            }
+            Err(error) => return Err(error),
+        }
+    }
+
+    /// Delete a branch from its name.
+    pub fn delete_local_branch(repo: &Repository, branch_name: &str) -> Result<(), git2::Error> {
+        let mut branch = repo.find_branch(branch_name, BranchType::Local)?;
+        branch.delete()?;
+        Ok(())
+    }
+
     /// Used to checkout to another branch.
     pub fn checkout_branch(
         repository: &Repository,
@@ -675,22 +752,29 @@ impl RepositoryUtils {
         let checkout_builder = binding.safe();
         let mut final_branch_name_to_checkout_to = branch_to_checkout_to.to_string();
 
-        // If the selected branch is remote, we need to create a local branch tracking it.
+        // If the selected branch is remote and untracked, we need to create a local branch tracking it.
         if is_remote {
-            let local_branch_name = branch_to_checkout_to.split("origin/").last().unwrap();
-            tracing::info!(
-                "No local branch is tracking {}. We will create the local branch: {}.",
-                branch_to_checkout_to,
-                local_branch_name
-            );
-            match RepositoryUtils::track_remote_branch(
-                repository,
-                &branch_to_checkout_to,
-                local_branch_name,
-            ) {
-                Ok(_) => final_branch_name_to_checkout_to = local_branch_name.to_string(),
-                Err(error) => return Err(error),
-            };
+            let tracking_branch =
+                RepositoryUtils::find_tracking_branch(repository, &branch_to_checkout_to);
+
+            if tracking_branch.is_some() {
+                final_branch_name_to_checkout_to = tracking_branch.unwrap();
+            } else {
+                let local_branch_name = branch_to_checkout_to.split("origin/").last().unwrap();
+                tracing::info!(
+                    "No local branch is tracking {}. We will create the local branch: {}.",
+                    branch_to_checkout_to,
+                    local_branch_name
+                );
+                match RepositoryUtils::track_remote_branch(
+                    repository,
+                    &branch_to_checkout_to,
+                    local_branch_name,
+                ) {
+                    Ok(_) => final_branch_name_to_checkout_to = local_branch_name.to_string(),
+                    Err(error) => return Err(error),
+                };
+            }
         }
 
         let tree = repository.revparse_single(&final_branch_name_to_checkout_to)?;
@@ -743,5 +827,16 @@ impl RepositoryUtils {
         repository.checkout_tree(head_tree.as_object(), Some(checkout))?;
 
         Ok(())
+    }
+
+    /// Used to checked if there is changed files in the current branch.
+    /// If an error occurs, it will return true by default.
+    pub fn has_changed_files(repository: &Repository) -> bool {
+        let mut binding = git2::StatusOptions::new();
+        let statuses_options = binding.include_ignored(false).include_untracked(true);
+        if let Ok(statuses) = repository.statuses(Some(statuses_options)) {
+            return !statuses.is_empty();
+        }
+        return false;
     }
 }

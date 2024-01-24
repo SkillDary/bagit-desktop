@@ -62,7 +62,7 @@ mod imp {
         pub untracked_branches_label: TemplateChild<gtk::Label>,
 
         pub repository_path: RefCell<String>,
-        pub id_doing_operations: Cell<bool>,
+        pub is_doing_operations: Cell<bool>,
     }
 
     #[template_callbacks]
@@ -128,7 +128,7 @@ mod imp {
             self.obj().connect_is_active_notify(clone!(
                 @weak self as win
                 => move |_| {
-                    if !win.id_doing_operations.get() {
+                    if !win.is_doing_operations.get() {
                         win.obj().fetch_branches();
                     }
             }));
@@ -159,7 +159,7 @@ impl BagitBranchesDialog {
 
     /// Used to fetch branches
     pub fn fetch_branches(&self) {
-        self.imp().id_doing_operations.set(true);
+        self.imp().is_doing_operations.set(true);
         self.imp()
             .dialog_stack
             .set_visible_child_name("loading page");
@@ -215,7 +215,7 @@ impl BagitBranchesDialog {
                                     win.imp().dialog_stack.set_visible_child_name("no branches page");
                                 }
                             }
-                            win.imp().id_doing_operations.set(false);
+                            win.imp().is_doing_operations.set(false);
                             Continue(true)
                         }
             ),

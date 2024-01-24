@@ -135,6 +135,12 @@ msgstr "Could not add repository."
 msgid "_Could not delete repository"
 msgstr "Could not delete repository."
 
+msgid "_Delete branch"
+msgstr "Delete branch"
+
+msgid "_Delete branch confirmation"
+msgstr "You will delete the following branch:"
+
 ############# create-repository-page.ui ############
 
 msgid "_Name of the repository"
@@ -407,6 +413,9 @@ msgstr "You are on"
 msgid "_Status page text"
 msgstr "You can commit, push, pull..."
 
+msgid "_Branch deleted"
+msgstr "Branch deleted"
+
 ############### bagit-https-action-dialog.ui ######
 
 msgid "_Missing information"
@@ -445,6 +454,33 @@ msgstr "Changes will be brought to"
 
 msgid "_Remote branch not found"
 msgstr "Branche distante non trouvée"
+
+############### bagit-branch-management-view.ui ####
+
+msgid "_Branch management"
+msgstr "Branch management"
+
+msgid "_Create a new branch"
+msgstr "Create a new branch"
+
+msgid "_Create branch"
+msgstr "Create branch"
+
+msgid "_Branch name"
+msgstr "Branch name"
+
+msgid "_All branches"
+msgstr "All branches"
+
+msgid "_Remote"
+msgstr "Remote"
+
+msgid "_Local"
+msgstr "Local"
+
+msgid "_Search a branch"
+msgstr "Search a branch"
+
 ############# git2 errors #############
 
 # Errors codes:

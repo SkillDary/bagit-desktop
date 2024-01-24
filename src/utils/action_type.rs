@@ -23,7 +23,8 @@ use gtk::glib;
 #[enum_type(name = "ActionType")]
 pub enum ActionType {
     #[default]
-    FETCH,
-    PUSH,
-    PULL,
+    Fetch,
+    Push,
+    Pull,
+    DeleteRemoteBranch,
 }
