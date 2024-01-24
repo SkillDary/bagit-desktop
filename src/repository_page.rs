@@ -41,7 +41,10 @@ use uuid::Uuid;
 
 mod imp {
 
-    use std::cell::{Cell, RefCell};
+    use std::{
+        cell::{Cell, RefCell},
+        collections::HashMap,
+    };
 
     use adw::SplitButton;
     use gtk::{template_callbacks, Label, Spinner};
@@ -103,6 +106,8 @@ mod imp {
 
         pub current_git_action: RefCell<ActionType>,
         pub is_doing_git_action: Cell<bool>,
+
+        pub ssh_passphrases: RefCell<HashMap<String, String>>,
     }
 
     #[template_callbacks]
@@ -932,6 +937,21 @@ impl BagitRepositoryPage {
         };
     }
 
+    fn retrieve_saved_ssh_passphrase(&self, private_key_path: &str) -> Option<String> {
+        let ssh_passphrases = self.imp().ssh_passphrases.take();
+
+        let res = ssh_passphrases.get(private_key_path).clone();
+
+        self.imp()
+            .ssh_passphrases
+            .replace(ssh_passphrases.to_owned());
+
+        match res {
+            Some(passphrase) => Some(passphrase.to_owned()),
+            None => None,
+        }
+    }
+
     /// Used to do a git action that need authentification.
     fn do_git_action_with_auth_check(&self, action_type: ActionType) {
         let selected_repository = self.imp().selected_repository.take();
@@ -980,15 +1000,30 @@ impl BagitRepositoryPage {
                                     ),
                                 };
                             } else {
+                                // TODO: MARKER
                                 match clone_mode {
-                                    CloneMode::SSH => self.emit_by_name::<()>(
-                                        "ssh-passphrase-dialog",
-                                        &[
-                                            &profile.username,
+                                    CloneMode::SSH => {
+                                        match self.retrieve_saved_ssh_passphrase(
                                             &profile.private_key_path,
-                                            &action_type,
-                                        ],
-                                    ),
+                                        ) {
+                                            Some(passphrase) => self
+                                                .do_git_action_with_information(
+                                                    profile.username,
+                                                    profile.password,
+                                                    profile.private_key_path,
+                                                    passphrase.to_owned(),
+                                                    action_type,
+                                                ),
+                                            None => self.emit_by_name::<()>(
+                                                "ssh-passphrase-dialog",
+                                                &[
+                                                    &profile.username,
+                                                    &profile.private_key_path,
+                                                    &action_type,
+                                                ],
+                                            ),
+                                        }
+                                    }
                                     CloneMode::HTTPS => self.do_git_action_with_information(
                                         profile.username,
                                         profile.password,

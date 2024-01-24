@@ -55,6 +55,7 @@ use crate::widgets::repositories::BagitRepositories;
 use std::cell::RefCell;
 
 mod imp {
+    use std::collections::HashMap;
 
     use crate::create_repository_page::BagitCreateRepositoryPage;
 
@@ -87,6 +88,9 @@ mod imp {
         pub app_database: RefCell<AppDatabase>,
 
         pub selected_repositories_ids_for_deletion: RefCell<Vec<Uuid>>,
+
+        pub ssh_passphrases: RefCell<HashMap<String, String>>,
+        pub gpg_passphrases: RefCell<HashMap<String, String>>,
     }
 
     #[template_callbacks]
@@ -142,6 +146,10 @@ mod imp {
                             win.repository_page.update_commits_sidebar();
                             win.repository_page.imp().commit_view.update_git_profiles_list();
                             win.repository_page.update_branch_name();
+
+                            let ssh_passphrases = win.ssh_passphrases.take();
+                            win.repository_page.imp().ssh_passphrases.replace(ssh_passphrases.clone()); //TODO: MARKER
+                            win.ssh_passphrases.replace(ssh_passphrases);
                         },
                         "create repository page" => {
                             let git_profiles;
@@ -288,6 +296,22 @@ impl BagitDesktopWindow {
                 }
             ),
         );
+    }
+
+    pub fn save_ssh_passphrase(&self, key_path: String, passphrase: String) {
+        let mut ssh_passphrases = self.imp().ssh_passphrases.take();
+
+        ssh_passphrases.insert(key_path, passphrase);
+
+        self.imp().ssh_passphrases.replace(ssh_passphrases);
+    }
+
+    pub fn save_gpg_passphrase(&self, key: String, passphrase: String) {
+        let mut gpg_passphrases = self.imp().gpg_passphrases.take();
+
+        gpg_passphrases.insert(key, passphrase);
+
+        self.imp().gpg_passphrases.replace(gpg_passphrases);
     }
 
     /// Used to build a new repository row.
@@ -889,8 +913,7 @@ impl BagitDesktopWindow {
                 url: &str,
                 location: &str
                 | {
-                    let (error_sender, error_receiver) = MainContext::channel::<String>(Priority::default());
-                    let (result_sender, result_receiver) = MainContext::channel::<(String, String)>(Priority::default());
+                    let (sender, receiver) = MainContext::channel::<Result<(String, String), String>>(Priority::default());
 
                     let url_copy = url.to_owned();
                     let location_copy = location.to_owned();
@@ -904,28 +927,46 @@ impl BagitDesktopWindow {
                         ProfileMode::SelectedProfile(profile) => Some(profile),
                         _ => None
                     };
+
+                    let ssh_key_path;
+                    let ssh_passphrase;
+
                     let (
                         username,
                         password,
                         private_key_path,
                         passphrase,
                     ) =  match &selected_profile {
-                        None => (
-                            "".to_string(),
-                            "".to_string(),
-                            "".to_string(),
-                            win.imp().clone_repository_page.imp().passphrase.text().to_string(),
-                        ),
-                        Some(profile) => (
-                            profile.username.to_string(),
-                            profile.password.to_string(),
-                            profile.private_key_path.to_string(),
-                            clone_repository_page.imp().passphrase.text().to_string(),
-                        ),
+                        None => {
+                            ssh_key_path = String::from("");
+                            ssh_passphrase = win.imp().clone_repository_page.imp().passphrase.text().to_string();
+
+                            (
+                                "".to_string(),
+                                "".to_string(),
+                                "".to_string(),
+                                win.imp().clone_repository_page.imp().passphrase.text().to_string(),
+                            )
+                        },
+                        Some(profile) => {
+                            ssh_key_path = profile.private_key_path.to_string();
+                            ssh_passphrase = clone_repository_page.imp().passphrase.text().to_string();
+
+                            (
+                                profile.username.to_string(),
+                                profile.password.to_string(),
+                                profile.private_key_path.to_string(),
+                                clone_repository_page.imp().passphrase.text().to_string(),
+                            )
+                        }
                     };
+
+                    if !ssh_key_path.is_empty() {
+                        win.save_ssh_passphrase(ssh_key_path, ssh_passphrase);
+                    }
+
                     thread::spawn(move || {
-                        let error_sender = error_sender.clone();
-                        let result_sender = result_sender.clone();
+                        let sender = sender.clone();
 
                         let callback = RepositoryUtils::find_correct_callback(
                             url_copy.clone(),
@@ -938,70 +979,83 @@ impl BagitDesktopWindow {
                         let new_path = RepositoryUtils::create_new_folder_path(&url_copy, &location_copy);
 
                         let new_folder = fs::create_dir(&new_path);
-                        match new_folder {
-                            Ok(_) => {
-                                match RepositoryUtils::clone_repository(&url_copy, &new_path, callback) {
-                                    Ok(repository) => {
-                                        match selected_profile {
-                                            Some(profile) => {
-                                                // Once the repository is cloned, we update it's config file:
-                                                match RepositoryUtils::override_git_config(&repository, &profile) {
-                                                    Ok(_) => result_sender.send(
-                                                        (
-                                                            RepositoryUtils::get_folder_name_from_os(&url_copy).to_string(),
-                                                            new_path
-                                                        )
-                                                    ).expect("Could not send result through channel"),
-                                                    Err(error) => error_sender.send(error.to_string()).expect("Could not send error through channel")
-                                                };
-                                            },
-                                            None => result_sender.send(
-                                                (
-                                                    RepositoryUtils::get_folder_name_from_os(&url_copy).to_string(),
-                                                    new_path
-                                                )
-                                            ).expect("Could not send result through channel")
-                                        }
-                                    }
-                                    Err(e) => {
-                                        // We must make sure to delete the created folder !
-                                        let removed_directory = fs::remove_dir_all(&new_path);
-                                        match removed_directory {
-                                            Ok(_) => error_sender.send(e.to_string()).expect("Could not send error through channel"),
-                                            Err(error) => error_sender.send(error.to_string()).expect("Could not send error through channel")
-                                        }
-                                    }
-                                }
-                            },
-                            Err(e) => error_sender.send(e.to_string()).expect("Could not send error through channel")
+
+                        if let Err(error) = new_folder {
+                            sender.send(Err(error.to_string())).expect("Could not send error through channel");
+
+                            return;
                         }
+
+                        let repository: Repository;
+
+                        match RepositoryUtils::clone_repository(&url_copy, &new_path, callback) {
+                            Ok(repo) => {repository = repo}
+                            Err(e) => {
+                                // We must make sure to delete the created folder !
+                                let removed_directory = fs::remove_dir_all(&new_path);
+                                match removed_directory {
+                                    Ok(_) => sender.send(Err(e.to_string())).expect("Could not send error through channel"),
+                                    Err(error) => sender.send(Err(error.to_string())).expect("Could not send error through channel")
+                                }
+
+                                return;
+                            }
+                        }
+
+                        let profile: BagitGitProfile;
+
+                        match selected_profile {
+                            Some(prof) => profile = prof,
+                            None => {
+                                sender.send(Ok(
+                                    (
+                                        RepositoryUtils::get_folder_name_from_os(&url_copy).to_string(),
+                                        new_path
+                                    )
+                                )).expect("Could not send result through channel");
+
+                                return;
+                            },
+                        }
+
+                        // Once the repository is cloned, we update it's config file:
+                        if let Err(error) = RepositoryUtils::override_git_config(&repository, &profile) {
+                            sender.send(Err(error.to_string())).expect("Could not send error through channel");
+
+                            return;
+                        }
+
+                        sender.send(
+                            Ok((
+                                RepositoryUtils::get_folder_name_from_os(&url_copy).to_string(),
+                                new_path
+                            ))
+                        ).expect("Could not send result through channel")
                     });
 
-                    error_receiver.attach(
-                        None,
-                        clone!(@weak win as win2 => @default-return Continue(false),
-                                    move |error| {
-                                        win2.imp().clone_repository_page.to_main_page();
-                                        win2.show_error_dialog(&error);
-                                        Continue(true)
-                                    }
-                        ),
-                    );
-
-                    result_receiver.attach(
+                    receiver.attach(
                         None,
                         clone!(
                             @weak win as win2 => @default-return Continue(false),
-                                    move |elements| {
-                                        let mut new_repository = BagitRepository::new(Uuid::new_v4(), elements.0, elements.1, None);
+                                    move |result| {
+                                        match result {
+                                            Ok(elements) => {
+                                                let mut new_repository = BagitRepository::new(Uuid::new_v4(), elements.0, elements.1, None);
 
-                                        let profile_mode = clone_repository_page.imp().profile_mode.take();
+                                                let profile_mode = clone_repository_page.imp().profile_mode.take();
 
-                                        clone_repository_page.imp().profile_mode.replace(profile_mode.clone());
+                                                clone_repository_page.imp().profile_mode.replace(profile_mode.clone());
 
-                                        win2.save_repository(&mut new_repository, profile_mode);
-                                        win2.imp().clone_repository_page.to_main_page();
-                                        Continue(true)
+                                                win2.save_repository(&mut new_repository, profile_mode);
+                                                win2.imp().clone_repository_page.to_main_page();
+                                                Continue(true)
+                                            }
+                                            Err(error) => {
+                                                win2.imp().clone_repository_page.to_main_page();
+                                                win2.show_error_dialog(&error);
+                                                Continue(true)
+                                            }
+                                        }
                                     }
                         ),
                     );
@@ -1073,6 +1127,10 @@ impl BagitDesktopWindow {
                     );
 
                     let app_database = win.imp().app_database.take();
+
+                    if !private_key_path.is_empty() {
+                        win.save_ssh_passphrase(private_key_path.to_string(), passphrase.clone());
+                    }
 
                     if let Err(error) = app_database.add_git_profile(&new_profile) {
                         tracing::warn!("Could not add Git profile: {}", error);
@@ -1172,6 +1230,7 @@ impl BagitDesktopWindow {
                 win.update_recent_repositories();
             }),
         );
+
         self.imp().repository_page.connect_closure(
             "error",
             false,
@@ -1182,6 +1241,7 @@ impl BagitDesktopWindow {
                 win.show_error_dialog(error_message);
             }),
         );
+
         self.imp().repository_page.connect_closure(
             "select-branch",
             false,
@@ -1218,6 +1278,7 @@ impl BagitDesktopWindow {
                 ));
             }),
         );
+
         self.imp().repository_page.connect_closure(
             "discard-dialog",
             false,
@@ -1229,6 +1290,7 @@ impl BagitDesktopWindow {
                 win.show_discard_dialog(is_discarding_folder, discarded_element.to_string());
             }),
         );
+
         self.imp().repository_page.connect_closure(
             "commit-files-with-signing-key",
             false,
@@ -1248,6 +1310,27 @@ impl BagitDesktopWindow {
                     let cloned_author_email = String::from(author_email);
                     let cloned_description = String::from(description);
                     let cloned_need_to_save_profile = need_to_save_profile.clone();
+
+                    let gpg_passphrases = win.imp().gpg_passphrases.take();
+
+                    if let Some(passphrase) = gpg_passphrases.get(&cloned_signing_key) {
+                        repository_page.commit_files_and_update_ui(
+                            &cloned_author,
+                            &cloned_author_email,
+                            &cloned_message,
+                            &cloned_signing_key,
+                            &passphrase,
+                            &cloned_description,
+                            cloned_need_to_save_profile,
+                        );
+
+                        win.imp().gpg_passphrases.replace(gpg_passphrases);
+
+                        return;
+                    }
+
+                    win.imp().gpg_passphrases.replace(gpg_passphrases);
+
                     ctx.spawn_local(clone!(@weak win as win2 => async move {
                         let passphrase_dialog: BagitGpgPassphraseDialog = BagitGpgPassphraseDialog::new(&cloned_signing_key);
                         passphrase_dialog.set_transient_for(Some(&win2));
@@ -1259,6 +1342,8 @@ impl BagitDesktopWindow {
                             passphrase_dialog: BagitGpgPassphraseDialog,
                             passphrase: &str
                             | {
+                                win2.save_gpg_passphrase(cloned_signing_key.clone(), passphrase.to_string().clone());
+
                                 passphrase_dialog.close();
                                 repository_page.commit_files_and_update_ui(
                                     &cloned_author,
@@ -1275,6 +1360,7 @@ impl BagitDesktopWindow {
                 ));
             }),
         );
+
         self.imp().repository_page.connect_closure(
             "missing-ssh-information",
             false,
@@ -1347,6 +1433,7 @@ impl BagitDesktopWindow {
                 ));
             }),
         );
+
         self.imp().repository_page.connect_closure(
             "ssh-passphrase-dialog",
             false,
@@ -1375,6 +1462,10 @@ impl BagitDesktopWindow {
                             private_key_path: &str,
                             passphrase: &str,
                             | {
+                                if !private_key_path.is_empty() {
+                                    win2.save_ssh_passphrase(private_key_path.to_string(), passphrase.to_string());
+                                }
+
                                 dialog.close();
                                 repository_page.do_git_action_with_information(
                                     String::from(username),
@@ -1400,6 +1491,7 @@ impl BagitDesktopWindow {
                 ));
             }),
         );
+
         self.imp().repository_page.connect_closure(
             "missing-https-information",
             false,
