@@ -247,8 +247,6 @@ impl BagitBranchManagementView {
         self.imp()
             .all_branches
             .set_selection_mode(gtk::SelectionMode::Single);
-
-        self.imp().branches.replace(branches);
     }
 
     /// Build a branch type pill to add to a branch row.

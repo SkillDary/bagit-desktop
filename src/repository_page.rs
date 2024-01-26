@@ -615,6 +615,8 @@ impl BagitRepositoryPage {
             clone!(@weak self as win => @default-return Continue(false),
                         move |_event| {
                             win.update_changed_files();
+                            win.update_file_view_if_necessary();
+
                             Continue(true)
                         }
             ),
@@ -757,7 +759,6 @@ impl BagitRepositoryPage {
         self.update_commits_sidebar();
         self.imp().commit_view.update_git_profiles_list();
         self.update_branch_name();
-        self.update_file_view_if_necessary();
 
         self.imp()
             .branch_view
@@ -1868,7 +1869,7 @@ impl BagitRepositoryPage {
         // If the file is not in the changed files anymore, we go back to the main repository view.
         let should_go_to_main_view = match file_status {
             Ok(status) => status == Status::CURRENT,
-            Err(_) => false,
+            Err(_) => true,
         };
 
         if should_go_to_main_view {
@@ -1877,6 +1878,8 @@ impl BagitRepositoryPage {
                 .set_visible_child_name("hello page");
             // We remove the current file information as it is not longer useful.
             self.imp().file_view.set_file_information("", "");
+        } else {
+            self.try_showing_file_content(&current_shown_file_info.0, &current_shown_file_info.1);
         }
     }
 }
