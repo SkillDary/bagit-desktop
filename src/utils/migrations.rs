@@ -45,9 +45,9 @@ pub fn migrations() -> Migrations<'static> {
                 signingKey TEXT
             );",
         ),
-        // Actual version
+        // 0.2.0
         M::up("ALTER TABLE repository DROP COLUMN last_fetch_commits_to_pull;"),
-        // Actual version
+        // 0.2.0
         M::up("ALTER TABLE repository DROP COLUMN last_fetch_commits_to_push;"),
         // In the future, add more migrations here:
         //M::up("ALTER TABLE ... ADD COLUMN ... TEXT;"),
