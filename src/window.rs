@@ -1531,6 +1531,7 @@ impl BagitDesktopWindow {
                 ));
             }),
         );
+
         self.imp().repository_page.connect_closure(
             "delete-branch",
             false,

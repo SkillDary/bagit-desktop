@@ -20,6 +20,7 @@
 pub mod branch_management_view;
 pub mod commit_view;
 pub mod commits_sidebar;
+pub mod file_view;
 
 mod imp;
 

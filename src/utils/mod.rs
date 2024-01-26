@@ -34,3 +34,4 @@ pub mod migrations;
 pub mod profile_mode;
 pub mod repository_utils;
 pub mod selected_repository;
+pub mod settings;

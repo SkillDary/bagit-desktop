@@ -23,13 +23,9 @@ use adw::prelude::ActionRowExt;
 use adw::subclass::prelude::*;
 use gettextrs::gettext;
 use git2::{BranchType, Repository};
-use gtk::glib::subclass::Signal;
+use gtk::glib;
 use gtk::glib::{clone, MainContext, Priority};
-use gtk::subclass::widget::CompositeTemplateInitializingExt;
-use gtk::template_callbacks;
-use gtk::{glib, CompositeTemplate};
 use itertools::Itertools;
-use once_cell::sync::Lazy;
 
 use gtk::prelude::*;
 
@@ -40,6 +36,13 @@ mod imp {
     use std::cell::{Cell, RefCell};
 
     use super::*;
+
+    use gtk::glib::subclass::Signal;
+    use gtk::glib::ObjectExt;
+    use gtk::subclass::widget::CompositeTemplateInitializingExt;
+    use gtk::template_callbacks;
+    use gtk::{glib, CompositeTemplate};
+    use once_cell::sync::Lazy;
 
     #[derive(Debug, Default, CompositeTemplate)]
     #[template(
@@ -73,7 +76,7 @@ mod imp {
         }
 
         #[template_callback]
-        fn create_branch(&self, _change_branch_button: &gtk::Button) {
+        fn create_branch(&self, _create_branch_button: &gtk::Button) {
             let new_branch_name = self.new_branch_row.text();
             self.obj()
                 .emit_by_name::<()>("create-branch", &[&new_branch_name.trim()]);
@@ -226,8 +229,6 @@ impl BagitBranchManagementView {
                     }
                 }
 
-
-
                 win.imp().is_doing_operations.set(false);
                 Continue(true)
             }),
@@ -246,6 +247,8 @@ impl BagitBranchManagementView {
         self.imp()
             .all_branches
             .set_selection_mode(gtk::SelectionMode::Single);
+
+        self.imp().branches.replace(branches);
     }
 
     /// Build a branch type pill to add to a branch row.
@@ -361,7 +364,7 @@ impl BagitBranchManagementView {
         return branches;
     }
 
-    /// Build the filtered branch list with a search_entry
+    /// Builds the filtered branch list with a search_entry
     fn build_filtered_branch_list(&self, search_entry: &str) {
         let mut branches = self.get_branches();
         branches.sort_by_key(|branch| !branch.2);
@@ -380,7 +383,7 @@ impl BagitBranchManagementView {
         self.imp().filtered_branches.replace(filtered_branches);
     }
 
-    /// Define if a branch has the researched information we need.
+    /// Defines if a branch has the researched information we need.
     fn does_branch_has_researched_info(
         &self,
         branch_information: &(String, BranchType, bool),

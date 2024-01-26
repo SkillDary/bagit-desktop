@@ -34,7 +34,7 @@ use crate::widgets::repository::commit_view::BagitCommitView;
 use crate::widgets::repository::commits_sidebar::BagitCommitsSideBar;
 use adw::subclass::prelude::*;
 use gettextrs::gettext;
-use git2::Repository;
+use git2::Status;
 use gtk::glib::subclass::Signal;
 use gtk::glib::{clone, closure_local, MainContext, Priority};
 use gtk::{glib, prelude::*, CompositeTemplate};
@@ -45,6 +45,10 @@ use uuid::Uuid;
 use crate::widgets::repository::branch_management_view::BagitBranchManagementView;
 
 mod imp {
+
+    use crate::widgets::repository::file_view::BagitFileView;
+
+    use super::*;
 
     use std::{
         cell::{Cell, RefCell},
@@ -61,7 +65,7 @@ mod imp {
         widgets::repository::commit_view::BagitCommitView,
     };
 
-    use super::*;
+    use crate::widgets::repository::branch_management_view::BagitBranchManagementView;
 
     // Object holding the state
     #[derive(Debug, Default, CompositeTemplate)]
@@ -85,6 +89,8 @@ mod imp {
         pub branch_view: TemplateChild<BagitBranchManagementView>,
         #[template_child]
         pub branch_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub file_view: TemplateChild<BagitFileView>,
         #[template_child]
         pub repository_name_label: TemplateChild<gtk::Label>,
         #[template_child]
@@ -171,12 +177,8 @@ mod imp {
         fn branch_button_action(&self, _button: gtk::Button) {
             self.main_view_stack.set_visible_child_name("branch view");
 
-            let selected_repository = self.selected_repository.take();
-            let selected_repository_path = selected_repository.user_repository.path.clone();
-            self.selected_repository.replace(selected_repository);
-
             self.branch_view
-                .fetch_all_branches(selected_repository_path);
+                .fetch_all_branches(self.obj().get_selected_repository_path());
         }
     }
 
@@ -377,6 +379,18 @@ impl BagitRepositoryPage {
                 folder_path: &str
                 | {
                     win.emit_by_name::<()>("discard-dialog", &[&true, &folder_path]);
+                }
+            ),
+        );
+        self.imp().sidebar.connect_closure(
+            "file-selected",
+            false,
+            closure_local!(@watch self as win => move |
+                _sidebar: BagitCommitsSideBar,
+                parent_folder: &str,
+                file_name: &str
+                | {
+                    win.try_showing_file_content(parent_folder, file_name);
                 }
             ),
         );
@@ -634,13 +648,7 @@ impl BagitRepositoryPage {
             _branch_view: BagitBranchManagementView,
             branch_name: &str,
             | {
-                let selected_repository = win.imp().selected_repository.take();
-                win.imp().selected_repository.replace(
-                    SelectedRepository::try_fetching_selected_repository(
-                        &selected_repository.user_repository,
-                    )
-                    .unwrap(),
-                );
+                let selected_repository = win.get_selected_repository();
 
                 if selected_repository.git_repository.is_none() {
                     return;
@@ -658,6 +666,7 @@ impl BagitRepositoryPage {
                 }
             }),
         );
+
         self.imp().branch_view.connect_closure(
             "delete-branch",
             false,
@@ -666,13 +675,7 @@ impl BagitRepositoryPage {
             branch_name: &str,
             is_remote: bool
             | {
-                let selected_repository = win.imp().selected_repository.take();
-                win.imp().selected_repository.replace(
-                    SelectedRepository::try_fetching_selected_repository(
-                        &selected_repository.user_repository,
-                    )
-                    .unwrap(),
-                );
+                let selected_repository = win.get_selected_repository();
 
                 win.emit_by_name::<()>("delete-branch", &[
                         &selected_repository.user_repository.path,
@@ -754,28 +757,18 @@ impl BagitRepositoryPage {
         self.update_commits_sidebar();
         self.imp().commit_view.update_git_profiles_list();
         self.update_branch_name();
-
-        // Updating constantly all branches may not be user friendly.
-        let selected_repository = self.imp().selected_repository.take();
-        let selected_repository_path = selected_repository.user_repository.path.clone();
-        self.imp().selected_repository.replace(selected_repository);
+        self.update_file_view_if_necessary();
 
         self.imp()
             .branch_view
-            .fetch_all_branches(selected_repository_path);
+            .fetch_all_branches(self.get_selected_repository_path());
     }
 
     /// Updates the changed files and commit history.
     pub fn update_commits_sidebar(&self) {
-        let selected_repository = self.imp().selected_repository.take();
-
-        let selected_repository_path = selected_repository.user_repository.path.clone();
-
-        self.imp().selected_repository.replace(selected_repository);
-
         self.imp()
             .sidebar
-            .refresh_commit_list_if_needed(selected_repository_path);
+            .refresh_commit_list_if_needed(self.get_selected_repository_path());
 
         self.update_changed_files();
     }
@@ -816,6 +809,28 @@ impl BagitRepositoryPage {
                 Err(_) => {}
             };
         }
+
+        // We now set a listener on the file list for when a file is clicked :
+        self.imp().sidebar.imp().menu.connect_row_selected(clone!(
+            @weak self as win,
+            => move |list, clicked_row| {
+                if let Some(row) = clicked_row {
+
+                    list.unselect_all();
+
+                    if let Some(label) = row
+                    .child()
+                    .and_downcast::<gtk::Box>()
+                    .expect("The child has to be a `Box`.")
+                    .first_child()
+                    .expect("The box should at least one child.")
+                    .next_sibling()
+                    .and_downcast::<gtk::Label>() {
+                        win.try_showing_file_content("", &label.text());
+                    }
+                }
+            }
+        ));
     }
 
     pub fn update_branch_name(&self) {
@@ -962,7 +977,7 @@ impl BagitRepositoryPage {
         self.toggle_git_action_button(true);
     }
 
-    /// Used to commit files and update UI.
+    /// Commits files and update UI.
     pub fn commit_files_and_update_ui(
         &self,
         author: &str,
@@ -1128,15 +1143,7 @@ impl BagitRepositoryPage {
     }
 
     fn try_do_git_action_without_auth_check(&self, action_type: ActionType) {
-        let selected_repository = self.imp().selected_repository.take();
         let profile_mode = self.imp().commit_view.imp().profile_mode.take();
-
-        self.imp().selected_repository.replace(
-            SelectedRepository::try_fetching_selected_repository(
-                &selected_repository.user_repository,
-            )
-            .unwrap(),
-        );
 
         self.imp()
             .commit_view
@@ -1175,18 +1182,11 @@ impl BagitRepositoryPage {
         }
     }
 
-    /// Used to do a git action that need authentification.
+    /// Does a git action that need authentification.
     /// The branch name parameter is used when wanting to delete a remote branch.
     pub fn do_git_action_with_auth_check(&self, action_type: ActionType, remote_branch_name: &str) {
-        let selected_repository = self.imp().selected_repository.take();
+        let selected_repository = self.get_selected_repository();
         let profile_mode = self.imp().commit_view.imp().profile_mode.take();
-
-        self.imp().selected_repository.replace(
-            SelectedRepository::try_fetching_selected_repository(
-                &selected_repository.user_repository,
-            )
-            .unwrap(),
-        );
 
         self.imp()
             .commit_view
@@ -1305,13 +1305,7 @@ impl BagitRepositoryPage {
         private_key_path: String,
         passphrase: String,
     ) {
-        let selected_repository = self.imp().selected_repository.take();
-        self.imp().selected_repository.replace(
-            SelectedRepository::try_fetching_selected_repository(
-                &selected_repository.user_repository,
-            )
-            .unwrap(),
-        );
+        let selected_repository = self.get_selected_repository();
 
         let (error_sender, error_receiver) = MainContext::channel::<String>(Priority::default());
         let (result_sender, result_receiver) = MainContext::channel::<()>(Priority::default());
@@ -1381,13 +1375,7 @@ impl BagitRepositoryPage {
         private_key_path: String,
         passphrase: String,
     ) {
-        let selected_repository = self.imp().selected_repository.take();
-        self.imp().selected_repository.replace(
-            SelectedRepository::try_fetching_selected_repository(
-                &selected_repository.user_repository,
-            )
-            .unwrap(),
-        );
+        let selected_repository = self.get_selected_repository();
 
         let (error_sender, error_receiver) = MainContext::channel::<String>(Priority::default());
         let (result_sender, result_receiver) = MainContext::channel::<()>(Priority::default());
@@ -1456,14 +1444,7 @@ impl BagitRepositoryPage {
         passphrase: String,
         branch_name: String,
     ) {
-        let selected_repository = self.imp().selected_repository.take();
-        self.imp().selected_repository.replace(
-            SelectedRepository::try_fetching_selected_repository(
-                &selected_repository.user_repository,
-            )
-            .unwrap(),
-        );
-
+        let selected_repository = self.get_selected_repository();
         let (result_sender, result_receiver) =
             MainContext::channel::<Result<(), String>>(Priority::default());
 
@@ -1516,13 +1497,7 @@ impl BagitRepositoryPage {
 
     /// Used to push and update ui.
     pub fn try_pull_without_auth_and_update_ui(&self) {
-        let selected_repository = self.imp().selected_repository.take();
-        self.imp().selected_repository.replace(
-            SelectedRepository::try_fetching_selected_repository(
-                &selected_repository.user_repository,
-            )
-            .unwrap(),
-        );
+        let selected_repository = self.get_selected_repository();
 
         let (error_sender, error_receiver) =
             MainContext::channel::<git2::Error>(Priority::default());
@@ -1592,19 +1567,15 @@ impl BagitRepositoryPage {
 
     /// Used to discard a file and update UI.
     pub fn discard_file_and_update_ui(&self, file_path: &str) {
-        let selected_repository = self.imp().selected_repository.take();
-        self.imp().selected_repository.replace(
-            SelectedRepository::try_fetching_selected_repository(
-                &selected_repository.user_repository,
-            )
-            .unwrap(),
-        );
+        let selected_repository = self.get_selected_repository();
         match RepositoryUtils::discard_one_file(
             &selected_repository.git_repository.unwrap(),
             file_path,
         ) {
             Ok(_) => {
                 self.update_commits_sidebar();
+                // We update the file view because if the changed file was the viewed file, we need to make sure that it is no longer viewable.
+                self.update_file_view_if_necessary();
             }
             Err(error) => self.emit_by_name::<()>("error", &[&error.to_string()]),
         };
@@ -1612,13 +1583,7 @@ impl BagitRepositoryPage {
 
     /// Used to change the current branch.
     pub fn checkout_branch_and_update_ui(&self, branch_to_checkout_to: String, is_remote: bool) {
-        let selected_repository = self.imp().selected_repository.take();
-        self.imp().selected_repository.replace(
-            SelectedRepository::try_fetching_selected_repository(
-                &selected_repository.user_repository,
-            )
-            .unwrap(),
-        );
+        let selected_repository = self.get_selected_repository();
 
         let (sender, receiver) = MainContext::channel::<Result<(), String>>(Priority::default());
 
@@ -1660,7 +1625,6 @@ impl BagitRepositoryPage {
                             win.imp()
                                 .branch_view
                                 .fetch_all_branches(repo_path.clone());
-
                             Continue(true)
                         }
             ),
@@ -1675,13 +1639,13 @@ impl BagitRepositoryPage {
         private_key_path: String,
         passphrase: String,
     ) {
-        let selected_repository = self.imp().selected_repository.take();
+        let selected_repository = self.get_selected_repository();
+        let selected_repository_path = selected_repository.user_repository.path;
 
-        let selected_repository_path = selected_repository.user_repository.path.clone();
-
-        self.imp().selected_repository.replace(selected_repository);
-
-        let repository = Repository::open(selected_repository_path.clone()).unwrap();
+        if selected_repository.git_repository.is_none() {
+            return;
+        }
+        let git_repo = selected_repository.git_repository.unwrap();
 
         let (sender, receiver) =
             MainContext::channel::<Result<FetchResult, git2::Error>>(Priority::default());
@@ -1692,7 +1656,7 @@ impl BagitRepositoryPage {
             let sender = sender.clone();
 
             let fetch = fetch_checked_out_branch(
-                &repository,
+                &git_repo,
                 username,
                 password,
                 private_key_path,
@@ -1725,13 +1689,7 @@ impl BagitRepositoryPage {
 
     /// Used to discard a folder and update UI.
     pub fn discard_folder_and_update_ui(&self, folder_path: &str) {
-        let selected_repository = self.imp().selected_repository.take();
-        self.imp().selected_repository.replace(
-            SelectedRepository::try_fetching_selected_repository(
-                &selected_repository.user_repository,
-            )
-            .unwrap(),
-        );
+        let selected_repository = self.get_selected_repository();
 
         let folder_files: Vec<ChangedFile>;
         {
@@ -1745,6 +1703,8 @@ impl BagitRepositoryPage {
         ) {
             Ok(_) => {
                 self.update_commits_sidebar();
+                // We update the file view because one of the folder's files was the viewed file, we need to make sure that it is no longer viewable.
+                self.update_file_view_if_necessary();
             }
             Err(error) => self.emit_by_name::<()>("error", &[&error.to_string()]),
         };
@@ -1752,13 +1712,13 @@ impl BagitRepositoryPage {
 
     /// Fetches the repository checked out branch, and update ui.
     fn try_fetch_without_auth_and_update_ui(&self) {
-        let selected_repository = self.imp().selected_repository.take();
+        let selected_repository = self.get_selected_repository();
+        let selected_repository_path = selected_repository.user_repository.path;
 
-        let selected_repository_path = selected_repository.user_repository.path.clone();
-
-        self.imp().selected_repository.replace(selected_repository);
-
-        let repository = Repository::open(selected_repository_path.clone()).unwrap();
+        if selected_repository.git_repository.is_none() {
+            return;
+        }
+        let git_repo = selected_repository.git_repository.unwrap();
 
         let (sender, receiver) =
             MainContext::channel::<Result<FetchResult, git2::Error>>(Priority::default());
@@ -1769,7 +1729,7 @@ impl BagitRepositoryPage {
             let sender = sender.clone();
 
             let fetch = fetch_checked_out_branch(
-                &repository,
+                &git_repo,
                 String::new(),
                 String::new(),
                 String::new(),
@@ -1817,18 +1777,106 @@ impl BagitRepositoryPage {
     /// Used to checked if there is changed files in the current branch.
     /// If an error occurs, it will return true by default.
     pub fn has_changed_files(&self) -> bool {
-        let selected_repository = self.imp().selected_repository.take();
+        let selected_repository = self.get_selected_repository();
         let git_repo = selected_repository.git_repository;
+
+        match git_repo {
+            Some(repo) => RepositoryUtils::has_changed_files(&repo),
+            None => false,
+        }
+    }
+
+    /// Retrieves the selected repository.
+    pub fn get_selected_repository(&self) -> SelectedRepository {
+        let selected_repository = self.imp().selected_repository.take();
         self.imp().selected_repository.replace(
             SelectedRepository::try_fetching_selected_repository(
                 &selected_repository.user_repository,
             )
             .unwrap(),
         );
+        selected_repository
+    }
 
-        match git_repo {
-            Some(repo) => RepositoryUtils::has_changed_files(&repo),
+    /// Retrieves the path of the repository.
+    pub fn get_selected_repository_path(&self) -> String {
+        let selected_repository = self.get_selected_repository();
+
+        return selected_repository.user_repository.path;
+    }
+
+    /// Try to show the content of a file.
+    pub fn try_showing_file_content(&self, parent_folder: &str, file_name: &str) {
+        let selected_repository = self.get_selected_repository();
+        let git_repo = selected_repository.git_repository;
+
+        if git_repo.is_none() {
+            return;
+        }
+
+        let found_repo = git_repo.unwrap();
+
+        match self.imp().file_view.define_how_to_show_file_content(
+            &selected_repository.user_repository.path,
+            &found_repo,
+            &parent_folder,
+            &file_name,
+        ) {
+            Ok(_) => {
+                self.imp()
+                    .main_view_stack
+                    .set_visible_child_name("file view");
+                self.imp()
+                    .file_view
+                    .set_file_information(&parent_folder, &file_name)
+            }
+            Err(error) => self.emit_by_name("error", &[&error.to_string()]),
+        }
+    }
+
+    /// Update the file view if we are on it.
+    /// The update will do the following :
+    /// - Check if the shown file is still present on the changed files. If not, we will go back to the main view.
+    /// - Update the file content if it has changed.
+    pub fn update_file_view_if_necessary(&self) {
+        // If the current view shown in the repository page isn't the file view, we don't go any further.
+        let is_on_file_view = match self.imp().main_view_stack.visible_child_name() {
+            Some(current_view) => current_view == "file view",
             None => false,
+        };
+
+        if !is_on_file_view {
+            return;
+        }
+
+        let selected_repository = self.get_selected_repository();
+
+        if selected_repository.git_repository.is_none() {
+            return;
+        }
+        let git_repo = selected_repository.git_repository.unwrap();
+
+        // First, we check if the current shown file is still in the changed files:
+        let current_shown_file_info = self.imp().file_view.get_current_shown_file_information();
+        let relative_path = RepositoryUtils::build_path_of_file(
+            &current_shown_file_info.0,
+            &current_shown_file_info.1,
+        );
+        let path = Path::new(&relative_path);
+        let file_status = git_repo.status_file(&path);
+
+        // If the file is not in the changed files anymore, we go back to the main repository view.
+        let should_go_to_main_view = match file_status {
+            Ok(status) => status == Status::CURRENT,
+            Err(_) => false,
+        };
+
+        if should_go_to_main_view {
+            self.imp()
+                .main_view_stack
+                .set_visible_child_name("hello page");
+            // We remove the current file information as it is not longer useful.
+            self.imp().file_view.set_file_information("", "");
         }
     }
 }

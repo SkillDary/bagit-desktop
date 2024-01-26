@@ -273,6 +273,14 @@
                             </property>
                           </object>
                         </child>
+                        <child>
+                          <object class="GtkStackPage">
+                            <property name="name">file view</property>
+                            <property name="child">
+                              <object class="BagitFileView" id="file_view"/>
+                            </property>
+                          </object>
+                        </child>
                       </object>
                     </child>
                   </object>

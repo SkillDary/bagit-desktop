@@ -17,12 +17,13 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-use std::{env, path::Path};
+use std::{env, path::Path, str::from_utf8};
 
 use gettextrs::gettext;
 use git2::{
-    build::CheckoutBuilder, BranchType, Commit, Cred, ErrorClass, ErrorCode, FetchOptions, Index,
-    ObjectType, Oid, PushOptions, RemoteCallbacks, Repository, Signature, Status,
+    build::CheckoutBuilder, BranchType, Commit, Cred, Delta, DiffOptions, ErrorClass, ErrorCode,
+    FetchOptions, Index, ObjectType, Oid, PushOptions, RemoteCallbacks, Repository, Signature,
+    Status,
 };
 use regex::Regex;
 
@@ -838,5 +839,53 @@ impl RepositoryUtils {
             return !statuses.is_empty();
         }
         return false;
+    }
+
+    /// Retrieve the content of a file.
+    pub fn get_content_of_deleted_file(
+        repository: &Repository,
+        relative_path: &str,
+    ) -> Result<String, git2::Error> {
+        let head_tree = repository.head()?.peel_to_commit()?.tree()?;
+
+        let mut diff_options = DiffOptions::new();
+        diff_options
+            .include_untracked(true)
+            .recurse_ignored_dirs(true);
+
+        let diff_result = repository
+            .diff_tree_to_workdir_with_index(Some(&head_tree), Some(&mut diff_options))?;
+
+        let diff_deltas: Vec<_> = diff_result.deltas().collect();
+
+        if diff_deltas.is_empty() {
+            return Ok(String::new());
+        }
+
+        let mut file_content = String::new();
+
+        for diff_delta in diff_deltas {
+            let delta = diff_delta.status();
+
+            let diff_file = match delta {
+                Delta::Deleted => diff_delta.old_file(),
+                _ => diff_delta.new_file(),
+            };
+
+            let diff_file_path = diff_file.path().unwrap().to_str().unwrap().to_string();
+
+            if diff_file_path == relative_path {
+                let file_oid = diff_file.id();
+                let blob = repository.find_blob(file_oid)?;
+
+                let file_bytes_content = blob.content();
+                file_content = String::from(match from_utf8(file_bytes_content) {
+                    Ok(v) => v,
+                    Err(_) => "",
+                });
+            }
+        }
+
+        Ok(file_content)
     }
 }

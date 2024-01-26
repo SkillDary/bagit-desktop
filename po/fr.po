@@ -442,7 +442,7 @@ msgid "_Loading branches"
 msgstr "Chargement des branches"
 
 msgid "_No branches"
-msgstr "Aucune branches"
+msgstr "Aucune branche"
 
 msgid "_Change branch dialog title"
 msgstr "Changer de branche ?"
@@ -474,6 +474,9 @@ msgstr "Toutes les branches"
 
 msgid "_Remote"
 msgstr "Distante"
+
+msgid "_Untracked"
+msgstr "Non suivie"
 
 msgid "_Local"
 msgstr "Locale"

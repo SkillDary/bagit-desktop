@@ -475,6 +475,9 @@ msgstr "All branches"
 msgid "_Remote"
 msgstr "Remote"
 
+msgid "_Untracked"
+msgstr "Untracked"
+
 msgid "_Local"
 msgstr "Local"
 

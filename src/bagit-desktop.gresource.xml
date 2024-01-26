@@ -27,6 +27,7 @@
     <file preprocess="xml-stripblanks">ui/widgets/repository/bagit-commits-sidebar.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/repository/bagit-commit-view.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/repository/bagit-branch-management-view.ui</file>
+    <file preprocess="xml-stripblanks">ui/widgets/repository/bagit-file-view.ui</file>
     <file preprocess="xml-stripblanks">ui/create-repository-page.ui</file>
     <file preprocess="xml-stripblanks">ui/clone-repository-page.ui</file>
     <file preprocess="xml-stripblanks">ui/preferences.ui</file>

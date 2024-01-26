@@ -113,7 +113,6 @@
                     <property name="vexpand">true</property>
                     <child>
                       <object class="GtkListBox" id="menu">
-                        <property name="selection-mode">none</property>
                         <signal name="row-selected" handler="row_clicked" swapped="true"/>
                         <style>
                           <class name="background"/>

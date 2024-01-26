@@ -23,6 +23,7 @@ walkdir = "2.3.3"
 rusqlite = "0.30.0" # MIT
 rusqlite_migration = "1.1.0" # Apache-2.0
 notify = "6.1.1" #  CC0-1.0 
+sourceview5 = "0.6.1" # MIT
 
 [dependencies.adw]
 package = "libadwaita"

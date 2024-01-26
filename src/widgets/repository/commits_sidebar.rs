@@ -185,6 +185,9 @@ mod imp {
                     Signal::builder("discard-folder")
                         .param_types([str::static_type()])
                         .build(),
+                    Signal::builder("file-selected")
+                        .param_types([str::static_type(), str::static_type()])
+                        .build(),
                 ]
             });
 
@@ -711,6 +714,35 @@ impl BagitCommitsSideBar {
             file_add_button_list.push(new_file_row.1);
         }
         revealer.set_child(Some(&file_list));
+
+        // We now set a listener on the file list for when a file is clicked :
+        file_list.connect_row_selected(clone!(
+            @weak self as win,
+            @weak folder_label
+            => move |list, clicked_row| {
+                if let Some(row) = clicked_row {
+
+                    list.unselect_all();
+
+                    let parent_folder_name = folder_label.text();
+                    let file_name = row
+                    .child()
+                    .and_downcast::<gtk::Box>()
+                    .expect("The child has to be a `Box`.")
+                    .first_child()
+                    .expect("The box should at least one child.")
+                    .next_sibling()
+                    .and_downcast::<gtk::Label>()
+                    .expect("The second child of the box should be a `Label`.")
+                    .text();
+
+                    win.emit_by_name::<()>("file-selected", &[
+                        &parent_folder_name,
+                        &file_name
+                    ]);
+                }
+            }
+        ));
 
         let clone_add_button_list = file_add_button_list.clone();
         add_button.connect_toggled(clone!(
