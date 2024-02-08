@@ -69,6 +69,9 @@ impl AppDatabase {
         // The path into which we will save the database.
         let db_dir = project_dir.data_dir().join("db");
 
+        // Create the necessary folders if needed.
+        std::fs::create_dir_all(&db_dir).unwrap();
+
         let connection: Connection = rusqlite::Connection::open(db_dir.join("bagit.db")).unwrap();
 
         self.connection = Some(connection);
