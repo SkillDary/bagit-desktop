@@ -225,7 +225,9 @@
                             </child>
                             <child>
                               <object class="GtkLabel">
-                                <property name="halign">GTK_ALIGN_START</property>
+                                <property name="halign">start</property>
+                                <property name="ellipsize">end</property>
+                                <property name="lines">1</property>
                                 <property name="label" translatable="yes">_Message indication</property>
                                 <style>
                                   <class name="caption"/>

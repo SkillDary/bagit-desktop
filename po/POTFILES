@@ -2,3 +2,4 @@ data/com.skilldary.bagit.desktop.desktop.in
 data/com.skilldary.bagit.desktop.appdata.xml.in
 data/com.skilldary.bagit.desktop.gschema.xml
 src/window.ui
+src/ui/widgets/bagit-repositories.ui

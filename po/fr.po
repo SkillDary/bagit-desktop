@@ -463,6 +463,9 @@ msgstr "Gestion des branches"
 msgid "_Create a new branch"
 msgstr "Créer une nouvelle branche"
 
+msgid "_Branch_name_warning"
+msgstr "Le nom de la branche sera sous la forme : "
+
 msgid "_Create branch"
 msgstr "Créer la branche"
 

@@ -31,6 +31,8 @@ use gtk::prelude::*;
 
 use crate::utils::repository_utils::RepositoryUtils;
 
+use regex::Regex;
+
 mod imp {
 
     use std::cell::{Cell, RefCell};
@@ -54,6 +56,10 @@ mod imp {
         #[template_child]
         pub new_branch_row: TemplateChild<adw::EntryRow>,
         #[template_child]
+        pub branch_name_warning_revealer: TemplateChild<gtk::Revealer>,
+        #[template_child]
+        pub branch_name_warning: TemplateChild<gtk::Label>,
+        #[template_child]
         pub branches_stack: TemplateChild<gtk::Stack>,
         #[template_child]
         pub search_bar: TemplateChild<gtk::SearchEntry>,
@@ -73,13 +79,19 @@ mod imp {
         fn new_branch_name_changed(&self, new_branch_entry_row: &adw::EntryRow) {
             self.create_branch_button
                 .set_sensitive(!new_branch_entry_row.text().trim().is_empty());
+
+            if self.obj().will_branch_name_be_formatted() {
+                self.obj().show_branch_name_warning();
+            } else {
+                self.obj().hide_branch_name_warning();
+            }
         }
 
         #[template_callback]
         fn create_branch(&self, _create_branch_button: &gtk::Button) {
-            let new_branch_name = self.new_branch_row.text();
+            let new_branch_name = self.obj().get_formatted_new_branch_name();
             self.obj()
-                .emit_by_name::<()>("create-branch", &[&new_branch_name.trim()]);
+                .emit_by_name::<()>("create-branch", &[&new_branch_name]);
         }
 
         #[template_callback]
@@ -310,27 +322,33 @@ impl BagitBranchManagementView {
         let branch_pill = self.build_branch_type_pill(branch_type);
         let delete_button = self.build_delete_button(branch_name, branch_type);
 
+        let end_box = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+        end_box.append(&branch_pill);
+
+        // Delete button revealer is added even if we are on the current branch to avoid spacing issues.
         let delete_button_revealer = gtk::Revealer::new();
         delete_button_revealer.set_child(Some(&delete_button));
         delete_button_revealer.set_transition_type(gtk::RevealerTransitionType::SlideRight);
 
-        let end_box = gtk::Box::new(gtk::Orientation::Horizontal, 10);
-        end_box.append(&branch_pill);
         end_box.append(&delete_button_revealer);
 
-        let controller = gtk::EventControllerMotion::new();
-        controller.connect_enter(clone!(
-            @weak delete_button_revealer
-            => move |_, _, _| {
-                delete_button_revealer.set_reveal_child(true);
-        }));
-        controller.connect_leave(clone!(
-            @weak delete_button_revealer
-             => move |_| {
-                delete_button_revealer.set_reveal_child(false);
-        }));
+        // We only add the possibility to delete a branch if it's not the current selected branch.
+        if !is_head {
+            let controller = gtk::EventControllerMotion::new();
+            controller.connect_enter(clone!(
+                @weak delete_button_revealer
+                => move |_, _, _| {
+                    delete_button_revealer.set_reveal_child(true);
+            }));
+            controller.connect_leave(clone!(
+                @weak delete_button_revealer
+                 => move |_| {
+                    delete_button_revealer.set_reveal_child(false);
+            }));
 
-        row.add_controller(controller);
+            row.add_controller(controller);
+        }
+
         row.add_suffix(&end_box);
 
         return row;
@@ -388,5 +406,55 @@ impl BagitBranchManagementView {
         search_entry: &str,
     ) -> bool {
         return branch_information.0.contains(search_entry);
+    }
+
+    /**
+     * Retrieve a formatted version of the new branch name to create.
+     * It will do the following formatting :
+     * - trim the branch name by removing leading whitespaces.
+     * - replace whitespaces between words with "-".
+     */
+    fn get_formatted_new_branch_name(&self) -> String {
+        let mut branch_name = self.imp().new_branch_row.text().to_string();
+        branch_name = branch_name.trim().to_string();
+
+        if let Ok(regex) = Regex::new(r"\s+") {
+            return regex.replace_all(&branch_name, "-").to_string();
+        } else {
+            return branch_name.replace(" ", "-");
+        }
+    }
+
+    /// Show the branch name warning with the formatted new branch name.
+    fn show_branch_name_warning(&self) {
+        let formatted_branch_name = self.get_formatted_new_branch_name();
+        let warning_text = gettext("_Branch_name_warning");
+
+        let final_text = format!("{}{}", warning_text, formatted_branch_name);
+
+        self.imp().branch_name_warning.set_text(&final_text);
+        self.imp()
+            .branch_name_warning_revealer
+            .set_reveal_child(true);
+    }
+
+    /// Hide the branch name warning.
+    fn hide_branch_name_warning(&self) {
+        self.imp().branch_name_warning.set_text(&"");
+        self.imp()
+            .branch_name_warning_revealer
+            .set_reveal_child(false);
+    }
+
+    /// Check if a branch name will be formatted when creating a new branch from it.
+    fn will_branch_name_be_formatted(&self) -> bool {
+        let mut branch_name = self.imp().new_branch_row.text().to_string();
+        branch_name = branch_name.trim().to_string();
+
+        if let Ok(regex) = Regex::new(r"\w+\s+\w+") {
+            return regex.is_match(&branch_name);
+        } else {
+            return false;
+        }
     }
 }

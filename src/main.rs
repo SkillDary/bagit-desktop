@@ -40,7 +40,7 @@ use self::application::BagitDesktopApplication;
 use self::window::BagitDesktopWindow;
 
 use config::{GETTEXT_PACKAGE, LOCALEDIR, PKGDATADIR};
-use gettextrs::{bind_textdomain_codeset, bindtextdomain, textdomain};
+use gettextrs::{bind_textdomain_codeset, bindtextdomain, setlocale, textdomain, LocaleCategory};
 use gtk::prelude::*;
 use gtk::{gio, glib};
 
@@ -150,6 +150,8 @@ fn main() -> glib::ExitCode {
     tracing::info!("App launching.");
 
     // Set up gettext translations
+    setlocale(LocaleCategory::LcAll, "");
+
     bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR).expect("Unable to bind the text domain");
     bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8")
         .expect("Unable to set the text domain encoding");

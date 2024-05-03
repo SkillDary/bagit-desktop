@@ -62,14 +62,48 @@
                           </object>
                         </child>
                         <child>
-                          <object class="GtkListBox">
-                            <style>
-                              <class name="boxed-list"/>
-                            </style>
+                          <object class="GtkBox">
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">4</property>
                             <child>
-                              <object class="AdwEntryRow" id="new_branch_row">
-                                <property name="title" translatable="yes">_Branch name</property>
-                                <signal name="changed" handler="new_branch_name_changed" swapped="true"/>
+                              <object class="GtkListBox">
+                                <style>
+                                  <class name="boxed-list"/>
+                                </style>
+                                <child>
+                                  <object class="AdwEntryRow" id="new_branch_row">
+                                    <property name="title" translatable="yes">_Branch name</property>
+                                    <signal name="changed" handler="new_branch_name_changed" swapped="true"/>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkRevealer" id="branch_name_warning_revealer">
+                                <property name="reveal-child">false</property>
+                                <property name="child">
+                                  <object class="GtkBox">
+                                    <property name="orientation">horizontal</property>
+                                    <property name="spacing">2</property>
+                                    <property name="valign">center</property>
+                                    <property name="halign">start</property>
+                                    <child>
+                                      <object class="GtkImage">
+                                        <property name="icon-name">info-symbolic</property>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkLabel" id="branch_name_warning">
+                                        <property name="halign">start</property>
+                                        <property name="ellipsize">end</property>
+                                        <property name="lines">1</property>
+                                        <style>
+                                          <class name="caption"/>
+                                        </style>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </property>
                               </object>
                             </child>
                           </object>
