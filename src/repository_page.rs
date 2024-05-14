@@ -267,6 +267,12 @@ mod imp {
                     Signal::builder("delete-branch")
                         .param_types([str::static_type(), str::static_type(), bool::static_type()])
                         .build(),
+                    Signal::builder("save-ssh-passphrase")
+                        .param_types([String::static_type(), String::static_type()])
+                        .build(),
+                    Signal::builder("save-gpg-passphrase")
+                        .param_types([String::static_type(), String::static_type()])
+                        .build(),
                 ]
             });
             SIGNALS.as_ref()
@@ -978,7 +984,7 @@ impl BagitRepositoryPage {
         self.toggle_git_action_button(true);
     }
 
-    /// Commits files and update UI.
+    /// Commits files and update the UI.
     pub fn commit_files_and_update_ui(
         &self,
         author: &str,
@@ -1000,7 +1006,7 @@ impl BagitRepositoryPage {
                 .borrow()
                 .get_selected_files();
 
-            // We save the profile if we need to :
+            // We save the profile if we need to:
             if need_to_save_profile {
                 let new_profile_id = Uuid::new_v4();
 
@@ -1081,6 +1087,7 @@ impl BagitRepositoryPage {
                 Ok(_) => {
                     let toast = adw::Toast::new(&gettext("_Commit created successfully"));
                     self.imp().toast_overlay.add_toast(toast);
+
                     // We remove the last commit message:
                     self.imp().commit_view.imp().message_row.set_text("");
                     self.imp().commit_view.imp().description_row.set_text("");
@@ -1088,6 +1095,8 @@ impl BagitRepositoryPage {
                     self.imp().selected_repository.replace(borrowed_repo);
                     self.update_commits_sidebar();
                     self.imp().commit_view.update_commit_view(0);
+
+                    self.emit_by_name::<()>("save-gpg-passphrase", &[&signing_key, &passphrase]);
                 }
                 Err(error) => {
                     self.imp().selected_repository.replace(borrowed_repo);
@@ -1183,8 +1192,8 @@ impl BagitRepositoryPage {
         }
     }
 
-    /// Does a git action that need authentification.
-    /// The branch name parameter is used when wanting to delete a remote branch.
+    /// Performs a git action that needs authentication.
+    /// The remote_branch_name parameter is used to delete a remote branch.
     pub fn do_git_action_with_auth_check(&self, action_type: ActionType, remote_branch_name: &str) {
         let selected_repository = self.get_selected_repository();
         let profile_mode = self.imp().commit_view.imp().profile_mode.take();
@@ -1231,7 +1240,6 @@ impl BagitRepositoryPage {
                                     ),
                                 };
                             } else {
-                                // TODO: MARKER
                                 match clone_mode {
                                     CloneMode::SSH => {
                                         match self.retrieve_saved_ssh_passphrase(
@@ -1298,7 +1306,7 @@ impl BagitRepositoryPage {
         }
     }
 
-    /// Used to push and update ui.
+    /// Pushes and updates the UI.
     pub fn push_and_update_ui(
         &self,
         username: String,
@@ -1308,51 +1316,37 @@ impl BagitRepositoryPage {
     ) {
         let selected_repository = self.get_selected_repository();
 
-        let (error_sender, error_receiver) = MainContext::channel::<String>(Priority::default());
-        let (result_sender, result_receiver) = MainContext::channel::<()>(Priority::default());
+        let (sender, receiver) = MainContext::channel::<Result<(), String>>(Priority::default());
 
         self.toggle_git_action_button(false);
 
-        thread::spawn(move || {
-            let error_sender = error_sender.clone();
-            let result_sender = result_sender.clone();
+        thread::spawn(
+            clone!(@strong private_key_path as private_key_path_clone, @strong passphrase as passphrase_clone => move || {
+                let sender = sender.clone();
 
-            match RepositoryUtils::push(
-                &selected_repository.git_repository.as_ref().unwrap(),
-                username,
-                password,
-                private_key_path,
-                passphrase,
-            ) {
-                Ok(_) => result_sender
-                    .send(())
-                    .expect("Could not send result through channel"),
-                Err(error) => error_sender
-                    .send(error.to_string())
-                    .expect("Could not send error through channel"),
-            };
-        });
-
-        error_receiver.attach(
-            None,
-            clone!(@weak self as win => @default-return Continue(false),
-                        move |error| {
-                            win.emit_by_name::<()>("error", &[&error.to_string()]);
-
-                            win.try_to_find_correct_git_button_action();
-                            win.toggle_git_action_button(true);
-
-                            win.update_repository_page();
-                            Continue(true)
-                        }
-            ),
+                match RepositoryUtils::push(
+                    &selected_repository.git_repository.as_ref().unwrap(),
+                    username,
+                    password,
+                    private_key_path_clone,
+                    passphrase_clone,
+                ) {
+                    Ok(_) => sender
+                        .send(Ok(()))
+                        .expect("Could not send result through channel"),
+                    Err(error) => sender
+                        .send(Err(error.to_string()))
+                        .expect("Could not send error through channel"),
+                };
+            }),
         );
 
-        result_receiver.attach(
+        receiver.attach(
             None,
-            clone!(
-                @weak self as win => @default-return Continue(false),
-                        move |_| {
+            clone!(@weak self as win => @default-return Continue(false),
+                move |result| {
+                    match result {
+                        Ok(_) => {
                             let toast = adw::Toast::new(&gettext("_Commits pushed"));
                             win.imp().toast_overlay.add_toast(toast);
 
@@ -1362,13 +1356,28 @@ impl BagitRepositoryPage {
 
                             win.imp().sidebar.imp().first_commit_oid_of_commit_list.take();
                             win.update_repository_page();
+
+                            win.emit_by_name::<()>("save-ssh-passphrase", &[&private_key_path, &passphrase]);
+
                             Continue(true)
                         }
+                        Err(error) => {
+                            win.emit_by_name::<()>("error", &[&error.to_string()]);
+
+                            win.try_to_find_correct_git_button_action();
+                            win.toggle_git_action_button(true);
+
+                            win.update_repository_page();
+
+                            Continue(true)
+                        }
+                    }
+                }
             ),
         );
     }
 
-    /// Used to push and update ui.
+    /// Pulls and updates the UI.
     pub fn pull_and_update_ui(
         &self,
         username: String,
@@ -1378,35 +1387,52 @@ impl BagitRepositoryPage {
     ) {
         let selected_repository = self.get_selected_repository();
 
-        let (error_sender, error_receiver) = MainContext::channel::<String>(Priority::default());
-        let (result_sender, result_receiver) = MainContext::channel::<()>(Priority::default());
+        let (sender, receiver) = MainContext::channel::<Result<(), String>>(Priority::default());
 
         self.toggle_git_action_button(false);
 
-        thread::spawn(move || {
-            let error_sender = error_sender.clone();
-            let result_sender = result_sender.clone();
+        thread::spawn(
+            clone!(@strong private_key_path as private_key_path_clone, @strong passphrase as passphrase_clone => move || {
+                let sender = sender.clone();
 
-            match RepositoryUtils::pull(
-                &selected_repository.git_repository.as_ref().unwrap(),
-                username,
-                password,
-                private_key_path,
-                passphrase,
-            ) {
-                Ok(_) => result_sender
-                    .send(())
-                    .expect("Could not send result through channel"),
-                Err(error) => error_sender
-                    .send(error.to_string())
-                    .expect("Could not send error through channel"),
-            };
-        });
+                match RepositoryUtils::pull(
+                    &selected_repository.git_repository.as_ref().unwrap(),
+                    username,
+                    password,
+                    private_key_path_clone,
+                    passphrase_clone,
+                ) {
+                    Ok(_) => sender
+                        .send(Ok(()))
+                        .expect("Could not send result through channel"),
+                    Err(error) => sender
+                        .send(Err(error.to_string()))
+                        .expect("Could not send error through channel"),
+                };
+            }),
+        );
 
-        error_receiver.attach(
+        receiver.attach(
             None,
-            clone!(@weak self as win => @default-return Continue(false),
-                        move |error| {
+            clone!(
+                @weak self as win => @default-return Continue(false),
+                    move |result| {
+                        match result {
+                            Ok(_) => {
+                                let toast = adw::Toast::new(&gettext("_Remote branch pulled"));
+                                win.imp().toast_overlay.add_toast(toast);
+
+                                win.update_pull_indication_box(0);
+                                win.try_to_find_correct_git_button_action();
+                                win.toggle_git_action_button(true);
+
+                                win.update_commits_sidebar();
+
+                                win.emit_by_name::<()>("save-ssh-passphrase", &[&private_key_path, &passphrase]);
+
+                                Continue(true)
+                            }
+                        Err(error) => {
                             win.emit_by_name::<()>("error", &[&error.to_string()]);
 
                             win.try_to_find_correct_git_button_action();
@@ -1415,28 +1441,13 @@ impl BagitRepositoryPage {
                             win.update_commits_sidebar();
                             Continue(true)
                         }
-            ),
-        );
-
-        result_receiver.attach(
-            None,
-            clone!(
-                @weak self as win => @default-return Continue(false),
-                        move |_| {
-                            let toast = adw::Toast::new(&gettext("_Remote branch pulled"));
-                            win.imp().toast_overlay.add_toast(toast);
-
-                            win.update_pull_indication_box(0);
-                            win.try_to_find_correct_git_button_action();
-                            win.toggle_git_action_button(true);
-
-                            win.update_commits_sidebar();
-                            Continue(true)
-                        }
+                    }
+                }
             ),
         );
     }
 
+    /// Deletes a branch and updates the UI.
     pub fn delete_branch_and_update_ui(
         &self,
         username: String,
@@ -1446,32 +1457,33 @@ impl BagitRepositoryPage {
         branch_name: String,
     ) {
         let selected_repository = self.get_selected_repository();
-        let (result_sender, result_receiver) =
-            MainContext::channel::<Result<(), String>>(Priority::default());
+        let (sender, receiver) = MainContext::channel::<Result<(), String>>(Priority::default());
 
         self.toggle_git_action_button(false);
 
-        thread::spawn(move || {
-            let result_sender = result_sender.clone();
+        thread::spawn(
+            clone!(@strong private_key_path as private_key_path_clone, @strong passphrase as passphrase_clone => move || {
+                let sender = sender.clone();
 
-            match RepositoryUtils::delete_remote_branch(
-                &selected_repository.git_repository.as_ref().unwrap(),
-                &branch_name,
-                username,
-                password,
-                private_key_path,
-                passphrase,
-            ) {
-                Ok(_) => result_sender
-                    .send(Ok(()))
-                    .expect("Could not send result through channel"),
-                Err(error) => result_sender
-                    .send(Err(error.to_string()))
-                    .expect("Could not send error through channel"),
-            };
-        });
+                match RepositoryUtils::delete_remote_branch(
+                    &selected_repository.git_repository.as_ref().unwrap(),
+                    &branch_name,
+                    username,
+                    password,
+                    private_key_path_clone,
+                    passphrase_clone,
+                ) {
+                    Ok(_) => sender
+                        .send(Ok(()))
+                        .expect("Could not send result through channel"),
+                    Err(error) => sender
+                        .send(Err(error.to_string()))
+                        .expect("Could not send error through channel"),
+                };
+            }),
+        );
 
-        result_receiver.attach(
+        receiver.attach(
             None,
             clone!(
                 @weak self as win => @default-return Continue(false),
@@ -1484,6 +1496,8 @@ impl BagitRepositoryPage {
                                     win.show_toast(&gettext("_Branch deleted"));
                                     win.imp().sidebar.init_commit_list(selected_repository.user_repository.path.clone());
                                     win.toggle_git_action_button(true);
+
+                                    win.emit_by_name::<()>("save-ssh-passphrase", &[&private_key_path, &passphrase]);
                                 },
                                 Err(error) => {
                                     win.emit_by_name::<()>("error", &[&error.to_string()]);
@@ -1496,19 +1510,17 @@ impl BagitRepositoryPage {
         );
     }
 
-    /// Used to push and update ui.
+    /// Tries to pull without authentication and updates the UI.
     pub fn try_pull_without_auth_and_update_ui(&self) {
         let selected_repository = self.get_selected_repository();
 
-        let (error_sender, error_receiver) =
-            MainContext::channel::<git2::Error>(Priority::default());
-        let (result_sender, result_receiver) = MainContext::channel::<()>(Priority::default());
+        let (sender, receiver) =
+            MainContext::channel::<Result<(), git2::Error>>(Priority::default());
 
         self.toggle_git_action_button(false);
 
         thread::spawn(move || {
-            let error_sender = error_sender.clone();
-            let result_sender = result_sender.clone();
+            let sender = sender.clone();
 
             match RepositoryUtils::pull(
                 &selected_repository.git_repository.as_ref().unwrap(),
@@ -1517,19 +1529,34 @@ impl BagitRepositoryPage {
                 String::new(),
                 String::new(),
             ) {
-                Ok(_) => result_sender
-                    .send(())
+                Ok(_) => sender
+                    .send(Ok(()))
                     .expect("Could not send result through channel"),
-                Err(error) => error_sender
-                    .send(error)
+                Err(error) => sender
+                    .send(Err(error))
                     .expect("Could not send error through channel"),
             };
         });
 
-        error_receiver.attach(
+        receiver.attach(
             None,
-            clone!(@weak self as win => @default-return Continue(false),
-                        move |error| {
+            clone!(
+                @weak self as win => @default-return Continue(false),
+                    move |result| {
+                        match result {
+                            Ok(_) => {
+                                let toast = adw::Toast::new(&gettext("_Remote branch pulled"));
+                                win.imp().toast_overlay.add_toast(toast);
+
+                                win.update_pull_indication_box(0);
+                                win.try_to_find_correct_git_button_action();
+                                win.toggle_git_action_button(true);
+
+                                win.update_commits_sidebar();
+
+                                Continue(true)
+                            }
+                        Err(error) => {
                             if (error.class() == git2::ErrorClass::Http)
                                 || (error.class() == git2::ErrorClass::Ssh)
                             {
@@ -1542,31 +1569,16 @@ impl BagitRepositoryPage {
 
                                 win.update_commits_sidebar();
                             }
+
                             Continue(true)
                         }
-            ),
-        );
-
-        result_receiver.attach(
-            None,
-            clone!(
-                @weak self as win => @default-return Continue(false),
-                        move |_| {
-                            let toast = adw::Toast::new(&gettext("_Remote branch pulled"));
-                            win.imp().toast_overlay.add_toast(toast);
-
-                            win.update_pull_indication_box(0);
-                            win.try_to_find_correct_git_button_action();
-                            win.toggle_git_action_button(true);
-
-                            win.update_commits_sidebar();
-                            Continue(true)
-                        }
+                    }
+                }
             ),
         );
     }
 
-    /// Used to discard a file and update UI.
+    /// Discards a file and updates the UI.
     pub fn discard_file_and_update_ui(&self, file_path: &str) {
         let selected_repository = self.get_selected_repository();
         match RepositoryUtils::discard_one_file(
@@ -1582,7 +1594,7 @@ impl BagitRepositoryPage {
         };
     }
 
-    /// Used to change the current branch.
+    /// Changes the current branch.
     pub fn checkout_branch_and_update_ui(&self, branch_to_checkout_to: String, is_remote: bool) {
         let selected_repository = self.get_selected_repository();
 
@@ -1653,19 +1665,21 @@ impl BagitRepositoryPage {
 
         self.toggle_git_action_button(false);
 
-        thread::spawn(move || {
-            let sender = sender.clone();
+        thread::spawn(
+            clone!(@strong private_key_path as private_key_path_clone, @strong passphrase as passphrase_clone => move || {
+                let sender = sender.clone();
 
-            let fetch = fetch_checked_out_branch(
-                &git_repo,
-                username,
-                password,
-                private_key_path,
-                passphrase,
-            );
+                let fetch = fetch_checked_out_branch(
+                    &git_repo,
+                    username,
+                    password,
+                    private_key_path_clone,
+                    passphrase_clone,
+                );
 
-            sender.send(fetch).expect("Could not send through channel");
-        });
+                sender.send(fetch).expect("Could not send through channel");
+            }),
+        );
 
         receiver.attach(
             None,
@@ -1675,6 +1689,8 @@ impl BagitRepositoryPage {
                             Ok(fetch_result) => {
                                 win.update_git_action_button(fetch_result);
                                 win.imp().branch_view.fetch_all_branches(selected_repository_path.clone());
+
+                                win.emit_by_name::<()>("save-ssh-passphrase", &[&private_key_path, &passphrase]);
                             },
                             Err(error) => {
                                 win.try_to_find_correct_git_button_action();
@@ -1682,6 +1698,7 @@ impl BagitRepositoryPage {
                                 win.emit_by_name::<()>("error", &[&error.to_string()])
                             },
                         }
+
                         Continue(true)
                     }
             ),
@@ -1769,13 +1786,13 @@ impl BagitRepositoryPage {
         );
     }
 
-    /// Show a toast with a given message.
+    /// Shows a toast with a given message.
     pub fn show_toast(&self, toast_message: &str) {
         let toast = adw::Toast::new(toast_message);
         self.imp().toast_overlay.add_toast(toast);
     }
 
-    /// Used to checked if there is changed files in the current branch.
+    /// Checks if there is changed files in the current branch.
     /// If an error occurs, it will return true by default.
     pub fn has_changed_files(&self) -> bool {
         let selected_repository = self.get_selected_repository();
@@ -1806,7 +1823,7 @@ impl BagitRepositoryPage {
         return selected_repository.user_repository.path;
     }
 
-    /// Try to show the content of a file.
+    /// Tries to show the content of a file.
     pub fn try_showing_file_content(&self, parent_folder: &str, file_name: &str) {
         let selected_repository = self.get_selected_repository();
         let git_repo = selected_repository.git_repository;
@@ -1835,7 +1852,7 @@ impl BagitRepositoryPage {
         }
     }
 
-    /// Update the file view if we are on it.
+    /// Updates the file view if we are on it.
     /// The update will do the following :
     /// - Check if the shown file is still present on the changed files. If not, we will go back to the main view.
     /// - Update the file content if it has changed.

@@ -294,23 +294,39 @@ impl BagitDesktopWindow {
         );
     }
 
+    /// Saves an SSH passphrase in memory.
+    ///
+    /// Please note that for security reasons, the passphrases are only stored in RAM,
+    /// not in the database.
     pub fn save_ssh_passphrase(&self, key_path: String, passphrase: String) {
         let mut ssh_passphrases = self.imp().ssh_passphrases.take();
 
-        ssh_passphrases.insert(key_path, passphrase);
+        if ssh_passphrases.insert(key_path, passphrase).is_none() {
+            tracing::debug!("Saving the SSH passphrase.");
+        } else {
+            tracing::debug!("The SSH passphrase already exists in memory, updating saved value.");
+        }
 
         self.imp().ssh_passphrases.replace(ssh_passphrases);
     }
 
+    /// Saves a GPG passphrase in memory.
+    ///
+    /// Please note that for security reasons, the passphrases are only stored in RAM,
+    /// not in the database.
     pub fn save_gpg_passphrase(&self, key: String, passphrase: String) {
         let mut gpg_passphrases = self.imp().gpg_passphrases.take();
 
-        gpg_passphrases.insert(key, passphrase);
+        if gpg_passphrases.insert(key, passphrase).is_none() {
+            tracing::debug!("Saving the GPG passphrase.");
+        } else {
+            tracing::debug!("The GPG passphrase already exists in memory, updating saved value.");
+        }
 
         self.imp().gpg_passphrases.replace(gpg_passphrases);
     }
 
-    /// Used to build a new repository row.
+    /// Builds a new repository row.
     pub fn build_repository_row(&self, bagit_repository: &BagitRepository) -> adw::ActionRow {
         if !self.imp().repositories_window.is_visible() {
             self.imp().status_page.set_visible(false);
@@ -370,7 +386,7 @@ impl BagitDesktopWindow {
         return new_row;
     }
 
-    /// Add a new row to the list of all repositories.
+    /// Adds a new row to the list of all repositories.
     pub fn add_list_row_to_all_repositories(&self, bagit_repository: &BagitRepository) {
         let new_row = self.build_repository_row(bagit_repository);
 
@@ -381,7 +397,7 @@ impl BagitDesktopWindow {
             .append(&new_row);
     }
 
-    /// Add a new row to the list of recent repositories.
+    /// Adds a new row to the list of recent repositories.
     pub fn add_list_row_to_recent_repositories(&self, bagit_repository: &BagitRepository) {
         let new_row = self.build_repository_row(bagit_repository);
 
@@ -392,7 +408,7 @@ impl BagitDesktopWindow {
             .append(&new_row);
     }
 
-    /// Used to initialize the repositories.
+    /// Initializes the repositories.
     fn init_all_repositories(&self) {
         let all_repositories;
 
@@ -924,9 +940,6 @@ impl BagitDesktopWindow {
                         _ => None
                     };
 
-                    let ssh_key_path;
-                    let ssh_passphrase;
-
                     let (
                         username,
                         password,
@@ -934,9 +947,6 @@ impl BagitDesktopWindow {
                         passphrase,
                     ) =  match &selected_profile {
                         None => {
-                            ssh_key_path = String::from("");
-                            ssh_passphrase = win.imp().clone_repository_page.imp().passphrase.text().to_string();
-
                             (
                                 "".to_string(),
                                 "".to_string(),
@@ -945,9 +955,6 @@ impl BagitDesktopWindow {
                             )
                         },
                         Some(profile) => {
-                            ssh_key_path = profile.private_key_path.to_string();
-                            ssh_passphrase = clone_repository_page.imp().passphrase.text().to_string();
-
                             (
                                 profile.username.to_string(),
                                 profile.password.to_string(),
@@ -957,12 +964,10 @@ impl BagitDesktopWindow {
                         }
                     };
 
-                    if !ssh_key_path.is_empty() {
-                        win.save_ssh_passphrase(ssh_key_path, ssh_passphrase);
-                    }
-
                     thread::spawn(move || {
                         let sender = sender.clone();
+                        let passphrase = passphrase.clone();
+                        let private_key_path = private_key_path.clone();
 
                         let callback = RepositoryUtils::find_correct_callback(
                             url_copy.clone(),
@@ -987,7 +992,7 @@ impl BagitDesktopWindow {
                         match RepositoryUtils::clone_repository(&url_copy, &new_path, callback) {
                             Ok(repo) => {repository = repo}
                             Err(e) => {
-                                // We must make sure to delete the created folder !
+                                // We must make sure to delete the created folder!
                                 let removed_directory = fs::remove_dir_all(&new_path);
                                 match removed_directory {
                                     Ok(_) => sender.send(Err(e.to_string())).expect("Could not send error through channel"),
@@ -1014,7 +1019,7 @@ impl BagitDesktopWindow {
                             },
                         }
 
-                        // Once the repository is cloned, we update it's config file:
+                        // Once the repository is cloned, we update its config file:
                         if let Err(error) = RepositoryUtils::override_git_config(&repository, &profile) {
                             sender.send(Err(error.to_string())).expect("Could not send error through channel");
 
@@ -1086,7 +1091,7 @@ impl BagitDesktopWindow {
 
                     let profile_id = Uuid::new_v4();
 
-                    // We make sure that the profile name is unique :
+                    // We make sure that the profile name is unique:
                     let same_profile_name_number;
 
                     let app_database = win.imp().app_database.take();
@@ -1123,10 +1128,6 @@ impl BagitDesktopWindow {
                     );
 
                     let app_database = win.imp().app_database.take();
-
-                    if !private_key_path.is_empty() {
-                        win.save_ssh_passphrase(private_key_path.to_string(), passphrase.clone());
-                    }
 
                     if let Err(error) = app_database.add_git_profile(&new_profile) {
                         tracing::warn!("Could not add Git profile: {}", error);
@@ -1319,8 +1320,6 @@ impl BagitDesktopWindow {
                             passphrase_dialog: BagitGpgPassphraseDialog,
                             passphrase: &str
                             | {
-                                win2.save_gpg_passphrase(cloned_signing_key.clone(), passphrase.to_string().clone());
-
                                 passphrase_dialog.close();
                                 repository_page.commit_files_and_update_ui(
                                     &cloned_author,
@@ -1335,6 +1334,30 @@ impl BagitDesktopWindow {
                         ));
                     }
                 ));
+            }),
+        );
+
+        self.imp().repository_page.connect_closure(
+            "save-ssh-passphrase",
+            false,
+            closure_local!(@watch self as win => move |
+                _repository_page: BagitRepositoryPage,
+                key_path: &str,
+                passphrase: &str
+                | {
+                win.save_ssh_passphrase(key_path.to_string(), passphrase.to_string());
+            }),
+        );
+
+        self.imp().repository_page.connect_closure(
+            "save-gpg-passphrase",
+            false,
+            closure_local!(@watch self as win => move |
+                _repository_page: BagitRepositoryPage,
+                key: &str,
+                passphrase: &str
+                | {
+                win.save_gpg_passphrase(key.to_string(), passphrase.to_string());
             }),
         );
 
@@ -1445,10 +1468,6 @@ impl BagitDesktopWindow {
                             private_key_path: &str,
                             passphrase: &str,
                             | {
-                                if !private_key_path.is_empty() {
-                                    win2.save_ssh_passphrase(private_key_path.to_string(), passphrase.to_string());
-                                }
-
                                 dialog.close();
                                 repository_page.do_git_action_with_information(
                                     String::from(username),
