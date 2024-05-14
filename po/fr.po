@@ -196,7 +196,7 @@ msgstr "Emplacement de la clé privée (optionnel)"
 msgid "_Select private key path"
 msgstr "Sélectionnez votre clé privée"
 
-msgid "_PGP information"
+msgid "_GPG information"
 msgstr "Informations GPG"
 
 msgid "_Passphrase"

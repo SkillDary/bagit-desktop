@@ -396,7 +396,7 @@
                                     <child>
                                       <object class="GtkLabel">
                                         <property name="halign">GTK_ALIGN_START</property>
-                                        <property name="label" translatable="yes">_PGP information</property>
+                                        <property name="label" translatable="yes">_GPG information</property>
                                         <style>
                                           <class name="title-2"/>
                                         </style>

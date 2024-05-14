@@ -188,7 +188,7 @@ impl BagitPreferencesGitProfiles {
         expander_row.add_row(&password_row);
         expander_row.add_row(&self.create_action_row(&gettext("_SSH information")));
         expander_row.add_row(&path_row);
-        expander_row.add_row(&self.create_action_row(&gettext("_PGP information")));
+        expander_row.add_row(&self.create_action_row(&gettext("_GPG information")));
         expander_row.add_row(&signing_key_row);
 
         let row = adw::ActionRow::new();
