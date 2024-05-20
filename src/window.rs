@@ -706,7 +706,7 @@ impl BagitDesktopWindow {
                     match selected_profile {
                         Some(profile) => {
                             // Once the repository is created, we update its config file:
-                            match RepositoryUtils::override_git_config(&repository, &profile) {
+                            match RepositoryUtils::override_git_config_from_profile(&repository, &profile) {
                                 Ok(_) => tracing::debug!("Override of git config successful."),
                                 Err(error) =>  tracing::warn!("Could not override git config: {}", error)
                             };
@@ -1020,7 +1020,7 @@ impl BagitDesktopWindow {
                         }
 
                         // Once the repository is cloned, we update its config file:
-                        if let Err(error) = RepositoryUtils::override_git_config(&repository, &profile) {
+                        if let Err(error) = RepositoryUtils::override_git_config_from_profile(&repository, &profile) {
                             sender.send(Err(error.to_string())).expect("Could not send error through channel");
 
                             return;
@@ -1157,7 +1157,7 @@ impl BagitDesktopWindow {
                                 match RepositoryUtils::clone_repository(&url_copy, &new_path, callback) {
                                     Ok(repository) => {
                                         // Once the repository is cloned, we update it's config file:
-                                        match RepositoryUtils::override_git_config(&repository, &new_profile) {
+                                        match RepositoryUtils::override_git_config_from_profile(&repository, &new_profile) {
                                             Ok(_) => result_sender.send(
                                                 (
                                                     RepositoryUtils::get_folder_name_from_os(&url_copy).to_string(),
@@ -1550,7 +1550,6 @@ impl BagitDesktopWindow {
                 ));
             }),
         );
-
         self.imp().repository_page.connect_closure(
             "delete-branch",
             false,

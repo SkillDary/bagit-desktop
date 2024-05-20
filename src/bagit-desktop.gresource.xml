@@ -5,9 +5,11 @@
     <file alias="dialog-information-symbolic.svg">assets/icons/dialog-information-symbolic.svg</file>
     <file alias="logo-bagit.svg">assets/icons/logo-bagit.svg</file>
     <file alias="branch-symbolic.svg">assets/icons/branch-symbolic.svg</file>
+    <file alias="settings-symbolic.svg">assets/icons/settings-symbolic.svg</file>
     <file alias="arrow3-up-symbolic.svg">assets/icons/arrow3-up-symbolic.svg</file>
     <file alias="arrow3-down-symbolic.svg">assets/icons/arrow3-down-symbolic.svg</file>
     <file alias="panel-left-symbolic.svg">assets/icons/panel-left-symbolic.svg</file>
+    <file alias="info-outline-symbolic.svg">assets/icons/info-outline-symbolic.svg</file>
     <file alias="panel-modified-symbolic.svg">assets/icons/panel-modified-symbolic.svg</file>
     <file preprocess="xml-stripblanks">assets/icons/user-trash-symbolic.svg</file>
   </gresource>
@@ -28,6 +30,7 @@
     <file preprocess="xml-stripblanks">ui/widgets/repository/bagit-commit-view.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/repository/bagit-branch-management-view.ui</file>
     <file preprocess="xml-stripblanks">ui/widgets/repository/bagit-file-view.ui</file>
+    <file preprocess="xml-stripblanks">ui/widgets/repository/bagit-repository-config-view.ui</file>
     <file preprocess="xml-stripblanks">ui/create-repository-page.ui</file>
     <file preprocess="xml-stripblanks">ui/clone-repository-page.ui</file>
     <file preprocess="xml-stripblanks">ui/preferences.ui</file>

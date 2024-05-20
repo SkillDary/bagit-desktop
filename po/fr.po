@@ -487,6 +487,17 @@ msgstr "Locale"
 msgid "_Search a branch"
 msgstr "Rechercher une branche"
 
+############# bagit-repository-config-view.ui ##############
+
+msgid "_Repository config"
+msgstr "Configuration du dépôt"
+
+msgid "_Remote repository URL"
+msgstr "URL du dépôt distant"
+
+msgid "_Repository profile"
+msgstr "Profil du dépôt"
+
 ############# git2 errors #############
 
 # Errors codes:

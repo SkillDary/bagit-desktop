@@ -32,6 +32,7 @@ use crate::utils::repository_utils::RepositoryUtils;
 use crate::utils::selected_repository::SelectedRepository;
 use crate::widgets::repository::commit_view::BagitCommitView;
 use crate::widgets::repository::commits_sidebar::BagitCommitsSideBar;
+use crate::widgets::repository::repository_config_view::BagitRepositoryConfigView;
 use adw::subclass::prelude::*;
 use gettextrs::gettext;
 use git2::Status;
@@ -43,29 +44,25 @@ use notify::{RecursiveMode, Watcher};
 use uuid::Uuid;
 
 use crate::widgets::repository::branch_management_view::BagitBranchManagementView;
+use crate::widgets::repository::file_view::BagitFileView;
+
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashMap,
+};
+
+use adw::SplitButton;
+use gtk::{template_callbacks, Label, Spinner};
+use once_cell::sync::Lazy;
+
+use crate::utils::db::AppDatabase;
+use git2::Repository;
 
 mod imp {
 
-    use crate::widgets::repository::file_view::BagitFileView;
+    use crate::widgets::repository::repository_config_view::BagitRepositoryConfigView;
 
     use super::*;
-
-    use std::{
-        cell::{Cell, RefCell},
-        collections::HashMap,
-        sync::mpsc,
-    };
-
-    use adw::SplitButton;
-    use gtk::{template_callbacks, Label, Spinner};
-    use once_cell::sync::Lazy;
-
-    use crate::{
-        utils::{action_type::ActionType, db::AppDatabase},
-        widgets::repository::commit_view::BagitCommitView,
-    };
-
-    use crate::widgets::repository::branch_management_view::BagitBranchManagementView;
 
     // Object holding the state
     #[derive(Debug, Default, CompositeTemplate)]
@@ -91,6 +88,8 @@ mod imp {
         pub branch_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub file_view: TemplateChild<BagitFileView>,
+        #[template_child]
+        pub config_view: TemplateChild<BagitRepositoryConfigView>,
         #[template_child]
         pub repository_name_label: TemplateChild<gtk::Label>,
         #[template_child]
@@ -180,6 +179,11 @@ mod imp {
             self.branch_view
                 .fetch_all_branches(self.obj().get_selected_repository_path());
         }
+
+        #[template_callback]
+        fn go_to_config_view(&self, _button: gtk::Button) {
+            self.main_view_stack.set_visible_child_name("config view");
+        }
     }
 
     // The central trait for subclassing a GObject
@@ -205,6 +209,7 @@ mod imp {
             self.obj().connect_sidebar_signals();
             self.obj().connect_commit_view_signals();
             self.obj().connect_branch_management_view_signals();
+            self.obj().connect_config_view_signals();
 
             self.is_doing_git_action.set(false);
 
@@ -293,7 +298,7 @@ impl BagitRepositoryPage {
     /**
      * Used for connecting differents signals used by sidebar.
      */
-    pub fn connect_sidebar_signals(&self) {
+    fn connect_sidebar_signals(&self) {
         self.imp().sidebar.connect_closure(
             "row-selected",
             false,
@@ -403,54 +408,15 @@ impl BagitRepositoryPage {
     }
 
     /// Used to connect signals sent by the commit view.
-    pub fn connect_commit_view_signals(&self) {
+    fn connect_commit_view_signals(&self) {
         self.imp().commit_view.connect_closure(
             "select-profile",
             false,
             closure_local!(@watch self as win => move |
-                commit_view: BagitCommitView,
+                _commit_view: BagitCommitView,
                 profile_name: &str
                 | {
-                    let selected_profile;
-
-                    let app_database = win.imp().app_database.take();
-
-                    match app_database.get_git_profile_from_name(profile_name) {
-                        Ok(profile) => selected_profile = profile,
-                        Err(error) => {
-                            // TODO: Show error (maybe with a toast).
-
-                            tracing::warn!("Could not get Git profile from name: {}", error);
-
-                            return;
-                        },
-                    }
-
-                    if selected_profile.is_some() {
-                        let profile = selected_profile.unwrap();
-                        let _ = match &win.imp().selected_repository.borrow().git_repository {
-                            Some(repo) => RepositoryUtils::override_git_config(&repo, &profile),
-                            None => Ok({}),
-                        };
-                        commit_view.set_and_show_selected_profile(profile.clone());
-
-                        //...and we specify the new default profile used with the openned repository:
-                        if let Err(error) = app_database.change_git_profile_of_repository(
-                            win.imp().selected_repository.borrow().user_repository.repository_id,
-                            Some(profile.profile_id)
-                        ) {
-                            tracing::warn!("Could not change Git profile of repository: {}", error);
-
-                            let toast = adw::Toast::new(&gettext("_Could not change Git profile"));
-                            win.imp().toast_overlay.add_toast(toast);
-                        }
-
-                        commit_view.update_commit_view(
-                            win.imp().sidebar.imp().changed_files.borrow().get_number_of_selected_files()
-                        );
-                    }
-
-                    win.imp().app_database.replace(app_database);
+                    win.select_profile(profile_name);
                 }
             ),
         );
@@ -458,30 +424,9 @@ impl BagitRepositoryPage {
             "remove-profile",
             false,
             closure_local!(@watch self as win => move |
-                commit_view: BagitCommitView
+                _commit_view: BagitCommitView
                 | {
-                    let app_database = win.imp().app_database.take();
-
-                    if let Err(error) = app_database.change_git_profile_of_repository(
-                        win.imp().selected_repository.borrow().user_repository.repository_id,
-                        None
-                    ) {
-                        tracing::warn!("Could not change Git profile of repository: {}", error);
-
-                        let toast = adw::Toast::new(&gettext("_Could not change Git profile"));
-                        win.imp().toast_overlay.add_toast(toast);
-                    }
-
-                    win.imp().app_database.replace(app_database);
-
-                    let _ = match &win.imp().selected_repository.borrow().git_repository {
-                        Some(repo) => RepositoryUtils::reset_git_config(&repo),
-                        None => Ok({}),
-                    };
-
-                    commit_view.update_commit_view(
-                        win.imp().sidebar.imp().changed_files.borrow().get_number_of_selected_files()
-                    );
+                    win.remove_profile();
                 }
             ),
         );
@@ -541,16 +486,7 @@ impl BagitRepositoryPage {
             closure_local!(@watch self as win => move |
                 _commit_view: BagitCommitView,
                 | {
-                    let profile_mode = win.imp().commit_view.imp().profile_mode.borrow().get_profile_mode();
-                    match profile_mode {
-                        ProfileMode::SelectedProfile(profile) => {
-                            match &win.imp().selected_repository.borrow().git_repository {
-                                Some(repository) => RepositoryUtils::override_git_config(&repository, &profile).unwrap(),
-                                None => {},
-                            };
-                        },
-                        _ => {}
-                    };
+                    win.update_git_config();
                 }
             ),
         );
@@ -629,8 +565,8 @@ impl BagitRepositoryPage {
         );
     }
 
-    /// Connects the signals sent by the branch management view.
-    pub fn connect_branch_management_view_signals(&self) {
+    /// Used to connect signals sent by the branch management view.
+    fn connect_branch_management_view_signals(&self) {
         self.imp().branch_view.connect_closure(
             "change-branch",
             false,
@@ -670,7 +606,10 @@ impl BagitRepositoryPage {
                         );
                         win.imp().branch_view.imp().new_branch_row.set_text("");
                     },
-                    Err(error) => win.show_toast(&error.to_string())
+                    Err(error) => {
+                        tracing::error!("{}", &error.to_string());
+                        win.show_toast(&error.to_string());
+                    }
                 }
             }),
         );
@@ -691,6 +630,67 @@ impl BagitRepositoryPage {
                         &is_remote
                     ]);
             }),
+        );
+    }
+
+    /// Used to connect signals sent by the repository config view.
+    fn connect_config_view_signals(&self) {
+        self.imp().config_view.connect_closure(
+            "remote-url-changed",
+            false,
+            closure_local!(@watch self as win => move |
+            _branch_view: BagitRepositoryConfigView,
+            remote_url: &str,
+            | {
+                let selected_repository = win.imp().selected_repository.take();
+                win.imp().selected_repository.replace(
+                    SelectedRepository::try_fetching_selected_repository(
+                        &selected_repository.user_repository,
+                    )
+                    .unwrap(),
+                );
+
+                if selected_repository.git_repository.is_none() {
+                    return;
+                }
+                if let Err(error) = RepositoryUtils::set_remote_repository_url(
+                    &selected_repository.git_repository.unwrap(),
+                    remote_url
+                ) {
+                    win.emit_by_name::<()>("error", &[&error.to_string()]);
+                }
+            }),
+        );
+        self.imp().config_view.connect_closure(
+            "select-profile",
+            false,
+            closure_local!(@watch self as win => move |
+                _branch_view: BagitRepositoryConfigView,
+                profile_name: &str
+                | {
+                    win.select_profile(profile_name);
+                }
+            ),
+        );
+        self.imp().config_view.connect_closure(
+            "remove-profile",
+            false,
+            closure_local!(@watch self as win => move |
+                _branch_view: BagitRepositoryConfigView,
+                | {
+                    win.remove_profile();
+                }
+            ),
+        );
+        self.imp().config_view.connect_closure(
+            "update-git-config",
+            false,
+            closure_local!(@watch self as win => move |
+                _branch_view: BagitRepositoryConfigView,
+                | {
+                    win.update_git_config();
+                }
+            ),
         );
     }
 
@@ -715,7 +715,9 @@ impl BagitRepositoryPage {
         self.imp()
             .sidebar
             .init_commit_list(repository.user_repository.path.clone());
-        self.imp().commit_view.init_commit_view();
+
+        let all_profiles = self.imp().config_view.build_profiles_list();
+        self.imp().commit_view.init_commit_view(all_profiles);
 
         self.imp()
             .repository_name_label
@@ -745,15 +747,29 @@ impl BagitRepositoryPage {
                 Some(profile) => {
                     self.imp()
                         .commit_view
+                        .set_and_show_selected_profile(profile.clone());
+                    self.imp()
+                        .config_view
                         .set_and_show_selected_profile(profile);
                 }
-                None => self.imp().commit_view.show_no_selected_profile(),
+                None => {
+                    self.imp().commit_view.show_no_selected_profile();
+                    self.imp().config_view.show_no_selected_profile();
+                }
             }
         } else {
             self.imp().commit_view.show_no_selected_profile();
+            self.imp().config_view.show_no_selected_profile();
         }
 
+        let repo_path = repository.user_repository.path.clone();
+
         self.imp().selected_repository.replace(repository);
+
+        if let Ok(git_repo) = Repository::open(&repo_path) {
+            let remote_url = RepositoryUtils::get_remote_repository_url(&git_repo);
+            self.imp().config_view.set_remote_url(&remote_url);
+        }
 
         self.update_commits_sidebar();
         self.update_branch_name();
@@ -764,6 +780,7 @@ impl BagitRepositoryPage {
     pub fn update_repository_page(&self) {
         self.update_commits_sidebar();
         self.imp().commit_view.update_git_profiles_list();
+        self.imp().config_view.update_git_profiles_list();
         self.update_branch_name();
 
         self.imp()
@@ -840,6 +857,7 @@ impl BagitRepositoryPage {
         ));
     }
 
+    /// Update the branch name on the repository page.
     pub fn update_branch_name(&self) {
         let borrowed_repo = self.imp().selected_repository.borrow();
         match &borrowed_repo.git_repository {
@@ -1069,10 +1087,17 @@ impl BagitRepositoryPage {
                     .commit_view
                     .imp()
                     .profile_mode
+                    .replace(ProfileMode::SelectedProfile(new_profile.clone()));
+
+                self.imp()
+                    .config_view
+                    .imp()
+                    .profile_mode
                     .replace(ProfileMode::SelectedProfile(new_profile));
 
                 // We update the view:
                 self.imp().commit_view.update_git_profiles_list();
+                self.imp().config_view.update_git_profiles_list();
             }
             match RepositoryUtils::commit_files(
                 git_repository,
@@ -1153,14 +1178,6 @@ impl BagitRepositoryPage {
     }
 
     fn try_do_git_action_without_auth_check(&self, action_type: ActionType) {
-        let profile_mode = self.imp().commit_view.imp().profile_mode.take();
-
-        self.imp()
-            .commit_view
-            .imp()
-            .profile_mode
-            .replace(profile_mode.clone());
-
         // If we want to pull, we need to check that we don't have changed files:
         if action_type == ActionType::Pull && !self.check_if_can_pull() {
             let toast = adw::Toast::new(&gettext("_Changed files when pull"));
@@ -1196,13 +1213,7 @@ impl BagitRepositoryPage {
     /// The remote_branch_name parameter is used to delete a remote branch.
     pub fn do_git_action_with_auth_check(&self, action_type: ActionType, remote_branch_name: &str) {
         let selected_repository = self.get_selected_repository();
-        let profile_mode = self.imp().commit_view.imp().profile_mode.take();
-
-        self.imp()
-            .commit_view
-            .imp()
-            .profile_mode
-            .replace(profile_mode.clone());
+        let profile_mode = self.imp().config_view.get_profile_mode();
 
         // If we want to pull, we need to check that we don't have changed files:
         if action_type == ActionType::Pull && !self.check_if_can_pull() {
@@ -1898,5 +1909,120 @@ impl BagitRepositoryPage {
         } else {
             self.try_showing_file_content(&current_shown_file_info.0, &current_shown_file_info.1);
         }
+    }
+
+    /// Select a new profile and update the view of the selected profil on the commit view and config view.
+    /// The profile name is used to define which profile to save (the profile name is guaranteed to be unique).
+    fn select_profile(&self, profile_name: &str) {
+        let selected_profile;
+        let app_database = self.imp().app_database.take();
+
+        // We first need to retrieve the profile from the database.
+        match app_database.get_git_profile_from_name(profile_name) {
+            Ok(profile) => selected_profile = profile,
+            Err(error) => {
+                // TODO: Show error (maybe with a toast).
+
+                tracing::warn!("Could not get Git profile from name: {}", error);
+
+                return;
+            }
+        }
+
+        if selected_profile.is_some() {
+            let profile = selected_profile.unwrap();
+            let _ = match &self.imp().selected_repository.borrow().git_repository {
+                Some(repo) => RepositoryUtils::override_git_config_from_profile(&repo, &profile),
+                None => Ok({}),
+            };
+
+            self.imp()
+                .commit_view
+                .set_and_show_selected_profile(profile.clone());
+            self.imp()
+                .config_view
+                .set_and_show_selected_profile(profile.clone());
+
+            //...and we specify the new default profile used with the openned repository:
+            if let Err(error) = app_database.change_git_profile_of_repository(
+                self.imp()
+                    .selected_repository
+                    .borrow()
+                    .user_repository
+                    .repository_id,
+                Some(profile.profile_id),
+            ) {
+                tracing::warn!("Could not change Git profile of repository: {}", error);
+
+                let toast = adw::Toast::new(&gettext("_Could not change Git profile"));
+                self.imp().toast_overlay.add_toast(toast);
+            }
+
+            self.imp().commit_view.update_commit_view(
+                self.imp()
+                    .sidebar
+                    .imp()
+                    .changed_files
+                    .borrow()
+                    .get_number_of_selected_files(),
+            );
+        }
+
+        self.imp().app_database.replace(app_database);
+    }
+
+    /// Remove the profile linked to the repository and update the commit view.
+    /// It will also reset the git config information linked to the profile.
+    fn remove_profile(&self) {
+        let app_database = self.imp().app_database.take();
+
+        if let Err(error) = app_database.change_git_profile_of_repository(
+            self.imp()
+                .selected_repository
+                .borrow()
+                .user_repository
+                .repository_id,
+            None,
+        ) {
+            tracing::warn!("Could not change Git profile of repository: {}", error);
+
+            let toast = adw::Toast::new(&gettext("_Could not change Git profile"));
+            self.imp().toast_overlay.add_toast(toast);
+        }
+
+        self.imp().app_database.replace(app_database);
+
+        let _ = match &self.imp().selected_repository.borrow().git_repository {
+            Some(repo) => RepositoryUtils::reset_git_config_for_profile(&repo),
+            None => Ok({}),
+        };
+
+        self.imp().commit_view.show_no_selected_profile();
+        self.imp().config_view.show_no_selected_profile();
+        self.imp().commit_view.update_commit_view(
+            self.imp()
+                .sidebar
+                .imp()
+                .changed_files
+                .borrow()
+                .get_number_of_selected_files(),
+        );
+    }
+
+    /// Update the git config of the repository, based on the selected profile.
+    fn update_git_config(&self) {
+        let profile_mode = self.imp().config_view.get_profile_mode();
+        match profile_mode {
+            ProfileMode::SelectedProfile(profile) => {
+                match &self.imp().selected_repository.borrow().git_repository {
+                    Some(repository) => {
+                        RepositoryUtils::override_git_config_from_profile(&repository, &profile)
+                            .unwrap()
+                    }
+                    None => {}
+                };
+            }
+            _ => {}
+        };
     }
 }

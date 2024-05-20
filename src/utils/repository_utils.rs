@@ -180,8 +180,8 @@ impl RepositoryUtils {
         }
     }
 
-    /// Used to reset the git config of a repository.
-    pub fn reset_git_config(repository: &Repository) -> Result<(), git2::Error> {
+    /// Used to reset the git config of a repository about profile information.
+    pub fn reset_git_config_for_profile(repository: &Repository) -> Result<(), git2::Error> {
         let mut config = match repository.config() {
             Ok(config) => config,
             Err(error) => return Err(error),
@@ -215,8 +215,43 @@ impl RepositoryUtils {
         };
     }
 
+    /// Get the remote repository url (always from origin). If no url can be found, return an empty string
+    pub fn get_remote_repository_url(repository: &Repository) -> String {
+        let remote = repository.find_remote("origin");
+
+        if remote.is_err() {
+            return String::new();
+        }
+
+        let found_remote = remote.unwrap();
+        let url = found_remote.url();
+        match url {
+            Some(url_string) => String::from(url_string),
+            None => String::new(),
+        }
+    }
+
+    /// Set the remote repository url (the remote is always named origin)
+    pub fn set_remote_repository_url(
+        repository: &Repository,
+        remote_url: &str,
+    ) -> Result<(), git2::Error> {
+        let mut config = match repository.config() {
+            Ok(config) => config,
+            Err(error) => return Err(error),
+        };
+
+        if remote_url.is_empty() {
+            let _ = config.remove("remote.origin.url");
+            Ok(())
+        } else {
+            let _ = config.set_str("remote.origin.url", remote_url);
+            repository.remote_set_url("origin", remote_url)
+        }
+    }
+
     /// Used to write profile information to git config.
-    pub fn override_git_config(
+    pub fn override_git_config_from_profile(
         repository: &Repository,
         profile: &BagitGitProfile,
     ) -> Result<(), git2::Error> {

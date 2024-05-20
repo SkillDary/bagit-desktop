@@ -455,7 +455,7 @@ msgstr "Changes will be brought to"
 msgid "_Remote branch not found"
 msgstr "Branche distante non trouvée"
 
-############### bagit-branch-management-view.ui ####
+############### bagit-branch-management-view.ui #############
 
 msgid "_Branch management"
 msgstr "Branch management"
@@ -486,6 +486,17 @@ msgstr "Local"
 
 msgid "_Search a branch"
 msgstr "Search a branch"
+
+############# bagit-repository-config-view.ui ##############
+
+msgid "_Repository config"
+msgstr "Repository config"
+
+msgid "_Remote repository URL"
+msgstr "Remote repository URL"
+
+msgid "_Repository profile"
+msgstr "Repository profile"
 
 ############# git2 errors #############
 

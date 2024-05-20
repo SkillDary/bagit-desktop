@@ -244,7 +244,6 @@ impl BagitCommitView {
     pub fn set_profile_mode(&self, index: i32, profile_title: String) {
         match index {
             CommitViewProfileModeType::NO_PROFILE => {
-                self.show_no_selected_profile();
                 self.imp().obj().emit_by_name::<()>("remove-profile", &[]);
             }
             _ => {
@@ -256,27 +255,10 @@ impl BagitCommitView {
     }
 
     /// Used to initialize the commit view.
-    pub fn init_commit_view(&self) {
+    pub fn init_commit_view(&self, all_profiles: Vec<BagitGitProfile>) {
         self.clear_fields();
         self.clear_profiles_list(false);
         self.update_commit_view(0);
-
-        let all_profiles;
-
-        let app_database = self.imp().app_database.take();
-
-        match app_database.get_all_git_profiles() {
-            Ok(profiles) => all_profiles = profiles,
-            Err(error) => {
-                // TODO: Show error (maybe with a toast).
-
-                tracing::warn!("Could not get all Git profiles: {}", error);
-
-                return;
-            }
-        }
-
-        self.imp().app_database.replace(app_database);
 
         for profile in all_profiles {
             self.add_git_profile_row(&profile);
@@ -333,7 +315,7 @@ impl BagitCommitView {
     /**
      * Use to clear profiles list.
      */
-    pub fn clear_profiles_list(&self, unselect_all: bool) {
+    fn clear_profiles_list(&self, unselect_all: bool) {
         let mut row = self.imp().profiles_list.row_at_index(1);
         while row != None {
             self.imp().profiles_list.remove(&row.unwrap());
@@ -384,7 +366,7 @@ impl BagitCommitView {
      * Used to update the git profiles list.
      * This will do the following :
      * - Update the list (remove, add entries)
-     * - Check if the current selected profile si still valid. If not, will select no profile.
+     * - Check if the current selected profile is still valid. If not, will select no profile.
      */
     pub fn update_git_profiles_list(&self) {
         let profile_mode = self.imp().profile_mode.take();
