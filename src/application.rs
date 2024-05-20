@@ -108,7 +108,10 @@ impl BagitDesktopApplication {
             .developer_name("SkillDary")
             .version(VERSION)
             .developers(vec!["Tommy DI LUNA", "Noah PENIN"])
-            .copyright("© 2023-2024 SkillDary")
+            .copyright(
+                "© 2023-2024 SkillDary | AGPL-3.0-only
+            ",
+            )
             .build();
 
         about.present();
